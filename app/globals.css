@@ -923,3 +923,6 @@ svg.px{display:inline-block;vertical-align:-0.22em;flex:none;image-rendering:pix
 .wa-bot{display:flex;flex-direction:column;gap:8px}
 .wa-code{font-size:30px;font-weight:800;letter-spacing:.12em;text-align:center;padding:10px;border:2px dashed #25d366;border-radius:12px;font-family:ui-monospace,monospace}
 .wa-steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.wa-when{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:13px}
+.wa-when .input{width:auto;padding:4px 8px;font-size:13px}
+.linkish{background:none;border:0;padding:0;color:inherit;text-decoration:underline;cursor:pointer;font:inherit;display:inline-flex;align-items:center;gap:4px}

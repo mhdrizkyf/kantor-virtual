@@ -4,7 +4,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Px } from "./pixel-icon";
 import { GrowText } from "./auto-grow";
-import { findContact, normalizePhone, parseDraft, showPhone, waLink, withNote, type Contact } from "@/lib/whatsapp";
+import { findContact, normalizePhone, parseDraft, showPhone, waLink, withNote, fmtSendAt, type Contact } from "@/lib/whatsapp";
 
 export type Book = { contacts: Contact[]; note: string; me: string };
 
@@ -31,7 +31,8 @@ export async function saveContact(name: string, phone: string, oldName?: string)
 }
 
 // Status of the assistant's own WhatsApp number (shared by every card).
-export type Bot = { status: "missing" | "off" | "starting" | "code" | "ready" | "error"; code?: string; phone?: string; name?: string; error?: string };
+export type Queued = { id: string; phone: string; name: string; text: string; at: string; status: "waiting" | "sent" | "failed"; error?: string; sentAt?: string };
+export type Bot = { status: "missing" | "off" | "starting" | "code" | "ready" | "error"; code?: string; phone?: string; name?: string; error?: string; queue?: Queued[] };
 let bot: Bot | null = null;
 const botSubs = new Set<(b: Bot) => void>();
 export function setBot(b: Bot) { bot = b; botSubs.forEach(f => f(b)); }
@@ -62,10 +63,14 @@ export function WaPre(props: { node?: unknown; children?: ReactNode } & Record<s
   const isWa = Array.isArray(cls) ? cls.some(c => /^language-(whatsapp|wa)$/i.test(String(c))) : false;
   if (!isWa) return <pre {...rest}>{children}</pre>;
   const d = parseDraft(textOf(code));
-  return <WaCard to={d.to} text={d.text} />;
+  return <WaCard to={d.to} text={d.text} sendAt={d.sendAt} />;
 }
 
-function WaCard({ to, text }: { to: string; text: string }) {
+const pad = (n: number) => String(n).padStart(2, "0");
+const tomorrow9 = () => { const d = new Date(Date.now() + 864e5); return { date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`, time: "09:00" }; };
+
+function WaCard({ to, text, sendAt }: { to: string; text: string; sendAt: { date: string; time: string } | null }) {
+  const [when, setWhen] = useState(sendAt);
   const b = useBook();
   const assistant = useBot();
   const live = assistant?.status === "ready";
@@ -98,14 +103,18 @@ function WaCard({ to, text }: { to: string; text: string }) {
   const prevSent = who ? readSent(sentKey(who.phone, full)) : null;
   async function approve() {
     const phone = target(); if (!phone) return;
-    if ((sentAt || prevSent) && !confirm("This message was already sent. Send it again?")) return;
+    if ((sentAt || prevSent) && !confirm(`This message was already ${sentAt ?? prevSent}. Send it again?`)) return;
     setSending(true);
     try {
-      const j = await (await fetch("/api/wa", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "send", phone, text: full }) })).json();
+      const name = who?.name ?? newName.trim();
+      const body = when ? { action: "schedule", phone, name, text: full, ...when } : { action: "send", phone, text: full };
+      const j = await (await fetch("/api/wa", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })).json();
       if (j.error) throw new Error(j.error);
-      const at = new Date(j.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-      setSentAt(at);
-      try { localStorage.setItem(sentKey(phone, full), new Date(j.at).toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })); } catch { /* ignore */ }
+      const label = when ? `scheduled for ${fmtSendAt(when)}`
+        : `sent ${new Date(j.at).toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`;
+      setSentAt(label);
+      if (j.queue) setBot({ ...(bot ?? { status: "ready" }), queue: j.queue });
+      try { localStorage.setItem(sentKey(phone, full), label); } catch { /* ignore */ }
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
     setSending(false);
   }
@@ -135,15 +144,25 @@ function WaCard({ to, text }: { to: string; text: string }) {
       )}
       <GrowText className="input wa-text" value={full} onChange={e => setMsg(e.target.value)} maxPx={360} aria-label="Message" />
       {err && <div className="note bad">{err}</div>}
+      {live && (
+        <div className="wa-when">
+          {when ? <>
+            <Px name="clock" /> Send at
+            <input type="date" className="input" aria-label="Send date" value={when.date} onChange={e => setWhen({ ...when, date: e.target.value })} />
+            <input type="time" className="input" aria-label="Send time" value={when.time} onChange={e => setWhen({ ...when, time: e.target.value })} />
+            <button type="button" className="linkish" onClick={() => setWhen(null)}>Send now instead</button>
+          </> : <button type="button" className="linkish" onClick={() => setWhen(tomorrow9())}><Px name="clock" /> Send later…</button>}
+        </div>
+      )}
       {live ? (
         <div className="wa-row">
-          <span className="hint">{sentAt ? <><Px name="done" /> Sent from the assistant&apos;s number at {sentAt}.</>
-            : prevSent ? <><Px name="done" /> Already sent ({prevSent}).</>
-            : <>Sends from the assistant&apos;s number{assistant?.phone ? ` (+${assistant.phone})` : ""} once you approve.</>}</span>
+          <span className="hint">{sentAt ? <><Px name="done" /> {sentAt[0].toUpperCase() + sentAt.slice(1)} from the assistant&apos;s number.</>
+            : prevSent ? <><Px name="done" /> Already {prevSent}.</>
+            : <>Goes out from the assistant&apos;s number{assistant?.phone ? ` (+${assistant.phone})` : ""} {when ? "at that time" : "right away"} once you approve.</>}</span>
           <button type="button" className="btn sm" onClick={copy}>{copied ? <><Px name="done" /> Copied</> : <><Px name="clip" /> Copy</>}</button>
           <button type="button" className="btn sm" onClick={send} title="Open in your own WhatsApp instead">My WhatsApp</button>
           <button type="button" className="btn sm primary wa-go" onClick={approve} disabled={!b || sending}>
-            {sending ? <><span className="spinner sm" /> Sending…</> : <><Px name="done" /> {sentAt || prevSent ? "Send again" : "Approve & send"}</>}</button>
+            {sending ? <><span className="spinner sm" /> Sending…</> : <><Px name="done" /> {sentAt || prevSent ? "Send again" : when ? "Approve & schedule" : "Approve & send"}</>}</button>
         </div>
       ) : (
         <div className="wa-row">

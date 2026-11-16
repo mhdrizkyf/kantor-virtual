@@ -18,6 +18,10 @@ function AssistantNumber() {
     const t = setInterval(() => loadBot().catch(() => {}), 2000);
     return () => clearInterval(t);
   }, [waiting]);
+  async function cancel(id: string) {
+    const j = await (await fetch("/api/wa", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "cancel", id }) })).json();
+    if (j.error) setErr(j.error); else if (bot) setBot({ ...bot, queue: j.queue });
+  }
   async function act(action: "connect" | "disconnect") {
     if (action === "disconnect" && !confirm("Unlink the assistant's WhatsApp number from this computer?")) return;
     setBusy(true); setErr(null);
@@ -56,6 +60,19 @@ function AssistantNumber() {
         <p className="hint">This page updates by itself once it&apos;s linked. The code changes every few minutes.</p>
       </>}
       {err && <div className="note bad">{err}</div>}
+      {!!bot?.queue?.length && <>
+        <h3 className="sect">Scheduled messages</h3>
+        <ul className="rm-list">
+          {bot.queue.map(q => (
+            <li key={q.id}>
+              <span className="rm-ic"><Px name={q.status === "sent" ? "done" : q.status === "failed" ? "failed" : "clock"} /></span>
+              <span className="rm-t"><b>{q.name || "+" + q.phone}</b>
+                <small>{q.status === "waiting" ? "Sends " : q.status === "sent" ? "Sent " : "Failed "}{new Date(q.status === "waiting" ? q.at : q.sentAt ?? q.at).toLocaleString([], { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}{q.error ? ` · ${q.error}` : ""} · {q.text.split("\n").filter(Boolean).slice(-1)[0]?.slice(0, 60)}</small></span>
+              {q.status === "waiting" && <button className="btn sm" onClick={() => cancel(q.id)} aria-label={`Cancel message to ${q.name}`}>Cancel</button>}
+            </li>
+          ))}
+        </ul>
+      </>}
     </section>
   );
 }

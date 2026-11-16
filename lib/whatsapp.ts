@@ -28,14 +28,24 @@ export function findContact(list: Contact[], to: string) {
     ?? null;
 }
 
-/** Split a ```whatsapp block into recipient and message. */
+/** Split a ```whatsapp block into recipient, optional send time ("Send at: YYYY-MM-DD HH:MM") and message. */
 export function parseDraft(block: string) {
   const lines = block.replace(/\s+$/, "").split("\n");
-  const m = lines[0]?.match(/^\s*(?:to|kepada|untuk|recipient)\s*:\s*(.+)$/i);
-  const to = m ? m[1].trim() : "";
-  const text = (m ? lines.slice(1) : lines).join("\n").trim();
-  return { to, text };
+  let to = "", date = "", time = "";
+  while (lines.length) {
+    const t = lines[0].match(/^\s*(?:to|kepada|untuk|recipient)\s*:\s*(.+)$/i);
+    const w = lines[0].match(/^\s*(?:send at|kirim(?: pada)?|schedule)\s*:\s*(\d{4}-\d{2}-\d{2})(?:[ T]+(\d{1,2}[:.]\d{2}))?/i);
+    if (t && !to) to = t[1].trim();
+    else if (w && !date) { date = w[1]; time = (w[2] ?? "09:00").replace(".", ":").padStart(5, "0"); }
+    else break;
+    lines.shift();
+  }
+  return { to, text: lines.join("\n").trim(), sendAt: date ? { date, time } : null };
 }
+export const fmtSendAt = (s: { date: string; time: string }) => {
+  const d = new Date(`${s.date}T00:00:00`);
+  return `${d.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" })}, ${s.time}`;
+};
 
 export const DEFAULT_NOTE = "🤖 _Pesan ini dikirim oleh virtual assistant {me}._";
 export const withNote = (note: string, me: string, text: string) => {
@@ -49,13 +59,17 @@ export const WA_MARKER = "## Kantor Virtual WhatsApp drafts";
 const F = "```";
 export const AGENT_WHATSAPP = `
 ${WA_MARKER}
-When you draft a message that the member will send to someone on WhatsApp, put each message in its own block like this, so Virtual Office shows a "Send via WhatsApp" button:
+Virtual Office can send WhatsApp messages for the member. When the member asks you to message someone on WhatsApp (now or at a set time), write each message in its own block like this:
 
 ${F}whatsapp
 To: <recipient's name, as the member calls them>
+Send at: YYYY-MM-DD HH:MM   (only if it should go out later; ${process.env.KANTOR_TIMEZONE || "Asia/Jakarta"} time, 24-hour)
 <the message, exactly as it should be sent>
 ${F}
 
+Virtual Office turns each block into a card with an "Approve & send" button. When the member presses it, the message is sent from their assistant's own WhatsApp number (or at the "Send at" time). If no assistant number is linked, the card opens the member's own WhatsApp instead.
+- You don't need a tool or the multica CLI to send WhatsApp, and never say you can't send it. Say the drafts are ready and the member can press "Approve & send" on each card.
+- Virtual Office keeps the phone numbers. Don't ask the member for phone numbers; the card asks if one is missing.
 - One block per recipient. Only the message goes inside the block; put your explanations outside it.
-- Don't sign it as the member and don't add a note about who sent it: Virtual Office adds a line saying it comes from the member's virtual assistant.
-- You can't send WhatsApp messages yourself. The member checks the text and presses Send.`;
+- Virtual Office already adds a first line saying the message comes from the member's virtual assistant, so don't introduce yourself again or sign it as the member.
+- Don't create a reminder task to send WhatsApp later; use "Send at" instead.`;

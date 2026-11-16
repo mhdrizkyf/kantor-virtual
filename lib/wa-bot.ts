@@ -2,7 +2,8 @@
 // Messages only go out when a person presses "Approve & send" in Virtual Office.
 // The login is kept in data/wa-session/ on this computer (git-ignored). Optional: needs `npm install whatsapp-web.js`.
 import "server-only";
-import { existsSync, rmSync } from "node:fs";
+import { existsSync, rmSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { normalizePhone } from "./whatsapp";
 
@@ -103,3 +104,50 @@ export function botSend(phone: string, text: string) {
 export async function autoStartBot() {
   if (hasSession() && (await lib())) await startBot().catch(e => console.warn("[whatsapp]", String(e).slice(0, 200)));
 }
+
+// ---- Scheduled messages: approved now, sent at a set time (data/wa-queue.json) ----
+export type Queued = { id: string; phone: string; name: string; text: string; at: string; status: "waiting" | "sent" | "failed" | "cancelled"; error?: string; sentAt?: string };
+const QUEUE = join(process.cwd(), "data", "wa-queue.json");
+const readQueue = (): Queued[] => { try { return JSON.parse(readFileSync(QUEUE, "utf8")); } catch { return []; } };
+const writeQueue = (q: Queued[]) => {
+  mkdirSync(join(process.cwd(), "data"), { recursive: true });
+  const weekAgo = Date.now() - 7 * 864e5; // keep sent/failed ones for a week
+  writeFileSync(QUEUE, JSON.stringify(q.filter(x => x.status === "waiting" || Date.parse(x.sentAt ?? x.at) > weekAgo), null, 2));
+};
+export const listQueue = () => readQueue().filter(x => x.status !== "cancelled").sort((a, b) => a.at.localeCompare(b.at));
+
+export function scheduleSend(phone: string, name: string, text: string, at: Date) {
+  const to = normalizePhone(phone);
+  if (!to) throw new Error("That phone number doesn't look right.");
+  if (at.getTime() < Date.now() - 60_000) throw new Error("That time has already passed.");
+  const item: Queued = { id: randomUUID(), phone: to, name, text, at: at.toISOString(), status: "waiting" };
+  writeQueue([...readQueue(), item]);
+  return item;
+}
+export function cancelQueued(id: string) {
+  const q = readQueue();
+  const it = q.find(x => x.id === id);
+  if (!it || it.status !== "waiting") throw new Error("That message isn't waiting any more.");
+  it.status = "cancelled"; writeQueue(q);
+}
+
+let running = false;
+/** Send the scheduled messages whose time has come (runs every minute while the app is open). */
+export async function runDueSends() {
+  if (running || box.state.status !== "ready") return;
+  running = true;
+  try {
+    for (const it of readQueue().filter(x => x.status === "waiting" && Date.parse(x.at) <= Date.now())) {
+      let r: Partial<Queued>;
+      try { await botSend(it.phone, it.text); r = { status: "sent", sentAt: new Date().toISOString() }; }
+      catch (e) { r = { status: "failed", error: String(e instanceof Error ? e.message : e).slice(0, 200), sentAt: new Date().toISOString() }; }
+      const q = readQueue(); const cur = q.find(x => x.id === it.id);
+      if (cur && cur.status === "waiting") { Object.assign(cur, r); writeQueue(q); }
+      console.log("[whatsapp]", r.status, "to", it.name || it.phone);
+    }
+  } finally { running = false; }
+}
+
+// Check for scheduled messages every minute, once per server (started when this module first loads).
+const timers = globalThis as unknown as { __kantorWaTimer?: ReturnType<typeof setInterval> };
+timers.__kantorWaTimer ??= setInterval(() => { runDueSends().catch(e => console.warn("[whatsapp]", String(e).slice(0, 200))); }, 60_000);
