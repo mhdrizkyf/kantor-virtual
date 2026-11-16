@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { inviteMember, createAgent, loadDirectory, updateAgent, workspace, me } from "@/lib/multica";
+import { inviteMember, createAgent, loadDirectory, updateAgent, workspace, me, call_ } from "@/lib/multica";
 import { AGENT_REPORT_FORMAT, FORMAT_MARKER } from "@/lib/digest";
 import { AGENT_REMINDERS, REMIND_MARKER } from "@/lib/reminders";
 
@@ -42,13 +42,53 @@ export async function POST(req: Request) {
   }
 }
 
-/** Switch an agent to another AI engine. */
+/** The Kantor Virtual blocks (report format, reminders) stay at the end of an agent's instructions and are not shown for editing. */
+const MARKERS = [FORMAT_MARKER, REMIND_MARKER];
+function splitInstructions(full: string) {
+  const at = Math.min(...MARKERS.map(m => full.indexOf(m)).filter(i => i >= 0), full.length);
+  return { own: full.slice(0, at).trimEnd(), tail: full.slice(at) };
+}
+const withBlocks = (own: string, tail: string) => {
+  let t = tail;
+  if (!t.includes(FORMAT_MARKER)) t += "\n" + AGENT_REPORT_FORMAT;
+  if (!t.includes(REMIND_MARKER)) t += "\n" + AGENT_REMINDERS;
+  return own.trimEnd() + "\n\n" + t.trimStart();
+};
+type Full = { name: string; description: string | null; instructions: string | null; avatar_url: string | null };
+
+/** An agent's editable profile: GET /api/crew?ws=…&agentId=… */
+export async function GET(req: Request) {
+  const u = new URL(req.url).searchParams;
+  try {
+    const ws = await workspace(u.get("ws"));
+    const a = await call_<Full>("GET", `/api/agents/${u.get("agentId")}`, ws.id);
+    const emoji = a.avatar_url?.startsWith("emoji:") ? a.avatar_url.slice(6) : null;
+    return NextResponse.json({ name: a.name, bio: a.description ?? "", instructions: splitInstructions(a.instructions ?? "").own, emoji, hasPhoto: !!a.avatar_url && !emoji });
+  } catch (e) {
+    return NextResponse.json({ error: String(e instanceof Error ? e.message : e) }, { status: 500 });
+  }
+}
+
+/** Switch an agent to another AI engine, or edit its profile ({ profile: { name, bio, instructions, emoji } }). */
 export async function PATCH(req: Request) {
-  const b = (await req.json()) as { ws?: string; agentId: string; runtimeId: string };
+  const b = (await req.json()) as { ws?: string; agentId: string; runtimeId?: string; profile?: { name?: string; bio?: string; instructions?: string; emoji?: string | null } };
   try {
     const ws = await workspace(b.ws ?? null);
     const dir = await loadDirectory(ws.id);
     if (!dir.agents.some(a => a.id === b.agentId)) return NextResponse.json({ error: "Agent not found." }, { status: 404 });
+    if (b.profile) {
+      const p = b.profile;
+      const name = (p.name ?? "").trim();
+      if (!name) return NextResponse.json({ error: "The agent needs a name." }, { status: 400 });
+      if (dir.agents.some(a => a.id !== b.agentId && a.name.toLowerCase() === name.toLowerCase())) return NextResponse.json({ error: `There is already an agent called ${name}.` }, { status: 400 });
+      const cur = await call_<Full>("GET", `/api/agents/${b.agentId}`, ws.id);
+      const { tail } = splitInstructions(cur.instructions ?? "");
+      const patch: Record<string, unknown> = { name, description: (p.bio ?? "").trim(), instructions: withBlocks((p.instructions ?? "").trim(), tail) };
+      if (p.emoji) patch.avatar_url = `emoji:${p.emoji}`;
+      await updateAgent(ws.id, b.agentId, patch);
+      return NextResponse.json({ ok: true, message: `${name}'s profile is saved.` });
+    }
+    if (!b.runtimeId) return NextResponse.json({ error: "Nothing to change." }, { status: 400 });
     const rt = dir.runtimes.find(r => r.id === b.runtimeId);
     if (!rt) return NextResponse.json({ error: "AI engine not found." }, { status: 404 });
     const mine = await me();

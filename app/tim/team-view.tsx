@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { Team, Mate, Load } from "@/lib/crew";
@@ -8,6 +9,7 @@ import ThemeToggle from "../theme-toggle";
 import ChatPanel, { isManager } from "../chat-panel";
 import { openChat } from "../messages";
 import { Px, Emo, PxText, StateIcon, type PxName } from "../pixel-icon";
+import { GrowText } from "../auto-grow";
 
 const LEVEL: Record<Load["level"], { icon: PxName; label: string; tip: string }> = {
   santai: { icon: "dot-on", label: "Free", tip: "no open tasks" },
@@ -46,6 +48,7 @@ function Engine({ m, team, onSaved }: { m: Mate; team: Team; onSaved: (msg: stri
 
 function MateCard({ m, team, onOpenTask, onChat, onToast }: { m: Mate; team: Team; onOpenTask: (id: string) => void; onChat?: () => void; onToast: (s: string) => void }) {
   const [open, setOpen] = useState(false);
+  const [edit, setEdit] = useState(false);
   const L = m.load;
   const seg = (n: number) => `${L.open ? (n / L.open) * 100 : 0}%`;
   const openTasks = m.tasks.filter(t => t.col !== "done");
@@ -82,6 +85,7 @@ function MateCard({ m, team, onOpenTask, onChat, onToast }: { m: Mate; team: Tea
       <div className="mate-actions">
         {openTasks.length > 0 && <button className="btn sm" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? "Hide tasks" : <><Px name="todo" /> {openTasks.length} open task{openTasks.length > 1 ? "s" : ""}</>}</button>}
         {onChat && <button className="btn sm" onClick={onChat}><Px name="chat" /> Chat</button>}
+        {m.kind === "agent" && <button className="btn sm" onClick={() => setEdit(true)}><Px name="gear" /> Edit profile</button>}
         {m.kind === "human" && !m.isMe && <button className="btn sm" onClick={() => openChat(m.id)}><Px name="chat" /> Message</button>}
       </div>
       {open && (
@@ -97,8 +101,68 @@ function MateCard({ m, team, onOpenTask, onChat, onToast }: { m: Mate; team: Tea
           ))}
         </div>
       )}
+      {edit && <EditAgent m={m} team={team} onDone={msg => { setEdit(false); if (msg) onToast(msg); }} />}
     </article>
   );
+}
+
+type Profile = { name: string; bio: string; instructions: string; emoji: string | null; hasPhoto: boolean };
+
+/** Edit an agent's name, avatar, short bio and responsibilities (its working instructions). */
+function EditAgent({ m, team, onDone }: { m: Mate; team: Team; onDone: (msg: string | null) => void }) {
+  const [p, setP] = useState<Profile | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    fetch(`/api/crew?ws=${team.workspaceId}&agentId=${m.id}`).then(r => r.json())
+      .then(j => { if (j.error) throw new Error(j.error); setP(j); }).catch(e => setErr(String(e.message ?? e)));
+  }, [m.id, team.workspaceId]);
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => { if (e.key === "Escape") onDone(null); };
+    addEventListener("keydown", k); return () => removeEventListener("keydown", k);
+  }, [onDone]);
+  const set = (k: keyof Profile, v: string) => setP(cur => cur && { ...cur, [k]: v });
+  async function save() {
+    if (!p) return;
+    setBusy(true); setErr(null);
+    try {
+      const j = await (await fetch("/api/crew", { method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ws: team.workspaceId, agentId: m.id, profile: { name: p.name, bio: p.bio, instructions: p.instructions, emoji: p.emoji } }) })).json();
+      if (j.error) throw new Error(j.error);
+      onDone(j.message);
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)); } finally { setBusy(false); }
+  }
+  const emojis = p?.emoji && !EMOJIS.includes(p.emoji) ? [p.emoji, ...EMOJIS] : EMOJIS;
+  return createPortal(
+    <>
+      <div className="scrim" onClick={() => onDone(null)} />
+      <form className="modal editagent" role="dialog" aria-modal="true" aria-label={`Edit ${m.name}`} onSubmit={e => { e.preventDefault(); save(); }}>
+        <h2><Px name="gear" /> Edit {m.name}</h2>
+        {!p && !err && <div className="loading"><span className="spinner" /> Loading profile…</div>}
+        {p && (
+          <>
+            <label className="sect" htmlFor="ea-name">Name</label>
+            <input id="ea-name" className="input" value={p.name} onChange={e => set("name", e.target.value)} maxLength={80} />
+            {!p.hasPhoto && <>
+              <div className="sect">Avatar</div>
+              <div className="emojipick">{emojis.map(x => <button type="button" key={x} aria-pressed={p.emoji === x} onClick={() => set("emoji", x)} aria-label={x}><Emo e={x} /></button>)}</div>
+            </>}
+            <label className="sect" htmlFor="ea-bio">Short bio</label>
+            <GrowText id="ea-bio" className="input" rows={2} maxPx={160} value={p.bio} onChange={e => set("bio", e.target.value)} maxLength={300}
+              placeholder="One or two lines shown on their card, e.g. Supports the whole research team: coaching, competency framework, team issues" />
+            <label className="sect" htmlFor="ea-instr">Responsibilities and how they work</label>
+            <GrowText id="ea-instr" className="input" rows={8} maxPx={420} value={p.instructions} onChange={e => set("instructions", e.target.value)}
+              placeholder="Who they are, what they are responsible for, how they should work and reply." />
+            <p className="hint">This is what the agent reads before every task, so changes apply from their next task or chat. The Virtual Office report and reminder rules are kept automatically.</p>
+          </>
+        )}
+        {err && <div className="note bad">{err}</div>}
+        <div className="row">
+          <button type="button" className="btn" onClick={() => onDone(null)}>Cancel</button>
+          <button className="btn primary" disabled={!p || busy || !p.name.trim()}>{busy ? <><span className="spinner sm" /> Saving…</> : <><Px name="done" /> Save</>}</button>
+        </div>
+      </form>
+    </>, document.body);
 }
 
 const EMOJIS = ["🦊", "🐼", "🦉", "🐙", "🦄", "🐝", "🐢", "🦜", "🐳", "🦁", "🐨", "🤖"];

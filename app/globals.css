@@ -905,3 +905,5 @@ svg.px{display:inline-block;vertical-align:-0.22em;flex:none;image-rendering:pix
 }
 .ch-agentbtn h2{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media (max-width: 760px){ .ch-agentbtn h2{font-size:16px} .ch-agentbtn .avatar{width:36px;height:36px} }
+.modal.editagent{width:min(720px,calc(100% - 32px))}
+.modal.editagent textarea{resize:none;line-height:1.5;font:inherit}
