@@ -16,3 +16,4 @@ public/me/
 
 # WhatsApp contacts: stay on this computer
 data/contacts.json
+data/wa-session/

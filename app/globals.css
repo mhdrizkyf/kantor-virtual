@@ -920,3 +920,6 @@ svg.px{display:inline-block;vertical-align:-0.22em;flex:none;image-rendering:pix
 .wa-row .hint{flex:1;min-width:160px}
 .btn.primary.wa-go{background:#25d366;border-color:#128c4a;color:#06371b}
 @media (max-width:560px){.wa-new{grid-template-columns:1fr}}
+.wa-bot{display:flex;flex-direction:column;gap:8px}
+.wa-code{font-size:30px;font-weight:800;letter-spacing:.12em;text-align:center;padding:10px;border:2px dashed #25d366;border-radius:12px;font-family:ui-monospace,monospace}
+.wa-steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}

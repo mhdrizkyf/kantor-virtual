@@ -7,3 +7,6 @@ const tick = () => runWatchdog()
 
 setTimeout(tick, 20_000);
 setInterval(tick, 5 * 60_000);
+
+// The assistant's WhatsApp number (if linked before): reconnect when the app starts.
+setTimeout(() => { import("./lib/wa-bot").then(m => m.autoStartBot()).catch(() => {}); }, 5_000);

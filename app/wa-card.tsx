@@ -30,6 +30,25 @@ export async function saveContact(name: string, phone: string, oldName?: string)
   setBook({ ...j, me: book?.me ?? "me" });
 }
 
+// Status of the assistant's own WhatsApp number (shared by every card).
+export type Bot = { status: "missing" | "off" | "starting" | "code" | "ready" | "error"; code?: string; phone?: string; name?: string; error?: string };
+let bot: Bot | null = null;
+const botSubs = new Set<(b: Bot) => void>();
+export function setBot(b: Bot) { bot = b; botSubs.forEach(f => f(b)); }
+export const loadBot = () => fetch("/api/wa").then(r => r.json()).then((j: Bot) => { setBot(j); return j; });
+export function useBot() {
+  const [b, setB] = useState<Bot | null>(bot);
+  useEffect(() => { botSubs.add(setB); loadBot().catch(() => {}); return () => { botSubs.delete(setB); }; }, []);
+  return b;
+}
+
+// Remember what was already sent from here, so reopening a chat doesn't invite a second send.
+const sentKey = (phone: string, text: string) => {
+  let h = 0; for (const ch of phone + "|" + text) h = (h * 31 + ch.charCodeAt(0)) | 0;
+  return "kantor-wa-sent:" + h;
+};
+const readSent = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
+
 const textOf = (n: unknown): string => {
   const x = n as { type?: string; value?: string; children?: unknown[] };
   return x.type === "text" ? x.value ?? "" : (x.children ?? []).map(textOf).join("");
@@ -48,6 +67,10 @@ export function WaPre(props: { node?: unknown; children?: ReactNode } & Record<s
 
 function WaCard({ to, text }: { to: string; text: string }) {
   const b = useBook();
+  const assistant = useBot();
+  const live = assistant?.status === "ready";
+  const [sending, setSending] = useState(false);
+  const [sentAt, setSentAt] = useState<string | null>(null);
   const match = b ? findContact(b.contacts, to) : null;
   const [pick, setPick] = useState<string | null>(null); // a contact chosen by hand
   const [newName, setNewName] = useState(to);
@@ -59,16 +82,32 @@ function WaCard({ to, text }: { to: string; text: string }) {
   const who = b?.contacts.find(c => c.name === pick) ?? match;
   const full = msg ?? (b ? withNote(b.note, b.me, text) : text);
 
-  async function send() {
+  function target() {
     setErr(null);
-    let phone = who?.phone ?? null;
-    if (!who) {
-      phone = normalizePhone(newPhone);
-      if (!phone) { setErr("Add a phone number first, e.g. 0812… or +62 812…."); return; }
-      if (newName.trim()) saveContact(newName.trim(), newPhone).catch(e => setErr(`Opened WhatsApp, but couldn't save the contact: ${e.message}`));
-    }
-    window.open(waLink(phone!, full), "_blank", "noopener");
+    if (who) return who.phone;
+    const phone = normalizePhone(newPhone);
+    if (!phone) { setErr("Add a phone number first, e.g. 0812… or +62 812…."); return null; }
+    if (newName.trim()) saveContact(newName.trim(), newPhone).catch(e => setErr(`Couldn't save the contact: ${e.message}`));
+    return phone;
+  }
+  function send() {
+    const phone = target(); if (!phone) return;
+    window.open(waLink(phone, full), "_blank", "noopener");
     setSent(true);
+  }
+  const prevSent = who ? readSent(sentKey(who.phone, full)) : null;
+  async function approve() {
+    const phone = target(); if (!phone) return;
+    if ((sentAt || prevSent) && !confirm("This message was already sent. Send it again?")) return;
+    setSending(true);
+    try {
+      const j = await (await fetch("/api/wa", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "send", phone, text: full }) })).json();
+      if (j.error) throw new Error(j.error);
+      const at = new Date(j.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      setSentAt(at);
+      try { localStorage.setItem(sentKey(phone, full), new Date(j.at).toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })); } catch { /* ignore */ }
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+    setSending(false);
   }
   async function copy() {
     try { await navigator.clipboard.writeText(full); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { setErr("Couldn't copy. Select the text and copy it instead."); }
@@ -96,11 +135,23 @@ function WaCard({ to, text }: { to: string; text: string }) {
       )}
       <GrowText className="input wa-text" value={full} onChange={e => setMsg(e.target.value)} maxPx={360} aria-label="Message" />
       {err && <div className="note bad">{err}</div>}
-      <div className="wa-row">
-        <span className="hint">{sent ? <><Px name="done" /> Opened in WhatsApp. Press Send there.</> : "Opens your WhatsApp with this text. Nothing is sent until you press Send."}</span>
-        <button type="button" className="btn sm" onClick={copy}>{copied ? <><Px name="done" /> Copied</> : <><Px name="clip" /> Copy</>}</button>
-        <button type="button" className="btn sm primary wa-go" onClick={send} disabled={!b}><Px name="chat" /> {sent ? "Open again" : "Send via WhatsApp"}</button>
-      </div>
+      {live ? (
+        <div className="wa-row">
+          <span className="hint">{sentAt ? <><Px name="done" /> Sent from the assistant&apos;s number at {sentAt}.</>
+            : prevSent ? <><Px name="done" /> Already sent ({prevSent}).</>
+            : <>Sends from the assistant&apos;s number{assistant?.phone ? ` (+${assistant.phone})` : ""} once you approve.</>}</span>
+          <button type="button" className="btn sm" onClick={copy}>{copied ? <><Px name="done" /> Copied</> : <><Px name="clip" /> Copy</>}</button>
+          <button type="button" className="btn sm" onClick={send} title="Open in your own WhatsApp instead">My WhatsApp</button>
+          <button type="button" className="btn sm primary wa-go" onClick={approve} disabled={!b || sending}>
+            {sending ? <><span className="spinner sm" /> Sending…</> : <><Px name="done" /> {sentAt || prevSent ? "Send again" : "Approve & send"}</>}</button>
+        </div>
+      ) : (
+        <div className="wa-row">
+          <span className="hint">{sent ? <><Px name="done" /> Opened in WhatsApp. Press Send there.</> : "Opens your WhatsApp with this text. Nothing is sent until you press Send."}</span>
+          <button type="button" className="btn sm" onClick={copy}>{copied ? <><Px name="done" /> Copied</> : <><Px name="clip" /> Copy</>}</button>
+          <button type="button" className="btn sm primary wa-go" onClick={send} disabled={!b}><Px name="chat" /> {sent ? "Open again" : "Send via WhatsApp"}</button>
+        </div>
+      )}
     </div>
   );
 }
