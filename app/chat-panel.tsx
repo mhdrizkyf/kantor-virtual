@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import { WaPre } from "./wa-card";
 import { GrowText } from "./auto-grow";
 import { useDraft, writeDraft } from "./drafts";
 import remarkGfm from "remark-gfm";
@@ -11,7 +12,7 @@ import { Px, Emo, PxSpan, rehypePx, type PxName } from "./pixel-icon";
 type Session = { id: string; agentId: string; title: string; updatedAt: string; unread: number; last: string };
 type Msg = { id: string; mine: boolean; text: string; when: string; failed: string | null; files: { id: string; name: string; url: string }[] };
 
-const md = (t: string) => <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypePx]} components={{ a: (p) => <a {...p} target="_blank" rel="noreferrer" />, span: PxSpan }}>{t}</ReactMarkdown>;
+const md = (t: string) => <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypePx]} components={{ a: (p) => <a {...p} target="_blank" rel="noreferrer" />, span: PxSpan, pre: WaPre }}>{t}</ReactMarkdown>;
 
 /** Name of the office-manager agent. Set per install with NEXT_PUBLIC_KANTOR_MANAGER. */
 export const MANAGER = process.env.NEXT_PUBLIC_KANTOR_MANAGER?.trim() || "Mika";

@@ -1,14 +1,16 @@
 // Adds the Kantor Virtual blocks to every agent's instructions:
 // - the report format (## Summary / ## Questions), so the task pop-up can show a summary and question cards
 // - how to set a Telegram reminder (see lib/reminders.ts)
+// - how to write a WhatsApp draft so it gets a Send button (see lib/whatsapp.ts)
 // Safe to run again: agents that already have it are skipped. Use --dry to only list what would change.
 //   npm run agents:format -- --dry
 //   npm run agents:format
 import { workspaces, loadDirectory, updateAgent, call_ } from "../lib/multica";
 import { AGENT_REPORT_FORMAT, FORMAT_MARKER } from "../lib/digest";
 import { AGENT_REMINDERS, REMIND_MARKER } from "../lib/reminders";
+import { AGENT_WHATSAPP, WA_MARKER } from "../lib/whatsapp";
 
-const BLOCKS = [[FORMAT_MARKER, AGENT_REPORT_FORMAT, "report format"], [REMIND_MARKER, AGENT_REMINDERS, "reminders"]] as const;
+const BLOCKS = [[FORMAT_MARKER, AGENT_REPORT_FORMAT, "report format"], [REMIND_MARKER, AGENT_REMINDERS, "reminders"], [WA_MARKER, AGENT_WHATSAPP, "WhatsApp drafts"]] as const;
 
 const dry = process.argv.includes("--dry");
 

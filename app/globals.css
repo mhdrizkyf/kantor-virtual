@@ -907,3 +907,16 @@ svg.px{display:inline-block;vertical-align:-0.22em;flex:none;image-rendering:pix
 @media (max-width: 760px){ .ch-agentbtn h2{font-size:16px} .ch-agentbtn .avatar{width:36px;height:36px} }
 .modal.editagent{width:min(720px,calc(100% - 32px))}
 .modal.editagent textarea{resize:none;line-height:1.5;font:inherit}
+/* WhatsApp draft card */
+.wa-card{border:2px solid #25d366;border-radius:12px;padding:10px 12px;margin:8px 0;display:flex;flex-direction:column;gap:8px;background:color-mix(in srgb,#25d366 7%,var(--panel))}
+.wa-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.wa-head small{opacity:.7}
+.wa-ic{display:inline-flex;color:#128c4a}
+.wa-pick{margin-left:auto;width:auto;max-width:180px;padding:4px 8px;font-size:13px}
+.wa-new{display:grid;grid-template-columns:1fr 1.4fr;gap:6px}
+.wa-new .hint{grid-column:1/-1}
+.wa-text{resize:none;line-height:1.5;font:inherit;white-space:pre-wrap}
+.wa-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.wa-row .hint{flex:1;min-width:160px}
+.btn.primary.wa-go{background:#25d366;border-color:#128c4a;color:#06371b}
+@media (max-width:560px){.wa-new{grid-template-columns:1fr}}

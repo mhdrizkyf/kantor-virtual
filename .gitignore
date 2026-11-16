@@ -13,3 +13,6 @@ notes/
 
 # Your own office character (frames + character.json); stays on this computer
 public/me/
+
+# WhatsApp contacts: stay on this computer
+data/contacts.json

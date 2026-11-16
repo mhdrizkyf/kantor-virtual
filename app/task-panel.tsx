@@ -2,6 +2,7 @@
 // Task pop-up: the agent's output on the left, "your part" on the right (summary, question cards, instructions, actions).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import { WaPre } from "./wa-card";
 import remarkGfm from "remark-gfm";
 import type { TaskDetail } from "@/lib/detail";
 import FilePicker, { uploadAll } from "./file-picker";
@@ -13,7 +14,7 @@ import { answersToText } from "@/lib/digest";
 import { useAutoGrow } from "./auto-grow";
 import { useDraft } from "./drafts";
 
-const md = (text: string) => <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypePx]} urlTransform={keepMentionUrl} components={{ a: mentionLink, span: PxSpan }}>{text}</ReactMarkdown>;
+const md = (text: string) => <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypePx]} urlTransform={keepMentionUrl} components={{ a: mentionLink, span: PxSpan, pre: WaPre }}>{text}</ReactMarkdown>;
 const POLL_MS = 4000;
 type Tab = "chat" | "files" | "brief";
 
