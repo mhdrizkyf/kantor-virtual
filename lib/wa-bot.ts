@@ -25,15 +25,17 @@ const SESSION = join(process.cwd(), "data", "wa-session");
 const CHROME = process.env.KANTOR_CHROME || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const GAP_MS = 20_000; // space messages out a little, like a person would
 
+let libError = "";
 async function lib(): Promise<{ Client: new (o: object) => WaClient; LocalAuth: new (o: object) => unknown } | null> {
   try {
     const m = await import(/* webpackIgnore: true */ "whatsapp-web.js" as string);
     return (m.default ?? m) as never;
-  } catch { return null; }
+  } catch (e) { libError = String(e instanceof Error ? e.message : e).slice(0, 300); return null; }
 }
 
 export async function botState(): Promise<BotState> {
-  if (box.state.status === "off" && !(await lib())) return { status: "missing" };
+  if (box.state.status === "missing") box.state = { status: "off" };
+  if (box.state.status === "off" && !(await lib())) return { status: "missing", error: libError };
   return box.state;
 }
 export const hasSession = () => existsSync(SESSION);
