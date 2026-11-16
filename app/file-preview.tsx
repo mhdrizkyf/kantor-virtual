@@ -5,7 +5,7 @@ import remarkGfm from "remark-gfm";
 import { Px, PxSpan, rehypePx, type PxName } from "./pixel-icon";
 
 type F = { id: string; name: string; url: string };
-type Kind = "image" | "pdf" | "html" | "table" | "doc" | "text" | "other";
+type Kind = "image" | "pdf" | "html" | "table" | "doc" | "text" | "slides" | "word" | "sheet" | "other";
 
 const ext = (n: string) => n.toLowerCase().split(".").pop() ?? "";
 export function kindOf(name: string): Kind {
@@ -16,10 +16,14 @@ export function kindOf(name: string): Kind {
   if (["csv", "tsv"].includes(e)) return "table";
   if (["md", "markdown"].includes(e)) return "doc";
   if (["txt", "json", "log", "yaml", "yml"].includes(e)) return "text";
+  if (e === "pptx") return "slides";
+  if (e === "docx") return "word";
+  if (e === "xlsx") return "sheet";
   return "other";
 }
-export const ICON: Record<Kind, PxName> = { image: "image", pdf: "pdf", html: "web", table: "chart", doc: "file", text: "file", other: "clip" };
-const LABEL: Record<Kind, string> = { image: "Image", pdf: "PDF", html: "Web page", table: "Table", doc: "Document", text: "Text", other: "File" };
+export const ICON: Record<Kind, PxName> = { image: "image", pdf: "pdf", html: "web", table: "chart", doc: "file", text: "file", slides: "board", word: "file", sheet: "chart", other: "clip" };
+const LABEL: Record<Kind, string> = { image: "Image", pdf: "PDF", html: "Web page", table: "Table", doc: "Document", text: "Text", slides: "PowerPoint", word: "Word", sheet: "Excel", other: "File" };
+const OFFICE: Kind[] = ["slides", "word", "sheet"];
 
 function parseTable(text: string, sep: string): string[][] {
   const rows: string[][] = []; let row: string[] = []; let cell = ""; let q = false;
@@ -38,16 +42,19 @@ function parseTable(text: string, sep: string): string[][] {
 function Body({ f, kind, tall }: { f: F; kind: Kind; tall?: boolean }) {
   const [text, setText] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const needsText = kind === "html" || kind === "table" || kind === "doc" || kind === "text";
+  const office = OFFICE.includes(kind);
+  const needsText = kind === "html" || kind === "table" || kind === "doc" || kind === "text" || office;
   useEffect(() => {
     if (!needsText) return;
-    fetch(`${f.url}&mode=text`).then(async r => { if (!r.ok) throw new Error(await r.text()); return r.text(); }).then(setText).catch(e => setErr(String(e.message ?? e)));
-  }, [f.url, needsText]);
+    fetch(office ? `${f.url}&mode=office&name=${encodeURIComponent(f.name)}` : `${f.url}&mode=text`).then(async r => { if (!r.ok) throw new Error(await r.text()); return r.text(); }).then(setText).catch(e => setErr(String(e.message ?? e)));
+  }, [f.url, f.name, needsText, office]);
   const h = tall ? "75vh" : 360;
   if (kind === "image") return <img src={f.url} alt={f.name} className="pv-img" />;
   if (kind === "pdf") return <iframe title={f.name} src={f.url} className="pv-frame" style={{ height: h }} />;
   if (err) return <p className="desc">Preview unavailable ({err.slice(0, 80)}). Download the file to open it.</p>;
   if (needsText && text === null) return <div className="loading"><span className="spinner sm" /> Loading preview…</div>;
+  // Office files come back as a static page; the empty sandbox blocks scripts, forms and links.
+  if (office) return <iframe title={f.name} srcDoc={text!} sandbox="" className="pv-frame" style={{ height: tall ? "78vh" : kind === "slides" ? 460 : h, background: "#eceaf0" }} />;
   if (kind === "html") return <iframe title={f.name} srcDoc={text!} sandbox="allow-scripts" className="pv-frame" style={{ height: h, background: "#fff" }} />;
   if (kind === "table") {
     const rows = parseTable(text!, ext(f.name) === "tsv" ? "\t" : ",");
@@ -66,9 +73,9 @@ function Body({ f, kind, tall }: { f: F; kind: Kind; tall?: boolean }) {
 }
 
 /** Kartu lampiran dengan pratinjau seperti di Claude: halaman web, tabel, dokumen, gambar, PDF. */
-export default function FilePreview({ f }: { f: F }) {
+export default function FilePreview({ f, startOpen }: { f: F; startOpen?: boolean }) {
   const kind = kindOf(f.name);
-  const [open, setOpen] = useState(kind === "image" || kind === "html" || kind === "table" || kind === "doc");
+  const [open, setOpen] = useState(startOpen ?? (kind === "image" || kind === "html" || kind === "table" || kind === "doc" || OFFICE.includes(kind)));
   const [full, setFull] = useState(false);
   return (
     <div className="pv">

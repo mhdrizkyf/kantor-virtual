@@ -1,6 +1,7 @@
 "use client";
 // Person-to-person chat: a list of teammates, then the conversation with one of them.
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useDraft } from "./drafts";
 import ReactMarkdown from "react-markdown";
 import { GrowText } from "./auto-grow";
 import remarkGfm from "remark-gfm";
@@ -33,6 +34,10 @@ export default function Messages({ ws, start, onClose, onUnread }: { ws: string;
   const [found, setFound] = useState<{ q: string; people: DmPerson[] } | null>(null);
   const body = useRef<HTMLDivElement>(null);
   const other = people?.find(p => p.userId === withId) ?? null;
+  // Unsent message per person stays as a draft in this browser.
+  const draft = useMemo(() => ({ text }), [text]);
+  const restore = useCallback((v: { text: string }) => setText(v.text ?? ""), []);
+  useDraft(withId ? `dm:${withId}` : null, draft, restore, { text: "" }, v => !v.text.trim());
 
   const loadPeople = useCallback(async () => {
     const j = await (await fetch(`/api/dm?ws=${ws}`)).json();

@@ -1,7 +1,8 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { GrowText } from "./auto-grow";
+import { useDraft, writeDraft } from "./drafts";
 import remarkGfm from "remark-gfm";
 import FilePicker, { uploadAll } from "./file-picker";
 import FilePreview from "./file-preview";
@@ -60,6 +61,11 @@ export default function ChatPanel({ ws, agent: start, laptopOn, onClose, onMakeT
   const body = useRef<HTMLDivElement>(null);
   const [showHelp, setShowHelp] = useState(false);
   const isMika = isManager(agent.name);
+  // Unsent text is kept per chat (and per agent for a new chat), so closing the pop-up loses nothing.
+  const draftKey = sid ? `chat:${sid}` : `chat:new:${agent.id}`;
+  const draft = useMemo(() => ({ text }), [text]);
+  const restore = useCallback((v: { text: string }) => setText(v.text ?? ""), []);
+  useDraft(draftKey, draft, restore, { text: "" }, v => !v.text.trim());
 
   useEffect(() => {
     fetch(`/api/chat?ws=${ws}`).then(r => r.json()).then(j => {
@@ -106,7 +112,9 @@ export default function ChatPanel({ ws, agent: start, laptopOn, onClose, onMakeT
         const title = content.trim().split("\n")[0].slice(0, 60) || "New chat";
         const r = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ws, agentId: agent.id, title }) });
         const j = await r.json(); if (j.error) throw new Error(j.error);
-        id = j.id as string; setSid(id);
+        id = j.id as string;
+        writeDraft(`chat:new:${agent.id}`, null); writeDraft(`chat:${id}`, { text: content }); // the draft moves to the new chat
+        setSid(id);
         setSessions(s => [{ id: id!, agentId: agent.id, title, updatedAt: new Date().toISOString(), unread: 0, last: "" }, ...(s ?? [])]);
       }
       const fileIds = files.length ? await uploadAll(files, ws) : [];

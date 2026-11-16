@@ -1,4 +1,5 @@
 import { fileRaw, fileText } from "@/lib/multica";
+import { officeToHtml } from "@/lib/office-preview";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,13 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   try {
     if (u.searchParams.get("mode") === "text") {
       return new Response(await fileText(ws, id), { headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "private, max-age=60" } });
+    }
+    // PowerPoint / Word / Excel: turned into a static web page (no scripts), shown in a sandboxed frame.
+    if (u.searchParams.get("mode") === "office") {
+      const raw = await fileRaw(ws, id);
+      if (!raw.ok) return new Response("File tidak bisa dibuka.", { status: raw.status || 500 });
+      const html = officeToHtml(u.searchParams.get("name") ?? "", Buffer.from(await raw.arrayBuffer()));
+      return new Response(html, { headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "private, max-age=300", "X-Content-Type-Options": "nosniff" } });
     }
     const res = await fileRaw(ws, id);
     if (!res.ok || !res.body) return new Response("File tidak bisa dibuka.", { status: res.status || 500 });

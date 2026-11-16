@@ -1,6 +1,6 @@
 "use client";
 // Task pop-up: the agent's output on the left, "your part" on the right (summary, question cards, instructions, actions).
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { TaskDetail } from "@/lib/detail";
@@ -11,6 +11,7 @@ import MentionBox, { mentionLink, keepMentionUrl } from "./mention-box";
 import { encodeMentions, type Mentionable } from "@/lib/mentions";
 import { answersToText } from "@/lib/digest";
 import { useAutoGrow } from "./auto-grow";
+import { useDraft } from "./drafts";
 
 const md = (text: string) => <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypePx]} urlTransform={keepMentionUrl} components={{ a: mentionLink, span: PxSpan }}>{text}</ReactMarkdown>;
 const POLL_MS = 4000;
@@ -55,7 +56,21 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
   }, [id, ws, onChanged]);
 
   useEffect(() => { setD(null); setErr(null); lastCount.current = 0; load().catch(e => setErr(String(e))); }, [load]);
-  useEffect(() => { setAnswers({}); }, [d?.digest?.messageId]);
+  // Unsent feedback and answers stay as a draft in this browser, so closing the pop-up loses nothing.
+  type Draft = { text: string; answers: Record<number, Ans>; mid: string | null };
+  const mid = d?.digest?.messageId ?? null;
+  const [draftMid, setDraftMid] = useState<string | null>(null);
+  const draft = useMemo<Draft>(() => ({ text, answers, mid: mid ?? draftMid }), [text, answers, mid, draftMid]);
+  const restore = useCallback((v: Draft) => { setText(v.text ?? ""); setAnswers(v.answers ?? {}); setDraftMid(v.mid ?? null); }, []);
+  useDraft<Draft>(`task:${id}`, draft, restore, { text: "", answers: {}, mid: null }, v => !v.text.trim() && !Object.values(v.answers).some(a => ansText(a)));
+  // Answers belong to one set of questions: when the agent posts new questions, start fresh.
+  const prevMid = useRef<string | null>(null);
+  useEffect(() => {
+    if (!mid) return;
+    const before = prevMid.current ?? draftMid;
+    if (before && before !== mid) setAnswers({});
+    prevMid.current = mid;
+  }, [mid, draftMid]);
 
   // Files you have already seen (stored in this browser). The first time a task opens, everything counts as seen.
   useEffect(() => {
@@ -150,6 +165,7 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
   const fresh = seen ? d.artifacts.filter(a => !seen.has(a.id)).length : 0;
   const canSend = !!text.trim() || files.length > 0 || answered > 0;
   const dg = d.digest;
+  const lastFilesMsg = [...d.messages].reverse().find(m => m.files.length > 0)?.id ?? null;
 
   return (
     <div className="taskmodal" role="dialog" aria-modal="true" aria-label={d.title}>
@@ -170,10 +186,12 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
                   <div key={m.id} id={`m-${m.id}`} className={`msg ${m.whoKind === "member" ? "me" : "bot"} ${dg?.messageId === m.id ? "hl" : ""}`}>
                     <div className="from"><span>{m.emoji ? <><Emo e={m.emoji} /> </> : null}{m.who}</span><span>{m.when}</span></div>
                     {m.text && <div className="md">{md(m.text)}</div>}
-                    {(m.images.length > 0 || m.files.length > 0) && (
+                    {/* The newest files are previewed right here in the conversation, so revisions can be checked without leaving. */}
+                    {m.id === lastFilesMsg && m.files.map(f => <FilePreview key={f.id} f={f} />)}
+                    {(m.images.length > 0 || (m.files.length > 0 && m.id !== lastFilesMsg)) && (
                       <div className="minifiles">
                         {m.images.map(f => <button key={f.id} className="mini-img" onClick={() => { setPick(f.id); setTab("files"); }} title={`View ${f.name}`}><img src={f.url} alt={f.name} /></button>)}
-                        {m.files.map(f => <button key={f.id} className="chip" onClick={() => { setPick(f.id); setTab("files"); }}><Px name="clip" /> {f.name}</button>)}
+                        {m.id !== lastFilesMsg && m.files.map(f => <button key={f.id} className="chip" onClick={() => { setPick(f.id); setTab("files"); }}><Px name="clip" /> {f.name}</button>)}
                       </div>
                     )}
                   </div>
