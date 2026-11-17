@@ -960,3 +960,6 @@ svg.px{display:inline-block;vertical-align:-0.22em;flex:none;image-rendering:pix
 @media (max-width:760px){.kf{grid-template-columns:1fr}.kf-side{position:static;flex-direction:row;overflow-x:auto;padding-bottom:4px}.kf-who{flex:none;max-width:220px}}
 .kf-pick{max-height:46vh;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:2px 8px}
 .kf-linked .kf-ic{background:var(--attn-soft)}
+.wa-when select.input{width:auto;padding-block:3px}
+.wa-pending.waiting .hint{color:var(--ok)}
+.wa-pending.failed .hint{color:var(--wait)}

@@ -31,16 +31,18 @@ export function findContact(list: Contact[], to: string) {
 /** Split a ```whatsapp block into recipient, optional send time ("Send at: YYYY-MM-DD HH:MM") and message. */
 export function parseDraft(block: string) {
   const lines = block.replace(/\s+$/, "").split("\n");
-  let to = "", date = "", time = "";
+  let to = "", date = "", time = "", whenDone = false;
   while (lines.length) {
     const t = lines[0].match(/^\s*(?:to|kepada|untuk|recipient)\s*:\s*(.+)$/i);
     const w = lines[0].match(/^\s*(?:send at|kirim(?: pada)?|schedule)\s*:\s*(\d{4}-\d{2}-\d{2})(?:[ T]+(\d{1,2}[:.]\d{2}))?/i);
-    if (t && !to) to = t[1].trim();
+    const d = lines[0].match(/^\s*(?:send when|kirim saat|send after)\s*:\s*(?:this )?(?:task )?(?:is )?(?:done|selesai|finished|complete[d]?)\b/i);
+    if (d) whenDone = true;
+    else if (t && !to) to = t[1].trim();
     else if (w && !date) { date = w[1]; time = (w[2] ?? "09:00").replace(".", ":").padStart(5, "0"); }
     else break;
     lines.shift();
   }
-  return { to, text: lines.join("\n").trim(), sendAt: date ? { date, time } : null };
+  return { to, text: lines.join("\n").trim(), sendAt: date ? { date, time } : null, whenDone };
 }
 export const fmtSendAt = (s: { date: string; time: string }) => {
   const d = new Date(`${s.date}T00:00:00`);
@@ -66,6 +68,19 @@ To: <recipient's name, as the member calls them>
 Send at: YYYY-MM-DD HH:MM   (only if it should go out later; ${process.env.KANTOR_TIMEZONE || "Asia/Jakarta"} time, 24-hour)
 <the message, exactly as it should be sent>
 ${F}
+
+When the member wants a message to go out once a task is finished ("kirim WA kalau sudah selesai", "send it when this is done"), use \`Send when: done\` instead of \`Send at\`:
+
+${F}whatsapp
+To: <recipient's name>
+Send when: done
+<the message>
+${F}
+
+- Write that draft at the START, in your first reply on that task, so the member can approve it before the work is finished. Never wait until the end to show it.
+- Put it on the task whose completion should trigger the message. The member presses "Approve, send when done" once; Virtual Office then sends it by itself the moment that task's status becomes done (no second click). If the task is cancelled, nothing is sent.
+- When the work is finished and the only step left is this pre-approved message, set the task to done yourself, and say the message will go out automatically. Don't post the draft again at the end.
+- If the facts in the message change before the task is done, post an updated draft and tell the member to approve the new card (and cancel the old one).
 
 Virtual Office turns each block into a card with an "Approve & send" button. When the member presses it, the message is sent from their assistant's own WhatsApp number (or at the "Send at" time). If no assistant number is linked, the card opens the member's own WhatsApp instead.
 - You don't need a tool or the multica CLI to send WhatsApp, and never say you can't send it. Say the drafts are ready and the member can press "Approve & send" on each card.

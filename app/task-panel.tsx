@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { GrowText } from "./auto-grow";
-import { WaPre } from "./wa-card";
+import { WaPre, WaTask } from "./wa-card";
 import remarkGfm from "remark-gfm";
 import type { TaskDetail } from "@/lib/detail";
 import FilePicker, { uploadAll } from "./file-picker";
@@ -171,6 +171,7 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
   const lastFilesMsg = [...d.messages].reverse().find(m => m.files.length > 0)?.id ?? null;
 
   return (
+    <WaTask.Provider value={{ id, ws, title: d.title }}>
     <div className="taskmodal" role="dialog" aria-modal="true" aria-label={d.title}>
       {head}
       <div className="tp-grid">
@@ -336,6 +337,7 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
         </section>
       </div>
     </div>
+    </WaTask.Provider>
   );
 }
 

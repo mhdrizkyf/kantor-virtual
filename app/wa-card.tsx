@@ -1,7 +1,7 @@
 "use client";
 // "Send via WhatsApp" card for drafts an agent writes in a ```whatsapp block.
 // It opens your own WhatsApp with the message filled in; you press Send there.
-import { useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { Px } from "./pixel-icon";
 import { GrowText } from "./auto-grow";
 import { findContact, normalizePhone, parseDraft, showPhone, waLink, withNote, fmtSendAt, type Contact } from "@/lib/whatsapp";
@@ -31,7 +31,10 @@ export async function saveContact(name: string, phone: string, oldName?: string)
 }
 
 // Status of the assistant's own WhatsApp number (shared by every card).
-export type Queued = { id: string; phone: string; name: string; text: string; at: string; status: "waiting" | "sent" | "failed"; error?: string; sentAt?: string };
+export type Queued = { id: string; phone: string; name: string; text: string; at: string; status: "waiting" | "sent" | "failed"; error?: string; sentAt?: string; trigger?: { issueId: string; ws: string; title: string } };
+
+/** The task a card sits on (set by the task pop-up), so a message can wait for that task to be done. */
+export const WaTask = createContext<{ id: string; ws: string; title: string } | null>(null);
 export type Bot = { status: "missing" | "off" | "starting" | "code" | "ready" | "error"; code?: string; phone?: string; name?: string; error?: string; queue?: Queued[] };
 let bot: Bot | null = null;
 const botSubs = new Set<(b: Bot) => void>();
@@ -63,14 +66,16 @@ export function WaPre(props: { node?: unknown; children?: ReactNode } & Record<s
   const isWa = Array.isArray(cls) ? cls.some(c => /^language-(whatsapp|wa)$/i.test(String(c))) : false;
   if (!isWa) return <pre {...rest}>{children}</pre>;
   const d = parseDraft(textOf(code));
-  return <WaCard to={d.to} text={d.text} sendAt={d.sendAt} />;
+  return <WaCard to={d.to} text={d.text} sendAt={d.sendAt} whenDone={d.whenDone} />;
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const tomorrow9 = () => { const d = new Date(Date.now() + 864e5); return { date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`, time: "09:00" }; };
 
-function WaCard({ to, text, sendAt }: { to: string; text: string; sendAt: { date: string; time: string } | null }) {
-  const [when, setWhen] = useState(sendAt);
+type When = { date: string; time: string } | "done" | null;
+function WaCard({ to, text, sendAt, whenDone }: { to: string; text: string; sendAt: { date: string; time: string } | null; whenDone: boolean }) {
+  const task = useContext(WaTask);
+  const [when, setWhen] = useState<When>(whenDone && task ? "done" : sendAt);
   const b = useBook();
   const assistant = useBot();
   const live = assistant?.status === "ready";
@@ -101,20 +106,37 @@ function WaCard({ to, text, sendAt }: { to: string; text: string; sendAt: { date
     setSent(true);
   }
   const prevSent = who ? readSent(sentKey(who.phone, full)) : null;
-  async function approve() {
+  // Approved earlier to go out when this task is done: show where it stands.
+  const pending = task && who ? assistant?.queue?.find(q => q.trigger?.issueId === task.id && q.phone === who.phone && q.text === full) : undefined;
+  useEffect(() => {
+    if (pending?.status !== "waiting") return;
+    const t = setInterval(() => { loadBot().catch(() => {}); }, 30_000);
+    return () => clearInterval(t);
+  }, [pending?.status]);
+  async function cancelPending() {
+    if (!pending) return;
+    const j = await (await fetch("/api/wa", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "cancel", id: pending.id }) })).json();
+    if (j.error) { setErr(j.error); return; }
+    setBot({ ...(bot ?? { status: "ready" }), queue: j.queue });
+    setSentAt(null);
+    try { if (who) localStorage.removeItem(sentKey(who.phone, full)); } catch { /* ignore */ }
+  }
+  async function approve(w: When = when) {
     const phone = target(); if (!phone) return;
     if ((sentAt || prevSent) && !confirm(`This message was already ${sentAt ?? prevSent}. Send it again?`)) return;
     setSending(true);
     try {
       const name = who?.name ?? newName.trim();
-      const body = when ? { action: "schedule", phone, name, text: full, ...when } : { action: "send", phone, text: full };
+      const body = w === "done" ? { action: "when-done", phone, name, text: full, issueId: task?.id, ws: task?.ws, title: task?.title }
+        : w ? { action: "schedule", phone, name, text: full, ...w } : { action: "send", phone, text: full };
       const j = await (await fetch("/api/wa", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })).json();
       if (j.error) throw new Error(j.error);
-      const label = when ? `scheduled for ${fmtSendAt(when)}`
+      const label = w === "done" ? "approved to go out when this task is done"
+        : w ? `scheduled for ${fmtSendAt(w)}`
         : `sent ${new Date(j.at).toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`;
       setSentAt(label);
       if (j.queue) setBot({ ...(bot ?? { status: "ready" }), queue: j.queue });
-      try { localStorage.setItem(sentKey(phone, full), label); } catch { /* ignore */ }
+      if (w !== "done") try { localStorage.setItem(sentKey(phone, full), label); } catch { /* ignore */ }
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
     setSending(false);
   }
@@ -144,25 +166,41 @@ function WaCard({ to, text, sendAt }: { to: string; text: string; sendAt: { date
       )}
       <GrowText className="input wa-text" value={full} onChange={e => setMsg(e.target.value)} maxPx={360} aria-label="Message" />
       {err && <div className="note bad">{err}</div>}
-      {live && (
+      {live && !pending && (
         <div className="wa-when">
-          {when ? <>
-            <Px name="clock" /> Send at
+          <Px name="clock" />
+          <select className="input" aria-label="When to send" value={when === "done" ? "done" : when ? "later" : "now"}
+            onChange={e => setWhen(e.target.value === "done" ? "done" : e.target.value === "later" ? (when && when !== "done" ? when : tomorrow9()) : null)}>
+            <option value="now">Send right away</option>
+            <option value="later">Send at a set time</option>
+            {task && <option value="done">Send when this task is done</option>}
+          </select>
+          {when && when !== "done" && <>
             <input type="date" className="input" aria-label="Send date" value={when.date} onChange={e => setWhen({ ...when, date: e.target.value })} />
             <input type="time" className="input" aria-label="Send time" value={when.time} onChange={e => setWhen({ ...when, time: e.target.value })} />
-            <button type="button" className="linkish" onClick={() => setWhen(null)}>Send now instead</button>
-          </> : <button type="button" className="linkish" onClick={() => setWhen(tomorrow9())}><Px name="clock" /> Send later…</button>}
+          </>}
         </div>
       )}
-      {live ? (
+      {pending ? (
+        <div className={`wa-row wa-pending ${pending.status}`}>
+          <span className="hint">
+            {pending.status === "waiting" ? <><Px name="done" /> Approved. It goes out from the assistant&apos;s number as soon as this task is done.</>
+              : pending.status === "sent" ? <><Px name="done" /> Sent {new Date(pending.sentAt ?? pending.at).toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}, when the task was done.</>
+              : <><Px name="alert" /> Couldn&apos;t send when the task was done: {pending.error}</>}
+          </span>
+          {pending.status === "waiting" && <button type="button" className="btn sm" onClick={cancelPending}>Cancel</button>}
+          {pending.status === "failed" && <button type="button" className="btn sm primary wa-go" onClick={() => { setWhen(null); approve(null); }} disabled={sending}><Px name="done" /> Send now</button>}
+        </div>
+      ) : live ? (
         <div className="wa-row">
           <span className="hint">{sentAt ? <><Px name="done" /> {sentAt[0].toUpperCase() + sentAt.slice(1)} from the assistant&apos;s number.</>
             : prevSent ? <><Px name="done" /> Already {prevSent}.</>
+            : when === "done" ? <>Approve once now. It then goes out from the assistant&apos;s number by itself as soon as this task is done.</>
             : <>Goes out from the assistant&apos;s number{assistant?.phone ? ` (+${assistant.phone})` : ""} {when ? "at that time" : "right away"} once you approve.</>}</span>
           <button type="button" className="btn sm" onClick={copy}>{copied ? <><Px name="done" /> Copied</> : <><Px name="clip" /> Copy</>}</button>
           <button type="button" className="btn sm" onClick={send} title="Open in your own WhatsApp instead">My WhatsApp</button>
-          <button type="button" className="btn sm primary wa-go" onClick={approve} disabled={!b || sending}>
-            {sending ? <><span className="spinner sm" /> Sending…</> : <><Px name="done" /> {sentAt || prevSent ? "Send again" : when ? "Approve & schedule" : "Approve & send"}</>}</button>
+          <button type="button" className="btn sm primary wa-go" onClick={() => approve()} disabled={!b || sending}>
+            {sending ? <><span className="spinner sm" /> Sending…</> : <><Px name="done" /> {sentAt || prevSent ? "Send again" : when === "done" ? "Approve, send when done" : when ? "Approve & schedule" : "Approve & send"}</>}</button>
         </div>
       ) : (
         <div className="wa-row">

@@ -7,6 +7,7 @@ import { randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
 import { join } from "node:path";
 import { normalizePhone } from "./whatsapp";
+import { call_, workspace } from "./multica";
 
 export type BotState = {
   status: "missing" | "off" | "starting" | "code" | "ready" | "error";
@@ -139,7 +140,9 @@ export async function autoStartBot() {
 }
 
 // ---- Scheduled messages: approved now, sent at a set time (data/wa-queue.json) ----
-export type Queued = { id: string; phone: string; name: string; text: string; at: string; status: "waiting" | "sent" | "failed" | "cancelled"; error?: string; sentAt?: string };
+/** `trigger`: approved in advance, sent as soon as that task is done (instead of at a time). */
+export type Trigger = { issueId: string; ws: string; title: string };
+export type Queued = { id: string; phone: string; name: string; text: string; at: string; status: "waiting" | "sent" | "failed" | "cancelled"; error?: string; sentAt?: string; trigger?: Trigger };
 const QUEUE = join(process.cwd(), "data", "wa-queue.json");
 const readQueue = (): Queued[] => { try { return JSON.parse(readFileSync(QUEUE, "utf8")); } catch { return []; } };
 const writeQueue = (q: Queued[]) => {
@@ -149,11 +152,14 @@ const writeQueue = (q: Queued[]) => {
 };
 export const listQueue = () => readQueue().filter(x => x.status !== "cancelled").sort((a, b) => a.at.localeCompare(b.at));
 
-export function scheduleSend(phone: string, name: string, text: string, at: Date) {
+export function scheduleSend(phone: string, name: string, text: string, at: Date, trigger?: Trigger) {
   const to = normalizePhone(phone);
   if (!to) throw new Error("That phone number doesn't look right.");
-  if (at.getTime() < Date.now() - 60_000) throw new Error("That time has already passed.");
-  const item: Queued = { id: randomUUID(), phone: to, name, text, at: at.toISOString(), status: "waiting" };
+  if (!trigger && at.getTime() < Date.now() - 60_000) throw new Error("That time has already passed.");
+  // Approving the same message for the same task twice keeps one.
+  const dup = trigger && readQueue().find(x => x.status === "waiting" && x.trigger?.issueId === trigger.issueId && x.phone === to && x.text === text);
+  if (dup) return dup;
+  const item: Queued = { id: randomUUID(), phone: to, name, text, at: at.toISOString(), status: "waiting", ...(trigger ? { trigger } : {}) };
   writeQueue([...readQueue(), item]);
   return item;
 }
@@ -170,7 +176,25 @@ export async function runDueSends() {
   if (running || box.state.status !== "ready") return;
   running = true;
   try {
-    for (const it of readQueue().filter(x => x.status === "waiting" && Date.parse(x.at) <= Date.now())) {
+    // Messages approved for "when this task is done": look up each task once.
+    const status = new Map<string, string>();
+    for (const it of readQueue().filter(x => x.status === "waiting" && x.trigger)) {
+      const t = it.trigger!;
+      if (status.has(t.issueId)) continue;
+      try {
+        const ws = await workspace(t.ws);
+        const i = await call_<{ status: string }>("GET", `/api/issues/${t.issueId}`, ws.id);
+        status.set(t.issueId, i.status);
+      } catch (e) { if (/→ 404/.test(String(e))) status.set(t.issueId, "deleted"); }
+    }
+    const gone = readQueue().filter(x => x.status === "waiting" && x.trigger && ["cancelled", "deleted"].includes(status.get(x.trigger.issueId) ?? ""));
+    if (gone.length) {
+      const q = readQueue();
+      for (const g2 of gone) { const cur = q.find(x => x.id === g2.id); if (cur) Object.assign(cur, { status: "cancelled", error: "The task was cancelled, so the message wasn't sent.", sentAt: new Date().toISOString() }); }
+      writeQueue(q);
+    }
+    const due = (x: Queued) => x.status === "waiting" && (x.trigger ? status.get(x.trigger.issueId) === "done" : Date.parse(x.at) <= Date.now());
+    for (const it of readQueue().filter(due)) {
       let r: Partial<Queued>;
       try { await botSend(it.phone, it.text); r = { status: "sent", sentAt: new Date().toISOString() }; }
       catch (e) { r = { status: "failed", error: String(e instanceof Error ? e.message : e).slice(0, 200), sentAt: new Date().toISOString() }; }
