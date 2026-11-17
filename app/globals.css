@@ -307,8 +307,7 @@ a.btn{text-decoration:none;display:inline-block}
 @media (prefers-reduced-motion:reduce){.spinner,.dots i{animation:none}}
 /* lampiran */
 .picker{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-.picker-warn{flex-basis:100%;display:flex;align-items:center;gap:6px;font-size:12.5px;color:#9a3412;background:#fff7ed;border:1px solid #fdba74;border-radius:8px;padding:4px 8px}
-@media (prefers-color-scheme:dark){.picker-warn{color:#fdba74;background:#3b1d0a;border-color:#9a3412}}
+.picker-warn{flex-basis:100%;display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink);background:var(--wait-soft);border:1px solid var(--wait);border-radius:8px;padding:4px 8px}
 .picker-warn .chipx{margin-left:auto}
 .chipx{border:0;background:none;padding:0 0 0 6px;font-size:11px;color:var(--muted);cursor:pointer}
 /* siapa online */
@@ -931,3 +930,33 @@ svg.px{display:inline-block;vertical-align:-0.22em;flex:none;image-rendering:pix
 .linkish{background:none;border:0;padding:0;color:inherit;text-decoration:underline;cursor:pointer;font:inherit;display:inline-flex;align-items:center;gap:4px}
 .live-closed{color:var(--ink);border:1px solid var(--ok);background:var(--ok-soft)}
 .reopen{display:flex;flex-direction:column;gap:8px}.reopen .row{display:flex;justify-content:flex-end}.reopen textarea{resize:none;font:inherit;line-height:1.5}
+
+/* Knowledge & Files */
+.kf>*{min-width:0}
+.kf{display:grid;grid-template-columns:260px minmax(0,1fr);gap:16px;align-items:start;margin-top:12px}
+.kf-side{display:flex;flex-direction:column;gap:6px;position:sticky;top:12px}
+.kf-who{display:flex;align-items:center;gap:10px;text-align:left;border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:8px 10px;color:var(--ink)}
+.kf-who[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);box-shadow:var(--shadow)}
+.kf-who .avatar.sm{width:32px;height:32px;font-size:17px;border-width:2px;box-shadow:none;flex:none}
+.kf-wt{display:flex;flex-direction:column;min-width:0}.kf-wt b{font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.kf-wt small{color:var(--muted);font-size:11.5px}
+.kf-main{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;min-height:320px;display:flex;flex-direction:column;gap:10px}
+.kf-main.drag{border-style:dashed;border-color:var(--accent)}
+.kf-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.kf-main .hint{margin:0;color:var(--muted);font-size:12.5px}
+.kf-crumbs{font-size:13px;color:var(--muted)}.kf-crumbs b{color:var(--ink)}
+.kf-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.kf-list li{display:flex;align-items:center;gap:6px;border-top:1px solid var(--line);padding:6px 0}
+.kf-list li:first-child{border-top:0}
+.kf-name{flex:1;min-width:0;display:flex;align-items:center;gap:10px;background:none;border:0;padding:4px;text-align:left;color:var(--ink);border-radius:8px}
+.kf-name:hover{background:var(--sunk)}
+.kf-ic{width:30px;height:30px;display:grid;place-items:center;background:var(--sunk);border-radius:8px;flex:none}
+.kf-nt{display:flex;flex-direction:column;min-width:0}.kf-nt b{font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.kf-nt small{color:var(--muted);font-size:11.5px}
+.btn.ghost{border-color:transparent;background:none}
+.kf-empty{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;color:var(--muted);padding:40px 16px;font-size:13.5px}
+.kf-empty p{max-width:420px;margin:0}
+.kf-drop{position:absolute;inset:0;display:grid;place-items:center;background:color-mix(in srgb,var(--panel) 85%,transparent);border-radius:14px;font-weight:700;pointer-events:none}
+.modal.kf-view{width:min(980px,calc(100% - 32px));z-index:31}
+.kf-vhead{display:flex;justify-content:space-between;align-items:center;gap:8px}.kf-vhead b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:760px){.kf{grid-template-columns:1fr}.kf-side{position:static;flex-direction:row;overflow-x:auto;padding-bottom:4px}.kf-who{flex:none;max-width:220px}}
+.kf-pick{max-height:46vh;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:2px 8px}
+.kf-linked .kf-ic{background:var(--attn-soft)}

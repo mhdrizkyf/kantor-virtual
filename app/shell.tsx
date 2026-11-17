@@ -11,12 +11,13 @@ import Contacts from "./contacts";
 import { Px, PxText, type PxName } from "./pixel-icon";
 
 export type Nav = { id: string; slug: string; name: string; attention?: number; switchOpen?: boolean };
-export type Section = "kantor" | "papan" | "tim";
+export type Section = "kantor" | "papan" | "tim" | "files";
 
 const MENU: { id: Section; path: string; icon: PxName; title: string; sub: string }[] = [
   { id: "kantor", path: "/", icon: "office", title: "Office", sub: "who's doing what, live" },
   { id: "papan", path: "/papan", icon: "board", title: "Task Board", sub: "every task, by project" },
   { id: "tim", path: "/tim", icon: "team", title: "Team Members", sub: "people, agents & workload" },
+  { id: "files", path: "/files", icon: "books", title: "Knowledge & Files", sub: "each agent's OneDrive folder" },
 ];
 const KEY = "kantor-side";
 const INBOX_MS = 60_000;

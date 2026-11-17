@@ -3,6 +3,7 @@ import { inviteMember, createAgent, loadDirectory, updateAgent, workspace, me, c
 import { AGENT_REPORT_FORMAT, FORMAT_MARKER } from "@/lib/digest";
 import { AGENT_REMINDERS, REMIND_MARKER } from "@/lib/reminders";
 import { AGENT_WHATSAPP, WA_MARKER } from "@/lib/whatsapp";
+import { FILES_MARKER } from "@/lib/knowledge";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +45,7 @@ export async function POST(req: Request) {
 }
 
 /** The Kantor Virtual blocks (report format, reminders) stay at the end of an agent's instructions and are not shown for editing. */
-const MARKERS = [FORMAT_MARKER, REMIND_MARKER, WA_MARKER];
+const MARKERS = [FORMAT_MARKER, REMIND_MARKER, WA_MARKER, FILES_MARKER];
 function splitInstructions(full: string) {
   const at = Math.min(...MARKERS.map(m => full.indexOf(m)).filter(i => i >= 0), full.length);
   return { own: full.slice(0, at).trimEnd(), tail: full.slice(at) };
