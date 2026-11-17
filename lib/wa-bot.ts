@@ -4,6 +4,7 @@
 import "server-only";
 import { existsSync, rmSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { randomUUID } from "node:crypto";
+import { execFile } from "node:child_process";
 import { join } from "node:path";
 import { normalizePhone } from "./whatsapp";
 
@@ -16,6 +17,7 @@ type WaClient = {
   on(ev: string, f: (...a: unknown[]) => void): void;
   getNumberId(n: string): Promise<{ _serialized: string } | null>;
   sendMessage(to: string, text: string): Promise<unknown>;
+  getState(): Promise<unknown>;
   info?: { wid?: { user?: string }; pushname?: string };
 };
 type Box = { state: BotState; client: WaClient | null; lastSent: number; queue: Promise<unknown> };
@@ -80,9 +82,31 @@ export async function stopBot() {
   box.state = { status: "off" };
 }
 
+/** The hidden WhatsApp Web page reloaded or closed under us (after sleep or a WhatsApp update): the login is fine, the page isn't. */
+const pageGone = (e: unknown) => /detached Frame|Target closed|Session closed|Execution context was destroyed|Protocol error|page has been closed/i.test(String(e instanceof Error ? e.message : e));
+
+/** Throw away the dead page and reconnect with the saved login; resolves once WhatsApp is ready again. */
+async function reconnect() {
+  const old = box.client; box.client = null;
+  box.state = { status: "off" };
+  if (old) await old.destroy().catch(() => {});
+  // The bot's own hidden Chrome can outlive a broken connection and keep the login folder locked: close just that one.
+  await new Promise<void>(r => execFile("pkill", ["-f", `user-data-dir=${join(SESSION, "session")}`], () => r()));
+  await new Promise(r => setTimeout(r, 2000));
+  console.log("[whatsapp] page was gone, reconnecting");
+  await startBot();
+  const until = Date.now() + 90_000;
+  while (Date.now() < until) {
+    if (box.state.status === "ready") return;
+    if (box.state.status === "error" || box.state.status === "code") break;
+    await new Promise(r => setTimeout(r, 1000));
+  }
+  throw new Error("The assistant's WhatsApp lost its connection and couldn't reconnect. Open WhatsApp contacts to check it.");
+}
+
 /** Send one message from the assistant's number. Messages go out one at a time, at least 20 seconds apart. */
 export function botSend(phone: string, text: string) {
-  const run = async () => {
+  const once = async () => {
     const c = box.client;
     if (!c || box.state.status !== "ready") throw new Error("The assistant's WhatsApp isn't connected.");
     const to = normalizePhone(phone);
@@ -94,6 +118,15 @@ export function botSend(phone: string, text: string) {
     await c.sendMessage(id._serialized, text);
     box.lastSent = Date.now();
     return { at: new Date().toISOString() };
+  };
+  const run = async () => {
+    try { return await once(); } catch (e) {
+      if (!pageGone(e) && box.state.status === "ready") throw e;
+      // The page died (or the bot dropped): reconnect once and try again.
+      if (!hasSession()) throw e;
+      await reconnect();
+      return once();
+    }
   };
   const p = box.queue.then(run, run);
   box.queue = p.catch(() => {});
@@ -149,5 +182,18 @@ export async function runDueSends() {
 }
 
 // Check for scheduled messages every minute, once per server (started when this module first loads).
+// It also checks the hidden WhatsApp page is still alive, and reconnects before anyone presses Approve & send.
+async function keepAlive() {
+  const c = box.client;
+  if (!c || box.state.status !== "ready") return;
+  try { await Promise.race([c.getState(), new Promise((_, no) => setTimeout(() => no(new Error("Session closed (no answer)")), 20_000))]); }
+  catch (e) {
+    if (!pageGone(e)) return;
+    const p = box.queue.then(reconnect);
+    box.queue = p.catch(err => console.warn("[whatsapp]", String(err).slice(0, 200)));
+    await box.queue;
+  }
+}
 const timers = globalThis as unknown as { __kantorWaTimer?: ReturnType<typeof setInterval> };
-timers.__kantorWaTimer ??= setInterval(() => { runDueSends().catch(e => console.warn("[whatsapp]", String(e).slice(0, 200))); }, 60_000);
+if (timers.__kantorWaTimer) clearInterval(timers.__kantorWaTimer);
+timers.__kantorWaTimer = setInterval(() => { keepAlive().then(runDueSends).catch(e => console.warn("[whatsapp]", String(e).slice(0, 200))); }, 60_000);

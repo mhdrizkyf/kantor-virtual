@@ -3,7 +3,7 @@ import { botState, startBot, stopBot, botSend, scheduleSend, cancelQueued, listQ
 import { zonedTime } from "@/lib/reminders";
 
 export const dynamic = "force-dynamic";
-const fail = (e: unknown, status = 500) => NextResponse.json({ error: String(e instanceof Error ? e.message : e) }, { status });
+const fail = (e: unknown, status = 500) => (status >= 500 && console.warn("[whatsapp] failed:", String(e instanceof Error ? e.stack ?? e.message : e).slice(0, 600)), NextResponse.json({ error: String(e instanceof Error ? e.message : e) }, { status }));
 
 /** Status of the assistant's WhatsApp number. */
 export async function GET() { return NextResponse.json({ ...(await botState()), queue: listQueue() }); }
