@@ -926,3 +926,4 @@ svg.px{display:inline-block;vertical-align:-0.22em;flex:none;image-rendering:pix
 .wa-when{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:13px}
 .wa-when .input{width:auto;padding:4px 8px;font-size:13px}
 .linkish{background:none;border:0;padding:0;color:inherit;text-decoration:underline;cursor:pointer;font:inherit;display:inline-flex;align-items:center;gap:4px}
+.live-closed{color:var(--ink);border:1px solid var(--ok);background:var(--ok-soft)}

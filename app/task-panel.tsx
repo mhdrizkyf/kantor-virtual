@@ -128,6 +128,7 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
       if (j.error) throw new Error(j.error);
       setD(j); setText(""); setPicked([]); setAnswers({}); setLink(""); setFiles([]); setConfirm(null); onChanged();
       if (action === "revise" || action === "reply" || action === "rerun") setWatchUntil(Date.now() + 3 * 60_000);
+      else if (action === "approve" || action === "done") setWatchUntil(0); // closed: nobody is expected to reply
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
     finally { setBusy(null); setPending(null); }
   }
@@ -209,7 +210,10 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
                     {d.live.state === "running" || d.live.state === "queued" ? <span className="dots"><i /><i /><i /></span> : null}<PxText text={d.live.label} />
                   </div>
                 )}
-                {d.live.state === "idle" && Date.now() < watchUntil && (
+                {d.live.state === "idle" && d.mode === "closed" && (
+                  <div className="live live-closed" role="status"><Px name="done" /> {/^(done|completed)$/.test(d.status) ? "Done and closed. Nothing more is needed from you or the agent." : "This task is closed."}</div>
+                )}
+                {d.live.state === "idle" && d.mode !== "closed" && Date.now() < watchUntil && (
                   <div className="live live-queued" role="status"><span className="dots"><i /><i /><i /></span>Sent. Waiting for {d.assignee.name ?? "the agent"} to respond…</div>
                 )}
               </div>
