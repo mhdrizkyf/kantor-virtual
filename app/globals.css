@@ -307,6 +307,9 @@ a.btn{text-decoration:none;display:inline-block}
 @media (prefers-reduced-motion:reduce){.spinner,.dots i{animation:none}}
 /* lampiran */
 .picker{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.picker-warn{flex-basis:100%;display:flex;align-items:center;gap:6px;font-size:12.5px;color:#9a3412;background:#fff7ed;border:1px solid #fdba74;border-radius:8px;padding:4px 8px}
+@media (prefers-color-scheme:dark){.picker-warn{color:#fdba74;background:#3b1d0a;border-color:#9a3412}}
+.picker-warn .chipx{margin-left:auto}
 .chipx{border:0;background:none;padding:0 0 0 6px;font-size:11px;color:var(--muted);cursor:pointer}
 /* siapa online */
 .people{display:inline-flex;gap:6px;flex-wrap:wrap}

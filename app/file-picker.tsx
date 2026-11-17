@@ -1,5 +1,5 @@
 "use client";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Px } from "./pixel-icon";
 
 const MAX_MB = 25;
@@ -19,10 +19,12 @@ export async function uploadAll(files: File[], ws: string, issueId?: string): Pr
 /** Tombol lampiran + daftar file terpilih (bisa juga tempel gambar dengan Cmd+V di kolom pesan). */
 export default function FilePicker({ files, onChange }: { files: File[]; onChange: (f: File[]) => void }) {
   const input = useRef<HTMLInputElement>(null);
+  const [tooBig, setTooBig] = useState<string[]>([]);
   const add = (list: FileList | null) => {
     if (!list) return;
-    const ok = [...list].filter(f => f.size <= MAX_MB * 1024 * 1024);
-    if (ok.length < list.length) alertLarge();
+    const all = [...list];
+    const ok = all.filter(f => f.size <= MAX_MB * 1024 * 1024);
+    setTooBig(all.filter(f => !ok.includes(f)).map(f => `${f.name} (${(f.size / 1024 / 1024).toFixed(0)} MB)`));
     onChange([...files, ...ok]);
   };
   return (
@@ -35,11 +37,13 @@ export default function FilePicker({ files, onChange }: { files: File[]; onChang
           <button type="button" className="chipx" aria-label={`Remove ${f.name}`} onClick={() => onChange(files.filter((_, j) => j !== i))}><Px name="close" size="0.8em" /></button>
         </span>
       ))}
+      {tooBig.length > 0 && (
+        <span className="picker-warn" role="alert">
+          {tooBig.length === 1 ? `${tooBig[0]} is over ${MAX_MB} MB and wasn't attached.` : `These are over ${MAX_MB} MB and weren't attached: ${tooBig.join(", ")}.`}
+          {" "}Share a Google Drive link instead.
+          <button type="button" className="chipx" aria-label="Dismiss" onClick={() => setTooBig([])}><Px name="close" size="0.8em" /></button>
+        </span>
+      )}
     </div>
   );
-}
-
-function alertLarge() {
-  // Tidak memakai alert() bawaan; cukup pesan di konsol dan file besar dilewati.
-  console.warn(`Files over ${MAX_MB} MB were skipped.`);
 }
