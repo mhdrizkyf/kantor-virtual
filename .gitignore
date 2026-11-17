@@ -19,3 +19,4 @@ data/contacts.json
 data/wa-session/
 data/wa-queue.json
 data/files-sync.json
+.wwebjs_cache/
