@@ -35,12 +35,12 @@ const listDir = async (path: string): Promise<Entry[]> => {
 };
 
 /** Browse OneDrive and pick an existing folder to link. */
-function LinkPicker({ who, onPick, onClose }: { who: string; onPick: (path: string) => Promise<void>; onClose: () => void }) {
+function LinkPicker({ who, top, onPick, onClose }: { who: string; top: string; onPick: (path: string) => Promise<void>; onClose: () => void }) {
   const [at, setAt] = useState<string[]>([]);
   const [dirs, setDirs] = useState<Entry[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  useEffect(() => { setDirs(null); listDir(at.join("/")).then(e => setDirs(e.filter(x => x.dir && !(at.length === 0 && x.name === "Kantor Virtual")))).catch(e => setErr(String(e.message ?? e))); }, [at]);
+  useEffect(() => { setDirs(null); listDir(at.join("/")).then(e => setDirs(e.filter(x => x.dir && !(at.length === 0 && x.name === top)))).catch(e => setErr(String(e.message ?? e))); }, [at]);
   return createPortal(
     <>
       <div className="scrim" style={{ zIndex: 32 }} onClick={() => !busy && onClose()} />
@@ -76,7 +76,7 @@ function LinkPicker({ who, onPick, onClose }: { who: string; onPick: (path: stri
     </>, document.body);
 }
 
-export default function FilesView({ folders: initial, hasRoot, lastSync, lastResult }: { folders: Folder[]; hasRoot: boolean; lastSync: string | null; lastResult: string | null }) {
+export default function FilesView({ folders: initial, hasRoot, lastSync, lastResult, top }: { folders: Folder[]; hasRoot: boolean; lastSync: string | null; lastResult: string | null; top: string }) {
   const [folders, setFolders] = useState(initial);
   useEffect(() => setFolders(initial), [initial]);
   const [pick, setPick] = useState(initial[1]?.id ?? initial[0].id);
@@ -241,7 +241,7 @@ export default function FilesView({ folders: initial, hasRoot, lastSync, lastRes
         </div>
       </main>
       {note && <div className="toast" role="status">{note}</div>}
-      {linking && <LinkPicker who={shared ? "Every agent in this workspace" : folder.name} onClose={() => setLinking(false)} onPick={async p => { await link(p, true); setLinking(false); }} />}
+      {linking && <LinkPicker top={top} who={shared ? "Every agent in this workspace" : folder.name} onClose={() => setLinking(false)} onPick={async p => { await link(p, true); setLinking(false); }} />}
       {view && createPortal(
         <>
           <div className="scrim" onClick={() => setView(null)} />

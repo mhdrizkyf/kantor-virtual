@@ -12,7 +12,8 @@ import { join, relative, resolve, sep, dirname } from "node:path";
 import { workspaces, loadDirectory, allIssues, issueDetail, fileRaw, call_, updateAgent, isHiddenIssue, type Agent, type Workspace } from "./multica";
 
 export const FILES_MARKER = "## Kantor Virtual files";
-const KV = "Kantor Virtual";
+/** Top folder inside OneDrive. A second install (e.g. a demo server) can use its own with KANTOR_FILES_FOLDER. */
+const KV = process.env.KANTOR_FILES_FOLDER?.trim() || "Kantor Virtual";
 
 /** The OneDrive folder synced to this Mac (KANTOR_ONEDRIVE overrides it). */
 export function filesRoot(): string | null {
@@ -230,6 +231,6 @@ export function list(rel: string): Entry[] {
 
 export function syncInfo() {
   const m = readMeta();
-  return { root: filesRoot(), lastSync: m.lastSync ?? null, lastResult: m.lastResult ?? null, agents: m.agents, links: m.links };
+  return { root: filesRoot(), top: KV, lastSync: m.lastSync ?? null, lastResult: m.lastResult ?? null, agents: m.agents, links: m.links };
 }
 export { sharedKey };

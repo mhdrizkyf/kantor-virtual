@@ -21,7 +21,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ w
     const buildings = all.map(w => ({ id: w.id, slug: w.slug, name: w.name }));
     return (
       <Shell buildings={buildings} current={buildings.find(b => b.id === cur.id)!} section="files">
-        <FilesView folders={folders} hasRoot={!!info.root} lastSync={info.lastSync} lastResult={info.lastResult} />
+        <FilesView folders={folders} hasRoot={!!info.root} lastSync={info.lastSync} lastResult={info.lastResult} top={info.top} />
       </Shell>
     );
   } catch (e) {
