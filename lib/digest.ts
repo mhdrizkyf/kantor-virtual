@@ -18,7 +18,8 @@ Every result or update you post on an issue must start with these sections, in t
 1. One question per line, answerable on its own.
    If there are fixed choices, end the line with: Options: A / B / C
 
-Put the full details after these sections.`;
+Put the full details after these sections.
+If you can't go on until a human answers your Questions (or OKs your result), set the issue status to in_review before you stop, so it shows up in their review list. Don't leave it in_progress or todo while you wait.`;
 export const FORMAT_MARKER = "## Kantor Virtual report format";
 
 const SUMMARY_H = /^(summary|ringkasan|tl;?\s?dr|key (result|points?)|hasil utama|intinya)\b/i;

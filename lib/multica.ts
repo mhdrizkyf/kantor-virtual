@@ -3,6 +3,7 @@ import "server-only";
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { digest } from "./digest";
 
 export type Agent = {
   id: string; name: string; description: string; avatar_url: string | null;
@@ -306,12 +307,36 @@ export async function loadWorkspace(wsPick?: string | null) {
     const at = new Date(r.status === "online" ? Math.max(t, Date.now() - 60000) : Math.min(t, Date.now() - OFFICE_MS - 1000)).toISOString();
     if (!seen[m.name] || at > seen[m.name]) seen[m.name] = at;
   }
+  const asking = await waitingOnAnswer(id, issues, runs).catch(() => new Set<string>());
   const kantor = (settings.kantor ?? {}) as KantorSettings;
   const moved = (((settings.kantor_watch ?? {}) as { moved?: Moved }).moved ?? {}) as Moved;
   const reminders = everything.filter(isReminder);
-  return { ...dir, workspace: ws, issues, reminders, runs, kantor, seen, moved };
+  return { ...dir, workspace: ws, issues, reminders, runs, kantor, seen, moved, asking };
 }
 export type Snapshot = Awaited<ReturnType<typeof loadWorkspace>>;
+
+// Agents sometimes ask a question and stop, but leave the task "in progress". Those tasks wait on a person,
+// so find them: an agent task with nothing running whose newest comment is the agent's, with a Questions section.
+const RUNNING = new Set(["queued", "dispatched", "running", "in_progress", "preparing", "started"]);
+const askCache = new Map<string, { at: string; asking: boolean }>();
+async function waitingOnAnswer(wsId: string, issues: Issue[], runs: Run[]) {
+  const busy = new Set(runs.filter(r => r.issue_id && RUNNING.has(r.status)).map(r => r.issue_id!));
+  const candidates = issues.filter(i => i.assignee_type === "agent" && ["todo", "in_progress"].includes(i.status) && !busy.has(i.id));
+  const out = new Set<string>();
+  await Promise.all(candidates.map(async i => {
+    const hit = askCache.get(i.id);
+    let asking = hit?.at === i.updated_at ? hit.asking : null;
+    if (asking === null) {
+      const comments = await get<unknown>(`/api/issues/${i.id}/comments`, wsId).then(d => list<Comment>(d, "comments")).catch(() => null);
+      if (!comments) return;
+      const last = comments.filter(c => !c.deleted_at).sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at)).pop();
+      asking = !!last && last.author_type === "agent" && (digest(last.content)?.questions.length ?? 0) > 0;
+      askCache.set(i.id, { at: i.updated_at, asking });
+    }
+    if (asking) out.add(i.id);
+  }));
+  return out;
+}
 
 // ---- Buka/Tutup kantor ----
 export type KantorSettings = {

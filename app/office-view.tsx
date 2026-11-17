@@ -334,7 +334,7 @@ export default function OfficeView({ office, attention, people, seen, meId }: { 
               </AttnGroup>
             )}
             {a.review.length > 0 && (
-              <AttnGroup kind="review" icon="eyes" title="Waiting for review" hint="agents finished, your call" count={a.review.length}>
+              <AttnGroup kind="review" icon="eyes" title="Waiting for review" hint="agents finished or asked you something" count={a.review.length}>
                 {a.review.map(t => <AttnRow key={t.id} t={t} onOpen={() => openT(t)} />)}
               </AttnGroup>
             )}

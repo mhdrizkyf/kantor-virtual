@@ -87,6 +87,8 @@ export function buildOffice(s: Snapshot): Office {
   const url = (i: Issue) => `${process.env.MULTICA_APP_URL || "https://multica.ai"}/${s.workspace.slug}/issues/${i.identifier}`;
 
   const open = s.issues.filter(i => !isClosed(i));
+  // Agent asked a question and is waiting for the member's answer (task left "in progress").
+  const asking: Set<string> = s.asking ?? new Set();
   const switchOpen = s.kantor.open !== false;
   const quota = new Map(quotaStates(s).map(q => [q.runtimeId, q]));
 
@@ -123,7 +125,7 @@ export function buildOffice(s: Snapshot): Office {
       : i.assignee_type === "member" ? memberName(i.assignee_id) : null;
     return {
       id: i.id, key: i.identifier, title: friendlyTitle(i), status: i.status,
-      statusLabel: i.status === "backlog" && (i.metadata ?? {}).kantor_parked ? "Waiting for office to open" : i.status_name || STATUS_LABEL[i.status] || i.status,
+      statusLabel: i.status === "backlog" && (i.metadata ?? {}).kantor_parked ? "Waiting for office to open" : asking.has(i.id) ? "Waiting for your answer" : i.status_name || STATUS_LABEL[i.status] || i.status,
       due: i.due_date, dueFlag, dueText, url: url(i), ws: s.workspace.id, wsName: s.workspace.name, assignee, assigneeType: i.assignee_type,
       project: i.project_id ? projectById.get(i.project_id)?.title ?? null : null,
     };
@@ -240,8 +242,8 @@ export function buildOffice(s: Snapshot): Office {
     attention: {
       // Setiap task hanya muncul di satu bagian, supaya daftar tidak dobel.
       human: sortTasks(allViews.filter(t => t.assigneeType === "member")),
-      review: sortTasks(allViews.filter(t => t.status === "in_review" && t.assigneeType !== "member")),
-      overdue: sortTasks(allViews.filter(t => (t.dueFlag === "late" || t.dueFlag === "risk") && t.assigneeType !== "member" && t.status !== "in_review")),
+      review: sortTasks(allViews.filter(t => (t.status === "in_review" || asking.has(t.id)) && t.assigneeType !== "member")),
+      overdue: sortTasks(allViews.filter(t => (t.dueFlag === "late" || t.dueFlag === "risk") && t.assigneeType !== "member" && t.status !== "in_review" && !asking.has(t.id))),
       failed,
     },
     people: [...new Set(s.members.map(m => m.name))],
