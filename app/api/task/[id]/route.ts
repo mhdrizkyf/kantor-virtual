@@ -15,7 +15,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   catch (e) { return NextResponse.json({ error: String(e instanceof Error ? e.message : e) }, { status: 500 }); }
 }
 
-type Body = { ws?: string; files?: string[]; action: "approve" | "revise" | "reply" | "done" | "rename" | "rerun"; text?: string; link?: string };
+type Body = { ws?: string; files?: string[]; action: "approve" | "revise" | "reply" | "done" | "rename" | "rerun" | "reopen"; text?: string; link?: string };
 
 /** Aksi dari kantor. Setiap aksi ditulis ke Multica atas nama pemilik token. */
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -49,6 +49,16 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         } else {
           await addComment(ws, id, `✏️ Changes requested:\n\n${text}`, mutedMentions, files);
           await updateIssue(ws, id, { status: "todo" });
+        }
+        break;
+      case "reopen":
+        // With a note: the assignee picks it up again (like a change request). Without: back to review, nobody is woken.
+        if (text || files.length) {
+          if (closed) { await addComment(ws, id, `↩️ Reopened by ${who}:\n\n${text}`, quiet, files); await parkIssue(ws, id, "todo"); }
+          else { await addComment(ws, id, `↩️ Reopened by ${who}:\n\n${text}`, mutedMentions, files); await updateIssue(ws, id, { status: "todo" }); }
+        } else {
+          await addComment(ws, id, `↩️ Reopened by ${who}.`, quiet);
+          await updateIssue(ws, id, { status: "in_review" });
         }
         break;
       case "reply":

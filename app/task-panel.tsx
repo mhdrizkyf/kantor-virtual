@@ -2,6 +2,7 @@
 // Task pop-up: the agent's output on the left, "your part" on the right (summary, question cards, instructions, actions).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import { GrowText } from "./auto-grow";
 import { WaPre } from "./wa-card";
 import remarkGfm from "remark-gfm";
 import type { TaskDetail } from "@/lib/detail";
@@ -119,7 +120,7 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
     setBusy(action); setErr(null);
     const typed = encodeMentions(text, picked).trim();
     const out = action === "rename" ? extra.text ?? "" : [answerText, typed].filter(Boolean).join("\n\n");
-    const shown = action === "revise" || action === "reply" ? out : "";
+    const shown = action === "revise" || action === "reply" || action === "reopen" ? out : "";
     if (shown || files.length) setPending({ text: shown, files: files.map(f => f.name) });
     try {
       const fileIds = files.length ? await uploadAll(files, ws, id) : [];
@@ -127,7 +128,7 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
       const j = await r.json();
       if (j.error) throw new Error(j.error);
       setD(j); setText(""); setPicked([]); setAnswers({}); setLink(""); setFiles([]); setConfirm(null); onChanged();
-      if (action === "revise" || action === "reply" || action === "rerun") setWatchUntil(Date.now() + 3 * 60_000);
+      if (action === "revise" || action === "reply" || action === "rerun" || (action === "reopen" && out)) setWatchUntil(Date.now() + 3 * 60_000);
       else if (action === "approve" || action === "done") setWatchUntil(0); // closed: nobody is expected to reply
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
     finally { setBusy(null); setPending(null); }
@@ -320,7 +321,17 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
                   )}
               </div>
             )}
-            {d.mode === "closed" && <p className="desc">This task is closed. Reopen it in Multica if you need more work on it.</p>}
+            {d.mode === "closed" && (
+              <div className="reopen">
+                <h3 className="sect">Need more on this?</h3>
+                <GrowText className="input" rows={2} maxPx={240} value={text} onChange={e => setText(e.target.value)} aria-label="What else is needed"
+                  placeholder={d.assignee.kind === "agent" ? `Tell ${d.assignee.name ?? "the agent"} what else is needed (optional)` : "What else is needed? (optional)"} />
+                <p className="hint">{text.trim()
+                  ? `Reopens the task and ${d.assignee.kind === "agent" ? `${d.assignee.name ?? "the agent"} starts on it` : `${d.assignee.name ?? "they"} get it back as a to-do`}.`
+                  : "Reopens the task for review without waking anyone."}</p>
+                <div className="row"><button className="btn primary" disabled={!!busy} onClick={() => act("reopen")}>{busy === "reopen" ? <><span className="spinner sm" /> Reopening…</> : <><Px name="refresh" /> Reopen</>}</button></div>
+              </div>
+            )}
           </div>
         </section>
       </div>
