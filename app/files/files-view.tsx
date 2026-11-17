@@ -142,7 +142,7 @@ export default function FilesView({ folders: initial, hasRoot, lastSync, lastRes
 
   const shared = isShared(folder);
   const linkRows = atHome ? folder.links : [];
-  const inLink = tab === "Knowledge" && loc.base !== `${folder.rel}/Knowledge`;
+  const inLink = !!folder.rel && tab === "Knowledge" && loc.base !== `${folder.rel}/Knowledge`;
   const empty = entries && !entries.length && !linkRows.length;
 
   return (
