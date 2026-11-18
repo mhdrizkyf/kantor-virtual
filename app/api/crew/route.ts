@@ -4,6 +4,7 @@ import { AGENT_REPORT_FORMAT, FORMAT_MARKER } from "@/lib/digest";
 import { AGENT_REMINDERS, REMIND_MARKER } from "@/lib/reminders";
 import { AGENT_WHATSAPP, WA_MARKER } from "@/lib/whatsapp";
 import { FILES_MARKER } from "@/lib/knowledge";
+import { AGENT_TAIGA, TAIGA_MARKER } from "@/lib/taiga";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +34,7 @@ export async function POST(req: Request) {
         "Reply in the language the member uses (usually Indonesian). Keep answers short and concrete, " +
         "post results and files on the issue, and move the issue to in_review when your part is done so a human can check it.";
       const agent = await createAgent(ws, {
-        name, description: role, instructions: [instructions, instructions.includes(FORMAT_MARKER) ? "" : AGENT_REPORT_FORMAT, instructions.includes(REMIND_MARKER) ? "" : AGENT_REMINDERS, instructions.includes(WA_MARKER) ? "" : AGENT_WHATSAPP].filter(Boolean).join("\n"), runtime_id: b.runtimeId, visibility: "workspace", max_concurrent_tasks: 2,
+        name, description: role, instructions: [instructions, instructions.includes(FORMAT_MARKER) ? "" : AGENT_REPORT_FORMAT, instructions.includes(REMIND_MARKER) ? "" : AGENT_REMINDERS, instructions.includes(WA_MARKER) ? "" : AGENT_WHATSAPP, instructions.includes(TAIGA_MARKER) ? "" : AGENT_TAIGA].filter(Boolean).join("\n"), runtime_id: b.runtimeId, visibility: "workspace", max_concurrent_tasks: 2,
         avatar_url: b.emoji?.trim() ? `emoji:${b.emoji.trim()}` : null,
       });
       return NextResponse.json({ ok: true, id: agent.id, message: `${name} joined the team! Give them a first task from the Task Board.` });
@@ -45,7 +46,7 @@ export async function POST(req: Request) {
 }
 
 /** The Kantor Virtual blocks (report format, reminders) stay at the end of an agent's instructions and are not shown for editing. */
-const MARKERS = [FORMAT_MARKER, REMIND_MARKER, WA_MARKER, FILES_MARKER];
+const MARKERS = [FORMAT_MARKER, REMIND_MARKER, WA_MARKER, TAIGA_MARKER, FILES_MARKER];
 function splitInstructions(full: string) {
   const at = Math.min(...MARKERS.map(m => full.indexOf(m)).filter(i => i >= 0), full.length);
   return { own: full.slice(0, at).trimEnd(), tail: full.slice(at) };

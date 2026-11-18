@@ -3,6 +3,7 @@
 // It opens your own WhatsApp with the message filled in; you press Send there.
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { Px } from "./pixel-icon";
+import { TaigaCard } from "./taiga-card";
 import { GrowText } from "./auto-grow";
 import { findContact, normalizePhone, parseDraft, showPhone, waLink, withNote, fmtSendAt, type Contact } from "@/lib/whatsapp";
 
@@ -64,6 +65,7 @@ export function WaPre(props: { node?: unknown; children?: ReactNode } & Record<s
   const code = (node as { children?: { tagName?: string; properties?: { className?: unknown } }[] })?.children?.find(c => c.tagName === "code");
   const cls = code?.properties?.className;
   const isWa = Array.isArray(cls) ? cls.some(c => /^language-(whatsapp|wa)$/i.test(String(c))) : false;
+  if (Array.isArray(cls) && cls.some(c => /^language-taiga$/i.test(String(c)))) return <TaigaCard block={textOf(code)} />;
   if (!isWa) return <pre {...rest}>{children}</pre>;
   const d = parseDraft(textOf(code));
   return <WaCard to={d.to} text={d.text} sendAt={d.sendAt} whenDone={d.whenDone} />;

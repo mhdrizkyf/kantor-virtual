@@ -963,3 +963,24 @@ svg.px{display:inline-block;vertical-align:-0.22em;flex:none;image-rendering:pix
 .wa-when select.input{width:auto;padding-block:3px}
 .wa-pending.waiting .hint{color:var(--ok)}
 .wa-pending.failed .hint{color:var(--wait)}
+/* Taiga activities card */
+.tg-card{border:2px solid #5aa3a6;border-radius:12px;padding:10px 12px;margin:8px 0;display:flex;flex-direction:column;gap:8px;background:color-mix(in srgb,#5aa3a6 8%,var(--panel))}
+.tg-ic{display:inline-flex;color:#2f7f83}
+.tg-story{margin-left:auto;font-size:12px;opacity:.8;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tg-rows{display:flex;flex-direction:column;gap:6px}
+.tg-row{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 8px;align-items:center;font-size:13px;padding:6px 0;border-top:1px solid color-mix(in srgb,#5aa3a6 25%,transparent)}
+.tg-row:first-child{border-top:0}
+.tg-meta{grid-column:2;display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.tg-meta .input[type=date]{width:auto}.tg-meta .input[type=time]{width:auto}
+.tg-row .input{padding:4px 8px;font-size:13px;min-width:0}
+.tg-row.off .tg-title{opacity:.5}
+.tg-row.done .input{opacity:.7}
+.tg-min{display:flex;align-items:center;gap:4px;white-space:nowrap}
+.tg-min .input{width:64px}
+.tg-tr{display:flex;align-items:center;gap:4px;white-space:nowrap}
+.tg-ref{white-space:nowrap;font-weight:700;display:inline-flex;align-items:center;gap:3px}
+.tg-err{grid-column:1/-1}
+.tg-connect{display:flex;flex-direction:column;gap:6px}
+.tg-connect code{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:1px 5px;font-size:12px;user-select:all}
+.tg-key{font-family:ui-monospace,monospace;font-size:12px;resize:vertical}
+.btn.primary.tg-go{background:#5aa3a6;border-color:#2f7f83;color:#04292b}
