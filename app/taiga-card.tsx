@@ -1,8 +1,9 @@
 "use client";
 // "Log to Taiga" card for the daily activities an agent drafts in a ```taiga block.
 // Nothing reaches Taiga until the member presses the button.
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { Px } from "./pixel-icon";
+import { WaTask } from "./wa-card";
 
 type Row = { title: string; date: string; start: string; minutes: number; training: boolean; on: boolean };
 type Status = { connected: boolean; expires?: string; autoRenew: boolean; user?: string; story?: string; storyUrl?: string; logged: Record<string, { ref: number; url: string }> };
@@ -76,6 +77,8 @@ function Connect({ again, onDone }: { again: boolean; onDone: () => void }) {
 
 export function TaigaCard({ block }: { block: string }) {
   const st = useStatus();
+  const task = useContext(WaTask);
+  const [closed, setClosed] = useState<"no" | "busy" | "yes">("no");
   const [rows, setRows] = useState<Row[]>(() => parseTaiga(block));
   const [keys, setKeys] = useState<string[]>([]);
   const [errs, setErrs] = useState<Record<number, string>>({});
@@ -103,6 +106,16 @@ export function TaigaCard({ block }: { block: string }) {
   async function disconnect() {
     if (!confirm("Remove your Taiga key from this computer?")) return;
     await post({ action: "forget" });
+  }
+
+  async function closeTask() {
+    if (!task) return;
+    setClosed("busy");
+    try {
+      const j = await (await fetch(`/api/task/${task.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ws: task.ws, action: "done", text: `Logged ${rows.length} ${rows.length === 1 ? "activity" : "activities"} to Taiga.` }) })).json();
+      if (j.error) throw new Error(j.error);
+      setClosed("yes");
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)); setClosed("no"); }
   }
 
   if (!rows.length) return <pre>{block}</pre>;
@@ -138,9 +151,10 @@ export function TaigaCard({ block }: { block: string }) {
       {st && (!st.connected || expired) && !allDone ? <Connect again={expired || !!st.user} onDone={() => { setExpired(false); setErr(null); }} /> : (
         <div className="wa-row">
           <span className="hint">
-            {allDone ? <><Px name="done" /> All logged in Taiga.</>
+            {allDone ? <><Px name="done" /> All logged in Taiga.{closed === "yes" ? " Task marked done." : ""}</>
               : st ? <>Creates {todo.length} Done {todo.length === 1 ? "task" : "tasks"} under your user story{st.user ? ` as ${st.user}` : ""}. <button type="button" className="linkish" onClick={disconnect}>Disconnect</button></> : "Checking Taiga…"}
           </span>
+          {allDone && task && closed !== "yes" && <button type="button" className="btn sm" disabled={closed === "busy"} onClick={closeTask}>{closed === "busy" ? <span className="spinner sm" /> : <Px name="check" />} Mark this task done</button>}
           {!allDone && <button type="button" className="btn sm primary tg-go" disabled={busy || !todo.length || !st} onClick={() => { setExpired(false); log(); }}>
             {busy ? <><span className="spinner sm" /> Logging…</> : <><Px name="done" /> Log {todo.length} to Taiga</>}</button>}
         </div>

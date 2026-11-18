@@ -15,6 +15,8 @@ import { answersToText } from "@/lib/digest";
 import { useAutoGrow } from "./auto-grow";
 import { useDraft } from "./drafts";
 
+/** Only the ```taiga and ```whatsapp blocks of a text (they become cards). */
+const actionBlocks = (text: string) => (text.match(/^```(?:taiga|whatsapp|wa)\b[\s\S]*?^```/gim) ?? []).join("\n\n");
 const md = (text: string) => <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypePx]} urlTransform={keepMentionUrl} components={{ a: mentionLink, span: PxSpan, pre: WaPre }}>{text}</ReactMarkdown>;
 const POLL_MS = 4000;
 type Tab = "chat" | "files" | "brief";
@@ -185,7 +187,14 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
           <div className="tp-scroll" ref={body}>
             {tab === "chat" && (
               <div className="thread">
-                {d.messages.length === 0 && !pending && <p className="desc">No messages yet. The agent will post results here.</p>}
+                {/* Cards an agent put in the brief (Taiga activities, WhatsApp drafts) are shown here too, so they aren't hidden in the Brief tab. */}
+                {actionBlocks(d.brief) && (
+                  <div className="msg bot">
+                    <div className="from"><span><Px name="todo" /> From the brief</span><span /></div>
+                    <div className="md">{md(actionBlocks(d.brief))}</div>
+                  </div>
+                )}
+                {d.messages.length === 0 && !pending && !actionBlocks(d.brief) && <p className="desc">No messages yet. The agent will post results here.</p>}
                 {d.messages.map(m => (
                   <div key={m.id} id={`m-${m.id}`} className={`msg ${m.whoKind === "member" ? "me" : "bot"} ${dg?.messageId === m.id ? "hl" : ""}`}>
                     <div className="from"><span>{m.emoji ? <><Emo e={m.emoji} /> </> : null}{m.who}</span><span>{m.when}</span></div>

@@ -201,4 +201,5 @@ ${F}
 - Date, start time (24-hour, ${process.env.KANTOR_TIMEZONE || "Asia/Jakarta"}), time spent in minutes, then the title. Add \`training\` only for training or learning activities.
 - Titles follow the member's style: a short [CATEGORY] tag such as [OPS], [RH Playbook], [TalentOps], then what was done, in the member's language.
 - Use what the member told you, their calendar and today's tasks. If a start time or duration is unknown, make a sensible guess and say so outside the block.
+- Put the block in your reply on the task (a comment), not only in a task description.
 - Virtual Office shows the block as a card. The member checks it and presses "Log to Taiga"; the app then creates the tasks. You can't log to Taiga yourself and never ask for their Taiga key or password.`;
