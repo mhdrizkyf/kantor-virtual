@@ -58,7 +58,7 @@ function Connect({ again, onDone }: { again: boolean; onDone: () => void }) {
   }
   return (
     <div className="tg-connect">
-      <p className="hint">{again ? "Your Taiga key has expired. Copy a new one:" : "Connect your Taiga account once (the key stays on this computer):"}</p>
+      <p className="tg-step"><b>Step 1: connect Taiga.</b> {again ? "Your Taiga key has expired. Copy a new one:" : "Do this once; the key stays on this computer."}</p>
       <ol className="wa-steps">
         <li>Open <a href="https://projects.digitaltelkom.id" target="_blank" rel="noreferrer">Taiga</a> in Chrome or Edge, signed in.</li>
         <li>Press <b>⌥ Option + ⌘ Command + J</b>. A panel called Console opens.</li>
@@ -66,7 +66,7 @@ function Connect({ again, onDone }: { again: boolean; onDone: () => void }) {
         <li>Come back here and paste (<b>⌘ V</b>) into the box below.</li>
       </ol>
       <textarea className="input tg-key" rows={2} placeholder="Paste here" value={text} onChange={e => setText(e.target.value)} aria-label="Taiga key" spellCheck={false} />
-      <small className="hint">Only the Taiga login key is kept; anything else in what you paste is ignored. Agents never see it.</small>
+      <small className="hint">Only the Taiga login key is kept; anything else in what you paste is ignored. Agents never see it. After connecting, a <b>Log to Taiga</b> button appears here.</small>
       {err && <div className="note bad">{err}</div>}
       <div className="wa-row"><span className="hint" />
         <button type="button" className="btn sm primary tg-go" disabled={busy || !text.trim()} onClick={save}>{busy ? <><span className="spinner sm" /> Checking…</> : <><Px name="unlock" /> Connect Taiga</>}</button>
@@ -128,6 +128,18 @@ export function TaigaCard({ block }: { block: string }) {
         <small>{rows.length} {rows.length === 1 ? "activity" : "activities"}, {Math.floor(total / 60) ? `${Math.floor(total / 60)} h ` : ""}{total % 60 ? `${total % 60} min` : ""}</small>
         {st?.storyUrl && <a className="tg-story" href={st.storyUrl} target="_blank" rel="noreferrer">{st.story}</a>}
       </div>
+      {err && !expired && <div className="note bad">{err}</div>}
+      {st && (!st.connected || expired) && !allDone ? <Connect again={expired || !!st.user} onDone={() => { setExpired(false); setErr(null); }} /> : (
+        <div className="wa-row">
+          <span className="hint">
+            {allDone ? <><Px name="done" /> All logged in Taiga.{closed === "yes" ? " Task marked done." : ""}</>
+              : st ? <>Creates {todo.length} Done {todo.length === 1 ? "task" : "tasks"} under your user story{st.user ? ` as ${st.user}` : ""}. <button type="button" className="linkish" onClick={disconnect}>Disconnect</button></> : "Checking Taiga…"}
+          </span>
+          {allDone && task && closed !== "yes" && <button type="button" className="btn sm" disabled={closed === "busy"} onClick={closeTask}>{closed === "busy" ? <span className="spinner sm" /> : <Px name="check" />} Mark this task done</button>}
+          {!allDone && <button type="button" className="btn sm primary tg-go" disabled={busy || !todo.length || !st} onClick={() => { setExpired(false); log(); }}>
+            {busy ? <><span className="spinner sm" /> Logging…</> : <><Px name="done" /> Log {todo.length} to Taiga</>}</button>}
+        </div>
+      )}
       <div className="tg-rows">
         {rows.map((r, i) => {
           const d = done(i);
@@ -147,18 +159,6 @@ export function TaigaCard({ block }: { block: string }) {
           );
         })}
       </div>
-      {err && !expired && <div className="note bad">{err}</div>}
-      {st && (!st.connected || expired) && !allDone ? <Connect again={expired || !!st.user} onDone={() => { setExpired(false); setErr(null); }} /> : (
-        <div className="wa-row">
-          <span className="hint">
-            {allDone ? <><Px name="done" /> All logged in Taiga.{closed === "yes" ? " Task marked done." : ""}</>
-              : st ? <>Creates {todo.length} Done {todo.length === 1 ? "task" : "tasks"} under your user story{st.user ? ` as ${st.user}` : ""}. <button type="button" className="linkish" onClick={disconnect}>Disconnect</button></> : "Checking Taiga…"}
-          </span>
-          {allDone && task && closed !== "yes" && <button type="button" className="btn sm" disabled={closed === "busy"} onClick={closeTask}>{closed === "busy" ? <span className="spinner sm" /> : <Px name="check" />} Mark this task done</button>}
-          {!allDone && <button type="button" className="btn sm primary tg-go" disabled={busy || !todo.length || !st} onClick={() => { setExpired(false); log(); }}>
-            {busy ? <><span className="spinner sm" /> Logging…</> : <><Px name="done" /> Log {todo.length} to Taiga</>}</button>}
-        </div>
-      )}
     </div>
   );
 }

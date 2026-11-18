@@ -984,3 +984,5 @@ svg.px{display:inline-block;vertical-align:-0.22em;flex:none;image-rendering:pix
 .tg-connect code{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:1px 5px;font-size:12px;user-select:all}
 .tg-key{font-family:ui-monospace,monospace;font-size:12px;resize:vertical}
 .btn.primary.tg-go{background:#5aa3a6;border-color:#2f7f83;color:#04292b}
+.tg-card .wa-row,.tg-connect{padding-bottom:8px;border-bottom:1px solid color-mix(in srgb,#5aa3a6 35%,transparent)}
+.tg-step{margin:0;font-size:13px}
