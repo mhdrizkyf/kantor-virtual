@@ -132,7 +132,7 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
       const j = await r.json();
       if (j.error) throw new Error(j.error);
       setD(j); setText(""); setPicked([]); setAnswers({}); setLink(""); setFiles([]); setConfirm(null); onChanged();
-      if (action === "revise" || action === "reply" || action === "rerun" || (action === "reopen" && out)) setWatchUntil(Date.now() + 3 * 60_000);
+      if (action === "revise" || action === "reply" || action === "rerun" || action === "restart" || (action === "reopen" && out)) setWatchUntil(Date.now() + 3 * 60_000);
       else if (action === "approve" || action === "done") setWatchUntil(0); // closed: nobody is expected to reply
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
     finally { setBusy(null); setPending(null); }
@@ -168,7 +168,7 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
     </div>
   );
 
-  const busyLabel: Record<string, string> = { approve: "Approving…", revise: "Sending changes…", reply: "Sending…", done: "Saving…", rename: "Saving…", rerun: "Asking the agent to retry…" };
+  const busyLabel: Record<string, string> = { stop: "Stopping…", "stop-extra": "Stopping the extra runs…", restart: "Starting again…", approve: "Approving…", revise: "Sending changes…", reply: "Sending…", done: "Saving…", rename: "Saving…", rerun: "Asking the agent to retry…" };
   const fresh = seen ? d.artifacts.filter(a => !seen.has(a.id)).length : 0;
   const canSend = !!text.trim() || files.length > 0 || answered > 0;
   const dg = d.digest;
@@ -221,6 +221,19 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
                 {d.live.state !== "idle" && (
                   <div className={`live live-${d.live.state}`} role="status">
                     {d.live.state === "running" || d.live.state === "queued" ? <span className="dots"><i /><i /><i /></span> : null}<PxText text={d.live.label} />
+                  </div>
+                )}
+                {/* Fix a stuck or doubled run right here. */}
+                {(d.live.runs > 0 || d.live.canRetry) && d.mode !== "closed" && (
+                  <div className="runfix">
+                    {d.live.runs > 1 && <>
+                      <span className="hint"><Px name="alert" /> {d.live.runs} runs started for this task; only one is needed.</span>
+                      <button className="btn sm" disabled={!!busy} onClick={() => act("stop-extra")}>Stop the extra {d.live.runs - 1 === 1 ? "run" : "runs"}</button>
+                    </>}
+                    {d.live.runs <= 1 && d.live.stuck && <span className="hint"><Px name="alert" /> Working for over an hour. If nothing new appeared, it may be stuck.</span>}
+                    {d.live.runs <= 1 && d.live.canRetry && <span className="hint">Nothing is running on this task right now.</span>}
+                    {d.live.runs > 0 && <button className="btn sm" disabled={!!busy} onClick={() => { if (window.confirm("Stop the agent's work on this task?")) act("stop"); }}><Px name="pause" /> Stop</button>}
+                    {(d.live.stuck || d.live.canRetry) && <button className="btn sm" disabled={!!busy} onClick={() => act("restart")}><Px name="refresh" /> {d.live.runs ? "Stop & start again" : "Start again"}</button>}
                   </div>
                 )}
                 {d.live.state === "idle" && d.mode === "closed" && (

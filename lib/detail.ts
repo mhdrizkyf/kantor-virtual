@@ -19,7 +19,7 @@ export type TaskDetail = {
   people: Mentionable[];
   /** Every file on this task (outputs + attachments), newest first. */
   artifacts: { id: string; name: string; url: string; image: boolean; from: string; when: string; inChat: boolean }[];
-  live: { state: "running" | "queued" | "waiting" | "idle"; label: string };
+  live: { state: "running" | "queued" | "waiting" | "idle"; label: string; runs: number; minutes: number; stuck: boolean; canRetry: boolean };
   /** Short summary + questions from the latest agent message, for the "Your part" side. */
   digest: (Digest & { from: string; when: string; messageId: string; open: boolean }) | null;
 };
@@ -98,8 +98,12 @@ export async function buildDetail(id: string, wsPick?: string | null): Promise<T
   const running = runs.find(r => ["running", "dispatched", "started", "preparing", "in_progress"].includes(r.status));
   const queued = runs.find(r => r.status === "queued");
   const aN = agent?.name ?? "The agent";
-  let live: TaskDetail["live"];
-  if (running) live = { state: "running", label: `${aN} is working…` };
+  const active = runs.filter(r => r.status !== "completed" && r.status !== "failed" && !/cancel/.test(r.status));
+  const since = running ? Date.parse(running.started_at ?? running.created_at) : NaN;
+  const minutes = Number.isFinite(since) ? Math.max(0, Math.round((Date.now() - since) / 60000)) : 0;
+  const dur = minutes >= 60 ? `${Math.floor(minutes / 60)} h ${minutes % 60} min` : `${minutes} min`;
+  let live: Omit<TaskDetail["live"], "runs" | "minutes" | "stuck" | "canRetry">;
+  if (running) live = { state: "running", label: `${aN} is working… (${dur})` };
   else if (queued && kantor.open === false) live = { state: "waiting", label: "🔒 Office closed. Work starts when it opens." };
   else if (queued && runtime?.status !== "online") live = { state: "waiting", label: "🌙 Laptop off. Work starts when it is back on." };
   else if (queued) live = { state: "queued", label: `${aN} will start soon (queued)…` };
@@ -111,8 +115,16 @@ export async function buildDetail(id: string, wsPick?: string | null): Promise<T
   const dg = lastAgent ? digest(lastAgent.text) : null;
   const answered = lastAgent ? messages.indexOf(lastAgent) < messages.length - 1 : true;
 
+  const isAgent = issue.assignee_type === "agent";
+  const liveFull: TaskDetail["live"] = {
+    ...live, runs: active.length, minutes,
+    stuck: !!running && minutes >= 60,
+    // Nothing is running although the task is still waiting on the agent: offer to start it again.
+    canRetry: isAgent && !active.length && ["todo", "in_progress"].includes(issue.status),
+  };
+
   return {
-    live,
+    live: liveFull,
     digest: dg && lastAgent ? { ...dg, from: lastAgent.who, when: lastAgent.when, messageId: lastAgent.id, open: !answered && !closed } : null,
     id: issue.id, title: friendlyTitle(issue), originalTitle: issue.title, key: issue.identifier,
     project: snap.projects.find(p => p.id === issue.project_id)?.title ?? null,

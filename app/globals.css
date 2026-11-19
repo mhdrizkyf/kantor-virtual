@@ -986,3 +986,5 @@ svg.px{display:inline-block;vertical-align:-0.22em;flex:none;image-rendering:pix
 .btn.primary.tg-go{background:#5aa3a6;border-color:#2f7f83;color:#04292b}
 .tg-card .wa-row,.tg-connect{padding-bottom:8px;border-bottom:1px solid color-mix(in srgb,#5aa3a6 35%,transparent)}
 .tg-step{margin:0;font-size:13px}
+.runfix{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0}
+.runfix .hint{flex:1;min-width:180px}

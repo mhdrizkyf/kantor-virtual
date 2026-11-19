@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { buildDetail } from "@/lib/detail";
-import { addComment, updateIssue, setIssueMeta, issueDetail, me, kantorSettings, rerunIssue, loadDirectory } from "@/lib/multica";
+import { addComment, updateIssue, setIssueMeta, issueDetail, me, kantorSettings, rerunIssue, loadDirectory, activeRuns, cancelRun } from "@/lib/multica";
 import { parseMentions, plainText } from "@/lib/mentions";
 import { telegram } from "@/lib/telegram";
 import { friendlyTitle } from "@/lib/titles";
@@ -15,7 +15,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   catch (e) { return NextResponse.json({ error: String(e instanceof Error ? e.message : e) }, { status: 500 }); }
 }
 
-type Body = { ws?: string; files?: string[]; action: "approve" | "revise" | "reply" | "done" | "rename" | "rerun" | "reopen"; text?: string; link?: string };
+type Body = { ws?: string; files?: string[]; action: "approve" | "revise" | "reply" | "done" | "rename" | "rerun" | "reopen" | "stop" | "stop-extra" | "restart"; text?: string; link?: string };
 
 /** Aksi dari kantor. Setiap aksi ditulis ke Multica atas nama pemilik token. */
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -74,6 +74,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         // Ulangi kerja worker untuk task ini (misalnya setelah login AI diperbaiki).
         await rerunIssue(ws, id);
         break;
+      case "stop": case "stop-extra": case "restart": {
+        // Stop the agent's runs on this task: all of them, or every one but the oldest (duplicates). "restart" then runs it again.
+        const runs = (await activeRuns(ws, id)).sort((a, b) => a.created_at.localeCompare(b.created_at));
+        for (const r of body.action === "stop-extra" ? runs.slice(1) : runs) await cancelRun(ws, id, r.id).catch(() => {});
+        if (body.action === "restart") { await new Promise(r => setTimeout(r, 1500)); await rerunIssue(ws, id); }
+        break;
+      }
       case "rename":
         await setIssueMeta(ws, id, "kantor_title", text);
         break;
