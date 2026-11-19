@@ -11,8 +11,9 @@ import { AGENT_REPORT_FORMAT, FORMAT_MARKER } from "../lib/digest";
 import { AGENT_REMINDERS, REMIND_MARKER } from "../lib/reminders";
 import { AGENT_WHATSAPP, WA_MARKER } from "../lib/whatsapp";
 import { AGENT_TAIGA, TAIGA_MARKER } from "../lib/taiga";
+import { AGENT_SHOTS, SHOTS_MARKER } from "../lib/screenshots";
 
-const BLOCKS = [[FORMAT_MARKER, AGENT_REPORT_FORMAT, "report format"], [REMIND_MARKER, AGENT_REMINDERS, "reminders"], [WA_MARKER, AGENT_WHATSAPP, "WhatsApp drafts"], [TAIGA_MARKER, AGENT_TAIGA, "Taiga activities"]] as const;
+const BLOCKS = [[FORMAT_MARKER, AGENT_REPORT_FORMAT, "report format"], [REMIND_MARKER, AGENT_REMINDERS, "reminders"], [WA_MARKER, AGENT_WHATSAPP, "WhatsApp drafts"], [TAIGA_MARKER, AGENT_TAIGA, "Taiga activities"], [SHOTS_MARKER, AGENT_SHOTS, "web screenshots"]] as const;
 
 const dry = process.argv.includes("--dry");
 
