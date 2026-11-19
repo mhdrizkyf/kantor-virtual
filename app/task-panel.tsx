@@ -115,8 +115,10 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
   const drafts = d?.digest?.open ? d.digest.questions.filter(q => answers[q.n] && !answers[q.n].saved && flat[q.n]?.trim()).length : 0;
   // Approving closes the task, so it is only offered when every answer is a plain "OK" and nothing else is typed.
   const onlyOk = d?.digest?.open ? d.digest.questions.every(q => !flat[q.n]?.trim() || (OK.test(flat[q.n].trim()) && !answers[q.n]?.note.trim())) : true;
+  // A "yes" to "May I re-run…?" / "Boleh saya…?" means the agent still has work to do, so answering must not close the task.
+  const followUp = !!d?.digest?.open && d.digest.questions.some(q => flat[q.n]?.trim() && !NO.test(flat[q.n].trim()) && ACT.test(q.text));
   const hasInput = answered > 0 || !!text.trim() || files.length > 0;
-  const canApprove = !hasInput || (onlyOk && !text.trim() && files.length === 0);
+  const canApprove = !hasInput || (onlyOk && !followUp && !text.trim() && files.length === 0);
 
   async function act(action: string, extra: Record<string, string> = {}) {
     setBusy(action); setErr(null);
@@ -316,8 +318,8 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
                           <button className="btn" onClick={() => act("revise")}><Px name="edit" /> Send without closing</button>
                           <button className="btn primary" onClick={() => setConfirm("approve")}><Px name="done" /> Approve &amp; close</button>
                         </> : <>
-                          <span className="hint">Your answers include corrections, so the task stays open for the agent.</span>
-                          <button className="btn primary" onClick={() => act("revise")}><Px name="edit" /> {answered ? `Submit ${answered} answer${answered > 1 ? "s" : ""}` : "Send changes"}</button>
+                          <span className="hint">{followUp ? `${d.assignee.name ?? "The agent"} still has work to do after your answer, so the task stays open.` : "Your answers include corrections, so the task stays open for the agent."}</span>
+                          <button className="btn primary" onClick={() => act("revise")}><Px name={followUp ? "play" : "edit"} /> {followUp ? "Send & let the agent continue" : answered ? `Submit ${answered} answer${answered > 1 ? "s" : ""}` : "Send changes"}</button>
                         </>)}
                         {d.mode === "human" && <>
                           <button className="btn" onClick={onClose}><Px name="pause" /> Not yet</button>
@@ -353,6 +355,9 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
 // ---- One question from the agent: pick an option and/or write a note, then Save (Edit to change it) ----
 type Ans = { opt: string; note: string; saved: boolean };
 const EMPTY: Ans = { opt: "", note: "", saved: false };
+/** Questions where a yes means the agent will go and do more work. */
+const ACT = /\b(boleh(kah)? saya|apakah saya (boleh|perlu|harus)|perlu(kah)? saya|mau(kah)? saya|saya (lanjut|lanjutkan|jalankan|kerjakan|buat|kirim|alihkan|ulang)|lanjut(kan)?\b.*\?|jalankan ulang|run ulang|may i|shall i|should i|can i|do you want me|want me to|ok to (proceed|continue|run)|go ahead)/i;
+const NO = /^(no|tidak|nggak|ga|gak|jangan|tunda|nanti|pertahankan|keep)\b/i;
 const OK = /^(ok|oke|okay|okey|yes|ya|iya|setuju|sesuai|approve[d]?|lgtm|sudah sesuai|good)\b/i;
 const ansText = (a?: Ans) => !a ? "" : a.opt && a.note.trim() ? `${a.opt} — ${a.note.trim()}` : a.opt || a.note.trim();
 

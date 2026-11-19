@@ -15,3 +15,8 @@ setTimeout(() => { import("./lib/wa-bot").then(m => m.autoStartBot()).catch(() =
 const filesTick = () => import("./lib/knowledge").then(m => m.syncOutputs()).then(r => { if (r !== "Up to date.") console.log("[files]", r); }).catch(e => console.warn("[files] failed:", String(e).slice(0, 200)));
 setTimeout(filesTick, 60_000);
 setInterval(filesTick, 15 * 60_000);
+
+// Task chains: start the next task in a chain once the previous one is done (see lib/chain.ts), every 2 minutes.
+const chainTick = () => import("./lib/chain").then(m => m.runChains()).then(r => { if (r.length) console.log("[chain]", r.join("; ")); }).catch(e => console.warn("[chain] failed:", String(e).slice(0, 200)));
+setTimeout(chainTick, 30_000);
+setInterval(chainTick, 2 * 60_000);
