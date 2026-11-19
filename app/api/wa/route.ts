@@ -1,12 +1,17 @@
 import { NextResponse } from "next/server";
-import { botState, startBot, stopBot, botSend, scheduleSend, cancelQueued, listQueue, runDueSends } from "@/lib/wa-bot";
+import { botGroups, botState, startBot, stopBot, botSend, scheduleSend, cancelQueued, listQueue, runDueSends } from "@/lib/wa-bot";
 import { zonedTime } from "@/lib/reminders";
 
 export const dynamic = "force-dynamic";
 const fail = (e: unknown, status = 500) => (status >= 500 && console.warn("[whatsapp] failed:", String(e instanceof Error ? e.stack ?? e.message : e).slice(0, 600)), NextResponse.json({ error: String(e instanceof Error ? e.message : e) }, { status }));
 
 /** Status of the assistant's WhatsApp number. */
-export async function GET() { return NextResponse.json({ ...(await botState()), queue: listQueue() }); }
+export async function GET(req: Request) {
+  if (new URL(req.url).searchParams.has("groups")) {
+    try { return NextResponse.json({ groups: await botGroups() }); } catch (e) { return fail(e, 400); }
+  }
+  return NextResponse.json({ ...(await botState()), queue: listQueue() });
+}
 
 /** { action: "connect", phone } · { action: "disconnect" } · { action: "send", phone, text } · { action: "schedule", phone, name, text, date, time } · { action: "cancel", id } · { action: "when-done", phone, name, text, issueId, ws, title } */
 export async function POST(req: Request) {

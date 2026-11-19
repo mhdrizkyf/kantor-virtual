@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Px } from "./pixel-icon";
 import { GrowText } from "./auto-grow";
 import { useBook, saveContact, setBook, loadBook, useBot, setBot, loadBot } from "./wa-card";
-import { showPhone, withNote, DEFAULT_NOTE } from "@/lib/whatsapp";
+import { showTarget, isGroup, withNote, DEFAULT_NOTE } from "@/lib/whatsapp";
 
 /** Link the assistant's own WhatsApp number (like WhatsApp Web), with an 8-character pairing code. */
 function AssistantNumber() {
@@ -77,6 +77,49 @@ function AssistantNumber() {
   );
 }
 
+/** Groups the assistant's number is in; saving one lets agents address it by name ("To: Grup Research Hub"). */
+function Groups() {
+  const bot = useBot();
+  const b = useBook();
+  const [list, setList] = useState<{ id: string; name: string; size: number }[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  if (bot?.status !== "ready") return null;
+  async function load() {
+    setBusy(true); setErr(null);
+    try { const j = await (await fetch("/api/wa?groups=1")).json(); if (j.error) throw new Error(j.error); setList(j.groups); }
+    catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+    setBusy(false);
+  }
+  async function save(g: { id: string; name: string }) {
+    try { await saveContact(g.name, g.id); } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+  }
+  return (
+    <section className="wa-bot">
+      <h3 className="sect">WhatsApp groups</h3>
+      <p className="hint">Add the assistant&apos;s number to a group in WhatsApp first. Then save the group here so assistants can draft messages to it. Everyone in the group sees messages from the assistant&apos;s number.</p>
+      {!list && <button className="btn sm" disabled={busy} onClick={load}>{busy ? <span className="spinner sm" /> : <Px name="team" />} Show the assistant&apos;s groups</button>}
+      {list && !list.length && <p className="desc">The assistant&apos;s number isn&apos;t in any group yet.</p>}
+      {list && list.length > 0 && (
+        <ul className="rm-list">
+          {list.map(g => {
+            const saved = b?.contacts.find(c => c.phone === g.id);
+            return (
+              <li key={g.id}>
+                <span className="rm-ic"><Px name="team" /></span>
+                <span className="rm-t"><b>{g.name}</b><small>{g.size ? `${g.size} members` : "Group"}{saved && saved.name !== g.name ? ` · saved as ${saved.name}` : ""}</small></span>
+                {saved ? <span className="hint"><Px name="done" /> Saved</span> : <button className="btn sm" onClick={() => save(g)}><Px name="plus" /> Save</button>}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {list && <button className="btn sm" disabled={busy} onClick={load}>{busy ? <span className="spinner sm" /> : <Px name="refresh" />} Refresh</button>}
+      {err && <div className="note bad">{err}</div>}
+    </section>
+  );
+}
+
 export default function Contacts({ onClose }: { onClose: () => void }) {
   const b = useBook();
   const [name, setName] = useState(""); const [phone, setPhone] = useState("");
@@ -135,14 +178,15 @@ export default function Contacts({ onClose }: { onClose: () => void }) {
           <ul className="rm-list">
             {b?.contacts.map(c => (
               <li key={c.name}>
-                <span className="rm-ic"><Px name="person" /></span>
-                <span className="rm-t"><b>{c.name}</b><small>{showPhone(c.phone)}</small></span>
-                <button className="btn sm" onClick={() => { setEditing(c.name); setName(c.name); setPhone("+" + c.phone); setOk(null); }} aria-label={`Edit ${c.name}`}><Px name="edit" /></button>
+                <span className="rm-ic"><Px name={isGroup(c.phone) ? "team" : "person"} /></span>
+                <span className="rm-t"><b>{c.name}</b><small>{showTarget(c.phone)}</small></span>
+                <button className="btn sm" onClick={() => { setEditing(c.name); setName(c.name); setPhone(isGroup(c.phone) ? c.phone : "+" + c.phone); setOk(null); }} aria-label={`Edit ${c.name}`}><Px name="edit" /></button>
                 <button className="btn sm" onClick={() => remove(c.name)} aria-label={`Remove ${c.name}`}>Remove</button>
               </li>
             ))}
           </ul>
           <AssistantNumber />
+          <Groups />
           <h3 className="sect">Note on top of each message</h3>
           <GrowText className="input" rows={2} maxPx={140} value={curNote} onChange={e => setNote(e.target.value)} aria-label="Note on top of each message" />
           <p className="hint">{"{me}"} becomes your first name. Preview: <i>{b ? withNote(curNote, b.me, "").trim() || "(no note)" : ""}</i></p>

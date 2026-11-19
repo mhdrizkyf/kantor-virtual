@@ -6,7 +6,7 @@ import { existsSync, rmSync, readFileSync, writeFileSync, mkdirSync } from "node
 import { randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
 import { join } from "node:path";
-import { normalizePhone } from "./whatsapp";
+import { normalizePhone, normalizeTarget, isGroup } from "./whatsapp";
 import { call_, workspace } from "./multica";
 
 export type BotState = {
@@ -17,6 +17,7 @@ type WaClient = {
   initialize(): Promise<void>; destroy(): Promise<void>; logout(): Promise<void>;
   on(ev: string, f: (...a: unknown[]) => void): void;
   getNumberId(n: string): Promise<{ _serialized: string } | null>;
+  getChats(): Promise<{ id: { _serialized: string }; name?: string; isGroup?: boolean; participants?: unknown[]; groupMetadata?: { participants?: unknown[] } }[]>;
   sendMessage(to: string, text: string): Promise<unknown>;
   getState(): Promise<unknown>;
   info?: { wid?: { user?: string }; pushname?: string };
@@ -105,18 +106,35 @@ async function reconnect() {
   throw new Error("The assistant's WhatsApp lost its connection and couldn't reconnect. Open WhatsApp contacts to check it.");
 }
 
+/** The WhatsApp groups the assistant's number is in. */
+export async function botGroups() {
+  const c = box.client;
+  if (!c || box.state.status !== "ready") throw new Error("The assistant's WhatsApp isn't connected.");
+  return (await c.getChats()).filter(x => x.isGroup)
+    .map(x => ({ id: x.id._serialized, name: x.name ?? "Group", size: (x.groupMetadata?.participants ?? x.participants ?? []).length }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
 /** Send one message from the assistant's number. Messages go out one at a time, at least 20 seconds apart. */
 export function botSend(phone: string, text: string) {
   const once = async () => {
     const c = box.client;
     if (!c || box.state.status !== "ready") throw new Error("The assistant's WhatsApp isn't connected.");
-    const to = normalizePhone(phone);
+    const to = normalizeTarget(phone);
     if (!to) throw new Error("That phone number doesn't look right.");
-    const id = await c.getNumberId(to);
-    if (!id) throw new Error(`+${to} isn't on WhatsApp.`);
+    let chat: string;
+    if (isGroup(to)) {
+      const g = (await c.getChats()).find(x => x.isGroup && x.id._serialized === to);
+      if (!g) throw new Error("The assistant's number isn't in that WhatsApp group (anymore). Add it to the group first.");
+      chat = to;
+    } else {
+      const id = await c.getNumberId(to);
+      if (!id) throw new Error(`+${to} isn't on WhatsApp.`);
+      chat = id._serialized;
+    }
     const wait = box.lastSent + GAP_MS - Date.now();
     if (wait > 0) await new Promise(r => setTimeout(r, wait));
-    await c.sendMessage(id._serialized, text);
+    await c.sendMessage(chat, text);
     box.lastSent = Date.now();
     return { at: new Date().toISOString() };
   };
@@ -153,7 +171,7 @@ const writeQueue = (q: Queued[]) => {
 export const listQueue = () => readQueue().filter(x => x.status !== "cancelled").sort((a, b) => a.at.localeCompare(b.at));
 
 export function scheduleSend(phone: string, name: string, text: string, at: Date, trigger?: Trigger) {
-  const to = normalizePhone(phone);
+  const to = normalizeTarget(phone);
   if (!to) throw new Error("That phone number doesn't look right.");
   if (!trigger && at.getTime() < Date.now() - 60_000) throw new Error("That time has already passed.");
   // Approving the same message for the same task twice keeps one.

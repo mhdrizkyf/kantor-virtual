@@ -5,7 +5,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { Px } from "./pixel-icon";
 import { TaigaCard } from "./taiga-card";
 import { GrowText } from "./auto-grow";
-import { findContact, normalizePhone, parseDraft, showPhone, waLink, withNote, fmtSendAt, type Contact } from "@/lib/whatsapp";
+import { findContact, normalizePhone, parseDraft, showTarget, isGroup, waLink, withNote, fmtSendAt, type Contact } from "@/lib/whatsapp";
 
 export type Book = { contacts: Contact[]; note: string; me: string };
 
@@ -151,7 +151,7 @@ function WaCard({ to, text, sendAt, whenDone }: { to: string; text: string; send
       <div className="wa-head">
         <span className="wa-ic"><Px name="chat" /></span>
         <b>WhatsApp to {who?.name ?? (to || "someone")}</b>
-        {who && <small>{showPhone(who.phone)}</small>}
+        {who && <small>{showTarget(who.phone)}</small>}
         {b && b.contacts.length > 0 && (
           <select className="input wa-pick" aria-label="Send to" value={who?.name ?? ""} onChange={e => setPick(e.target.value || null)}>
             {!who && <option value="">Pick a contact…</option>}
@@ -200,15 +200,15 @@ function WaCard({ to, text, sendAt, whenDone }: { to: string; text: string; send
             : when === "done" ? <>Approve once now. It then goes out from the assistant&apos;s number by itself as soon as this task is done.</>
             : <>Goes out from the assistant&apos;s number{assistant?.phone ? ` (+${assistant.phone})` : ""} {when ? "at that time" : "right away"} once you approve.</>}</span>
           <button type="button" className="btn sm" onClick={copy}>{copied ? <><Px name="done" /> Copied</> : <><Px name="clip" /> Copy</>}</button>
-          <button type="button" className="btn sm" onClick={send} title="Open in your own WhatsApp instead">My WhatsApp</button>
+          {!(who && isGroup(who.phone)) && <button type="button" className="btn sm" onClick={send} title="Open in your own WhatsApp instead">My WhatsApp</button>}
           <button type="button" className="btn sm primary wa-go" onClick={() => approve()} disabled={!b || sending}>
             {sending ? <><span className="spinner sm" /> Sending…</> : <><Px name="done" /> {sentAt || prevSent ? "Send again" : when === "done" ? "Approve, send when done" : when ? "Approve & schedule" : "Approve & send"}</>}</button>
         </div>
       ) : (
         <div className="wa-row">
-          <span className="hint">{sent ? <><Px name="done" /> Opened in WhatsApp. Press Send there.</> : "Opens your WhatsApp with this text. Nothing is sent until you press Send."}</span>
+          <span className="hint">{who && isGroup(who.phone) ? "Messages to a group go out from the assistant's number, which isn't connected right now. Copy the text and send it in the group yourself." : sent ? <><Px name="done" /> Opened in WhatsApp. Press Send there.</> : "Opens your WhatsApp with this text. Nothing is sent until you press Send."}</span>
           <button type="button" className="btn sm" onClick={copy}>{copied ? <><Px name="done" /> Copied</> : <><Px name="clip" /> Copy</>}</button>
-          <button type="button" className="btn sm primary wa-go" onClick={send} disabled={!b}><Px name="chat" /> {sent ? "Open again" : "Send via WhatsApp"}</button>
+          {!(who && isGroup(who.phone)) && <button type="button" className="btn sm primary wa-go" onClick={send} disabled={!b}><Px name="chat" /> {sent ? "Open again" : "Send via WhatsApp"}</button>}
         </div>
       )}
     </div>

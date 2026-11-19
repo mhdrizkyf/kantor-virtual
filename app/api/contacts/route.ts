@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { readBook, writeBook } from "@/lib/contacts";
-import { normalizePhone } from "@/lib/whatsapp";
+import { normalizeTarget } from "@/lib/whatsapp";
 import { me } from "@/lib/multica";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +17,7 @@ export async function GET() {
 export async function POST(req: Request) {
   const b = (await req.json()) as { name?: string; phone?: string; oldName?: string };
   const name = (b.name ?? "").trim().slice(0, 80);
-  const phone = normalizePhone(b.phone ?? "");
+  const phone = normalizeTarget(b.phone ?? "");
   if (!name) return bad("Write the person's name.");
   if (!phone) return bad("That phone number doesn't look right. Use a format like 0812… or +62 812….");
   const book = readBook();

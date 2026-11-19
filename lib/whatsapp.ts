@@ -13,6 +13,11 @@ export function normalizePhone(raw: string) {
   d = d.replace(/\D/g, "");
   return d.length >= 8 && d.length <= 15 ? d : null;
 }
+/** WhatsApp groups are saved like contacts, with the group's id (…@g.us) in place of a phone number. */
+export const isGroup = (t: string) => /@g\.us$/.test(t.trim());
+/** A phone number in international form, or a group id as it is. */
+export const normalizeTarget = (raw: string) => (isGroup(raw) ? raw.trim() : normalizePhone(raw));
+export const showTarget = (t: string) => (isGroup(t) ? "WhatsApp group" : showPhone(t));
 export const showPhone = (d: string) => "+" + d.replace(/^(\d{2})(\d{3})(\d{4})(\d+)$/, "$1 $2 $3 $4");
 
 const HONORIFIC = /^(bu|ibu|pak|bapak|mbak|mba|mas|kak|bang|teh|dr\.?|prof\.?|mr\.?|mrs\.?|ms\.?)\s+/i;
@@ -84,6 +89,7 @@ ${F}
 
 Virtual Office turns each block into a card with an "Approve & send" button. When the member presses it, the message is sent from their assistant's own WhatsApp number (or at the "Send at" time). If no assistant number is linked, the card opens the member's own WhatsApp instead.
 - You don't need a tool or the multica CLI to send WhatsApp, and never say you can't send it. Say the drafts are ready and the member can press "Approve & send" on each card.
+- "To:" can also be a WhatsApp group the member saved in their contacts (e.g. \`To: Grup Research Hub\`); write the group's name as the member calls it.
 - Virtual Office keeps the phone numbers. Don't ask the member for phone numbers; the card asks if one is missing.
 - One block per recipient. Only the message goes inside the block; put your explanations outside it.
 - Virtual Office already adds a first line saying the message comes from the member's virtual assistant, so don't introduce yourself again or sign it as the member.
