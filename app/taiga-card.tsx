@@ -58,18 +58,12 @@ function Connect({ again, onDone }: { again: boolean; onDone: () => void }) {
   }
   return (
     <div className="tg-connect">
-      <p className="tg-step"><b>Step 1: connect Taiga.</b> {again ? "Your Taiga key has expired. Copy a new one:" : "Do this once; the key stays on this computer."}</p>
-      <ol className="wa-steps">
-        <li>Open <a href="https://projects.digitaltelkom.id" target="_blank" rel="noreferrer">Taiga</a> in Chrome or Edge, signed in.</li>
-        <li>Press <b>⌥ Option + ⌘ Command + J</b>. A panel called Console opens.</li>
-        <li>Type <code>copy(JSON.stringify(localStorage))</code> and press <b>Enter</b>.</li>
-        <li>Come back here and paste (<b>⌘ V</b>) into the box below.</li>
-      </ol>
-      <textarea className="input tg-key" rows={2} placeholder="Paste here" value={text} onChange={e => setText(e.target.value)} aria-label="Taiga key" spellCheck={false} />
-      <small className="hint">Only the Taiga login key is kept; anything else in what you paste is ignored. Agents never see it. After connecting, a <b>Log to Taiga</b> button appears here.</small>
+      <label className="tg-step" htmlFor="tg-key"><b>Connect Taiga.</b> {again ? "Your key has expired. Paste a new bearer key:" : "Paste your Taiga bearer key:"}</label>
+      <input id="tg-key" className="input tg-key" type="password" autoComplete="off" placeholder="Bearer key" value={text} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && text.trim()) save(); }} spellCheck={false} />
+      <small className="hint">Kept on this computer only; agents never see it.</small>
       {err && <div className="note bad">{err}</div>}
       <div className="wa-row"><span className="hint" />
-        <button type="button" className="btn sm primary tg-go" disabled={busy || !text.trim()} onClick={save}>{busy ? <><span className="spinner sm" /> Checking…</> : <><Px name="unlock" /> Connect Taiga</>}</button>
+        <button type="button" className="btn sm primary tg-go" disabled={busy || !text.trim()} onClick={save}>{busy ? <><span className="spinner sm" /> Checking…</> : <><Px name="unlock" /> Connect</>}</button>
       </div>
     </div>
   );
@@ -79,6 +73,7 @@ export function TaigaCard({ block }: { block: string }) {
   const st = useStatus();
   const task = useContext(WaTask);
   const [closed, setClosed] = useState<"no" | "busy" | "yes">("no");
+  const [closedOthers, setClosedOthers] = useState<string[]>([]);
   const [rows, setRows] = useState<Row[]>(() => parseTaiga(block));
   const [keys, setKeys] = useState<string[]>([]);
   const [errs, setErrs] = useState<Record<number, string>>({});
@@ -94,12 +89,13 @@ export function TaigaCard({ block }: { block: string }) {
   async function log() {
     setBusy(true); setErr(null); setErrs({});
     try {
-      const j = await post({ action: "log", activities: todo.map(x => x.r) });
+      const j = await post({ action: "log", activities: todo.map(x => x.r), ws: task?.ws, from: task?.id });
       if (j.login) { setExpired(true); throw new Error(j.error); }
       if (j.error) throw new Error(j.error);
       const e: Record<number, string> = {};
       (j.results as { error?: string }[]).forEach((res, n) => { if (res.error) e[todo[n].i] = res.error; });
       setErrs(e);
+      if (j.closed?.length) setClosedOthers(j.closed);
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
     setBusy(false);
   }
@@ -132,7 +128,7 @@ export function TaigaCard({ block }: { block: string }) {
       {st && (!st.connected || expired) && !allDone ? <Connect again={expired || !!st.user} onDone={() => { setExpired(false); setErr(null); }} /> : (
         <div className="wa-row">
           <span className="hint">
-            {allDone ? <><Px name="done" /> All logged in Taiga.{closed === "yes" ? " Task marked done." : ""}</>
+            {allDone ? <><Px name="done" /> All logged in Taiga.{closed === "yes" ? " Task marked done." : ""}{closedOthers.length ? ` Also closed: ${closedOthers.join(", ")}.` : ""}</>
               : st ? <>Creates {todo.length} Done {todo.length === 1 ? "task" : "tasks"} under your user story{st.user ? ` as ${st.user}` : ""}. <button type="button" className="linkish" onClick={disconnect}>Disconnect</button></> : "Checking Taiga…"}
           </span>
           {allDone && task && closed !== "yes" && <button type="button" className="btn sm" disabled={closed === "busy"} onClick={closeTask}>{closed === "busy" ? <span className="spinner sm" /> : <Px name="check" />} Mark this task done</button>}

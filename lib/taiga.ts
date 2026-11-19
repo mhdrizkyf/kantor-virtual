@@ -141,6 +141,8 @@ export async function saveKeys(text: string) {
 export function forget() { const s = read(); write({ logged: s.logged }); return status(); }
 
 const cut = (s: string, n: number) => s.trim().slice(0, n);
+/** Taiga's Start Time list only has :00 and :30, so 09:45 becomes 09:30. */
+const halfHour = (t: string) => { const m = t.match(/^(\d{1,2}):(\d{2})/); return m ? `${m[1].padStart(2, "0")}:${Number(m[2]) < 30 ? "00" : "30"}` : t; };
 
 /** Create one Done task for each activity under the user story and fill its custom fields. */
 export async function logActivities(list: Activity[]) {
@@ -162,7 +164,7 @@ export async function logActivities(list: Activity[]) {
         const n = at.name.toLowerCase();
         const v = /training/.test(n) ? a.training
           : /date/.test(n) ? a.date
-          : /start/.test(n) ? a.start
+          : /start/.test(n) ? (at.type === "dropdown" ? halfHour(a.start) : a.start)
           : /time spent|duration|minutes|durasi/.test(n) ? a.minutes
           : undefined;
         if (v === undefined || v === "") continue;
