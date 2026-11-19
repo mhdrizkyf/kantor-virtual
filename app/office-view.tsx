@@ -382,7 +382,7 @@ export default function OfficeView({ office, attention, people, seen, meId }: { 
               <div className="tasks">{runs.length ? runs.map(r => (
                 <button key={r.id} className="tasklink" onClick={() => r.issueId && setOpenTask(r.issueId, r.ws)}>
                   <span className="t">{r.issueTitle ?? "Task"}<small>{r.when}{r.error ? ` · ${r.error}` : ""}</small></span>
-                  <span className={`pill ${r.status === "failed" ? "p-review" : r.status === "completed" ? "p-done" : "p-doing"}`}>{r.status === "failed" ? "Failed" : r.status === "completed" ? "Done" : "Running"}</span>
+                  <span className={`pill ${r.status === "failed" ? "p-review" : r.status === "completed" ? "p-done" : /cancel/.test(r.status) ? "p-locked" : r.status === "queued" ? "p-paused" : "p-doing"}`}>{r.status === "failed" ? "Failed" : r.status === "completed" ? "Done" : /cancel/.test(r.status) ? "Cancelled" : r.status === "queued" ? "Queued" : "Running"}</span>
                 </button>)) : <p className="desc">Hasn&apos;t worked yet.</p>}</div>
             </div>
             {openDesk.description && <details className="extra"><summary>About {openDesk.name}</summary><p className="desc">{openDesk.description}</p></details>}
