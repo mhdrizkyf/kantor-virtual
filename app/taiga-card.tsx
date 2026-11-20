@@ -96,6 +96,7 @@ export function TaigaCard({ block }: { block: string }) {
       (j.results as { error?: string }[]).forEach((res, n) => { if (res.error) e[todo[n].i] = res.error; });
       setErrs(e);
       if (j.closed?.length) setClosedOthers(j.closed);
+      if (j.closedSelf) setClosed("yes");
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
     setBusy(false);
   }
@@ -128,7 +129,7 @@ export function TaigaCard({ block }: { block: string }) {
       {st && (!st.connected || expired) && !allDone ? <Connect again={expired || !!st.user} onDone={() => { setExpired(false); setErr(null); }} /> : (
         <div className="wa-row">
           <span className="hint">
-            {allDone ? <><Px name="done" /> All logged in Taiga.{closed === "yes" ? " Task marked done." : ""}{closedOthers.length ? ` Also closed: ${closedOthers.join(", ")}.` : ""}</>
+            {allDone ? <><Px name="done" /> All logged in Taiga.{closed === "yes" ? " This task is closed." : ""}{closedOthers.length ? ` Also closed: ${closedOthers.join(", ")}.` : ""}</>
               : st ? <>Creates {todo.length} Done {todo.length === 1 ? "task" : "tasks"} under your user story{st.user ? ` as ${st.user}` : ""}. <button type="button" className="linkish" onClick={disconnect}>Disconnect</button></> : "Checking Taiga…"}
           </span>
           {allDone && task && closed !== "yes" && <button type="button" className="btn sm" disabled={closed === "busy"} onClick={closeTask}>{closed === "busy" ? <span className="spinner sm" /> : <Px name="check" />} Mark this task done</button>}

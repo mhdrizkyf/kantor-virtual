@@ -12,13 +12,13 @@ async function closeTaigaTodos(wsPick: string | undefined, dates: string[], from
   const r = await call_<{ issues?: Issue[] } | Issue[]>("GET", "/api/issues?limit=300", ws.id);
   const all = Array.isArray(r) ? r : r.issues ?? [];
   const src = all.find(i => i.id === from)?.identifier;
-  const hits = all.filter(i => i.id !== from && !/^(done|cancelled|canceled)$/.test(i.status) && i.assignee_type !== "agent" && /taiga/i.test(i.title)
+  const hits = all.filter(i => (i.id !== from || i.assignee_type !== "agent") && !/^(done|cancelled|canceled)$/.test(i.status) && i.assignee_type !== "agent" && /taiga/i.test(i.title)
     && dates.some(d => i.title.includes(d) || (i.description ?? "").includes(d) || (!/\d{4}-\d{2}-\d{2}/.test(i.title) && dayOf(i.created_at) === d)));
   for (const i of hits) {
     await addComment(ws.id, i.id, `✅ Logged ${n} ${n === 1 ? "activity" : "activities"} to Taiga${src ? ` from ${src}` : ""} in Virtual Office.`);
     await updateIssue(ws.id, i.id, { status: "done" });
   }
-  return hits.map(i => i.identifier);
+  return { others: hits.filter(i => i.id !== from).map(i => i.identifier), self: hits.some(i => i.id === from) };
 }
 
 export const dynamic = "force-dynamic";
@@ -45,12 +45,12 @@ export async function POST(req: Request) {
       if (!list.length) return NextResponse.json({ error: "Pick at least one activity." }, { status: 400 });
       const out = await logActivities(list);
       const ok = out.results.filter(x => x.ref);
-      let closed: string[] = [];
+      let closed: { others: string[]; self: boolean } = { others: [], self: false };
       if (ok.length && out.results.every(x => x.ref)) {
         const dates = [...new Set(list.map(a => a.date))];
-        closed = await closeTaigaTodos(b.ws, dates, b.from, ok.length).catch(e => { console.error("[taiga] closing to-dos", e); return []; });
+        closed = await closeTaigaTodos(b.ws, dates, b.from, ok.length).catch(e => { console.error("[taiga] closing to-dos", e); return { others: [], self: false }; });
       }
-      return NextResponse.json({ ...out, closed });
+      return NextResponse.json({ ...out, closed: closed.others, closedSelf: closed.self });
     }
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   } catch (e) { return fail(e); }

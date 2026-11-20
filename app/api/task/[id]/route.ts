@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { buildDetail } from "@/lib/detail";
-import { addComment, updateIssue, setIssueMeta, issueDetail, me, kantorSettings, rerunIssue, loadDirectory, activeRuns, cancelRun } from "@/lib/multica";
+import { addComment, updateIssue, setIssueMeta, issueDetail, me, workspace, kantorSettings, rerunIssue, loadDirectory, activeRuns, cancelRun } from "@/lib/multica";
 import { parseMentions, plainText } from "@/lib/mentions";
 import { telegram } from "@/lib/telegram";
 import { friendlyTitle } from "@/lib/titles";
 import { parkIssue } from "@/lib/office-control";
+import { afterReviewApproved } from "@/lib/taiga-flow";
 
 export const dynamic = "force-dynamic";
 
@@ -25,8 +26,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const files = body.files ?? [];
   try {
     const ws = body.ws ?? null;
-    const { issue } = await issueDetail(id, ws);
-    const who = (await me()).name;
+    const { issue, comments } = await issueDetail(id, ws);
+    const meUser = await me(); const who = meUser.name, meId = meUser.id;
     // Kantor tutup: pesan tetap tercatat, tapi worker baru mengerjakannya saat kantor dibuka.
     const officeClosed = (await kantorSettings(ws)).open === false;
     const closed = officeClosed && issue.assignee_type === "agent";
@@ -39,6 +40,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         // Komentar persetujuan tidak membangunkan agen (hemat token), lalu task ditutup.
         await addComment(ws, id, `✅ Approved by ${who} in Virtual Office.${text ? `\n\n${text}` : ""}`, quiet, files);
         await updateIssue(ws, id, { status: "done" });
+        // An approved activity review becomes a Taiga task with its card right away.
+        await afterReviewApproved((await workspace(ws)).id, issue, comments, meId, who).catch(e => console.error("[taiga] review → task", e));
         break;
       case "revise":
         if (!text && !files.length) return NextResponse.json({ error: "The change request is empty." }, { status: 400 });
