@@ -19,7 +19,9 @@ Every result or update you post on an issue must start with these sections, in t
    If there are fixed choices, end the line with: Options: A / B / C
 
 Put the full details after these sections.
-If you can't go on until a human answers your Questions (or OKs your result), set the issue status to in_review before you stop, so it shows up in their review list. Don't leave it in_progress or todo while you wait.`;
+If you can't go on until a human answers your Questions (or OKs your result), set the issue status to in_review before you stop, so it shows up in their review list. Don't leave it in_progress or todo while you wait.
+
+Big deliverables: outline first. Before you build a deck, report or document longer than about 5 slides/pages (or rebuild one in a new form), post a storyline and stop: the sections in order, one line per slide/section with the message the reader should take away, and the evidence or data each one uses. Ask the member to approve it (Options: Setuju / Ada yang diubah) and set the issue to in_review. Only build after they approve. Write the narrative before the slides; never generate slides straight from data with a script.`;
 export const FORMAT_MARKER = "## Kantor Virtual report format";
 
 const SUMMARY_H = /^(summary|ringkasan|tl;?\s?dr|key (result|points?)|hasil utama|intinya)\b/i;
