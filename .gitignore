@@ -23,3 +23,10 @@ data/files-sync.json
 data/taiga.json
 data/shot-profile/
 data/chains.json
+data/chains.json.*.tmp
+data/.locks/
+data/characters.json
+data/characters.json.*.tmp
+
+# Workspace calendar stays local
+data/work-calendar.json

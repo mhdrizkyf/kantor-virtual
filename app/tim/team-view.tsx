@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { Team, Mate, Load } from "@/lib/crew";
 import TaskPanel from "../task-panel";
-import ThemeToggle from "../theme-toggle";
 import ChatPanel, { isManager } from "../chat-panel";
 import { openChat } from "../messages";
 import { Px, Emo, PxText, StateIcon, type PxName } from "../pixel-icon";
 import { GrowText } from "../auto-grow";
+import CharacterFace from "../character-face";
+import CharacterPicker from "../character-picker";
 
 const LEVEL: Record<Load["level"], { icon: PxName; label: string; tip: string }> = {
   santai: { icon: "dot-on", label: "Free", tip: "no open tasks" },
@@ -55,7 +56,7 @@ function MateCard({ m, team, onOpenTask, onChat, onToast }: { m: Mate; team: Tea
   return (
     <article className={`mate ${m.kind} st-${m.state}`}>
       <div className="mate-top">
-        <span className="avatar">{m.avatar ? <img src={m.avatar} alt="" /> : m.emoji ? <Emo e={m.emoji} /> : (m.kind === "agent" ? <Px name="agent" /> : m.name.slice(0, 1).toUpperCase())}<span className="status-dot" /></span>
+        <span className="avatar">{m.kind === "agent" ? <CharacterFace face={m.face} size={40} /> : m.avatar ? <img src={m.avatar} alt="" /> : m.emoji ? <Emo e={m.emoji} /> : m.name.slice(0, 1).toUpperCase()}<span className="status-dot" /></span>
         <div className="mate-id">
           <h3>{m.name}{m.isMe && <span className="me-tag">you</span>}</h3>
           {m.kind === "human" && <small>{[m.role, m.sub].filter(Boolean).join(" · ")}</small>}
@@ -111,11 +112,13 @@ type Profile = { name: string; bio: string; instructions: string; emoji: string 
 /** Edit an agent's name, avatar, short bio and responsibilities (its working instructions). */
 function EditAgent({ m, team, onDone }: { m: Mate; team: Team; onDone: (msg: string | null) => void }) {
   const [p, setP] = useState<Profile | null>(null);
+  const [original, setOriginal] = useState<Profile | null>(null);
+  const [face, setFace] = useState(m.face ?? "raya");
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     fetch(`/api/crew?ws=${team.workspaceId}&agentId=${m.id}`).then(r => r.json())
-      .then(j => { if (j.error) throw new Error(j.error); setP(j); }).catch(e => setErr(String(e.message ?? e)));
+      .then(j => { if (j.error) throw new Error(j.error); setP(j); setOriginal(j); }).catch(e => setErr(String(e.message ?? e)));
   }, [m.id, team.workspaceId]);
   useEffect(() => {
     const k = (e: KeyboardEvent) => { if (e.key === "Escape") onDone(null); };
@@ -126,8 +129,12 @@ function EditAgent({ m, team, onDone }: { m: Mate; team: Team; onDone: (msg: str
     if (!p) return;
     setBusy(true); setErr(null);
     try {
-      const j = await (await fetch("/api/crew", { method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ws: team.workspaceId, agentId: m.id, profile: { name: p.name, bio: p.bio, instructions: p.instructions, emoji: p.emoji } }) })).json();
+      const profileChanged = !original || p.name !== original.name || p.bio !== original.bio || p.instructions !== original.instructions || p.emoji !== original.emoji;
+      if (!profileChanged && face === m.face) { onDone(null); return; }
+      const payload = profileChanged
+        ? { ws: team.workspaceId, agentId: m.id, profile: { name: p.name, bio: p.bio, instructions: p.instructions, emoji: p.emoji, face } }
+        : { ws: team.workspaceId, agentId: m.id, face };
+      const j = await (await fetch("/api/crew", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })).json();
       if (j.error) throw new Error(j.error);
       onDone(j.message);
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)); } finally { setBusy(false); }
@@ -143,10 +150,8 @@ function EditAgent({ m, team, onDone }: { m: Mate; team: Team; onDone: (msg: str
           <>
             <label className="sect" htmlFor="ea-name">Name</label>
             <input id="ea-name" className="input" value={p.name} onChange={e => set("name", e.target.value)} maxLength={80} />
-            {!p.hasPhoto && <>
-              <div className="sect">Avatar</div>
-              <div className="emojipick">{emojis.map(x => <button type="button" key={x} aria-pressed={p.emoji === x} onClick={() => set("emoji", x)} aria-label={x}><Emo e={x} /></button>)}</div>
-            </>}
+            <CharacterPicker value={face} onChange={setFace} />
+            {!p.hasPhoto && <details className="extra"><summary>Emoji for Multica profile</summary><div className="emojipick">{emojis.map(x => <button type="button" key={x} aria-pressed={p.emoji === x} onClick={() => set("emoji", x)} aria-label={x}><Emo e={x} /></button>)}</div></details>}
             <label className="sect" htmlFor="ea-bio">Short bio</label>
             <GrowText id="ea-bio" className="input" rows={2} maxPx={160} value={p.bio} onChange={e => set("bio", e.target.value)} maxLength={300}
               placeholder="One or two lines shown on their card, e.g. Supports the whole research team: coaching, competency framework, team issues" />
@@ -170,13 +175,13 @@ const EMOJIS = ["🦊", "🐼", "🦉", "🐙", "🦄", "🐝", "🐢", "🦜", 
 function Recruit({ team, onDone }: { team: Team; onDone: (msg: string | null) => void }) {
   const [kind, setKind] = useState<"human" | "agent" | null>(null);
   const [email, setEmail] = useState(""); const [role, setRole] = useState<"member" | "admin">("member");
-  const [name, setName] = useState(""); const [emoji, setEmoji] = useState("🦊"); const [desc, setDesc] = useState("");
+  const [name, setName] = useState(""); const [emoji, setEmoji] = useState("🦊"); const [face, setFace] = useState("raya"); const [desc, setDesc] = useState("");
   const [instr, setInstr] = useState(""); const [rt, setRt] = useState(team.runtimes.find(r => r.usable && r.online)?.id ?? team.runtimes.find(r => r.usable)?.id ?? "");
   const [busy, setBusy] = useState(false); const [err, setErr] = useState<string | null>(null);
   async function submit() {
     setBusy(true); setErr(null);
     try {
-      const body = kind === "human" ? { ws: team.workspaceId, kind, email, role } : { ws: team.workspaceId, kind, name, emoji, role: desc, instructions: instr, runtimeId: rt };
+      const body = kind === "human" ? { ws: team.workspaceId, kind, email, role } : { ws: team.workspaceId, kind, name, emoji, face, role: desc, instructions: instr, runtimeId: rt };
       const j = await (await fetch("/api/crew", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })).json();
       if (j.error) throw new Error(j.error);
       onDone(j.message);
@@ -209,8 +214,8 @@ function Recruit({ team, onDone }: { team: Team; onDone: (msg: string | null) =>
           <>
             <label className="sect" htmlFor="rc-name">Agent name</label>
             <input id="rc-name" className="input" autoFocus placeholder="e.g. Rara Research" value={name} onChange={e => setName(e.target.value)} />
-            <div className="sect">Avatar</div>
-            <div className="emojipick">{EMOJIS.map(x => <button type="button" key={x} aria-pressed={emoji === x} onClick={() => setEmoji(x)} aria-label={x}><Emo e={x} /></button>)}</div>
+            <CharacterPicker value={face} onChange={setFace} />
+            <details className="extra"><summary>Emoji for Multica profile</summary><div className="emojipick">{EMOJIS.map(x => <button type="button" key={x} aria-pressed={emoji === x} onClick={() => setEmoji(x)} aria-label={x}><Emo e={x} /></button>)}</div></details>
             <label className="sect" htmlFor="rc-desc">What do they do?</label>
             <input id="rc-desc" className="input" placeholder="e.g. UX researcher who summarises user interviews" value={desc} onChange={e => setDesc(e.target.value)} />
             <details className="extra"><summary>Working instructions (optional)</summary>
@@ -255,7 +260,6 @@ export default function TeamView({ team }: { team: Team }) {
           <div className="brand"><h1><Px name="team" /> Team Members</h1><p className="pdesc">Who works here, how busy they are, and which projects they&apos;re on.</p></div>
           <div className="chiprow">
             <button className="btn primary" onClick={() => setRecruit(true)}><Px name="plus" size="0.9em" /> Add to team</button>
-            <ThemeToggle />
             <span className="clock">{refreshing ? <><span className="spinner sm" /> Refreshing…</> : `${team.humans.length} ${team.humans.length === 1 ? "person" : "people"} · ${team.agents.length} agent${team.agents.length === 1 ? "" : "s"}`}</span>
           </div>
         </div>

@@ -1,0 +1,91 @@
+{
+  "scale": 2,
+  "frameSizePx": [
+    44,
+    64
+  ],
+  "columns": 4,
+  "rows": 2,
+  "frames": {
+    "character.designer.lavender.front.idle": {
+      "x": 0,
+      "y": 0,
+      "w": 44,
+      "h": 64,
+      "pivotPx": [
+        22,
+        62
+      ]
+    },
+    "character.engineer.teal.front.idle": {
+      "x": 44,
+      "y": 0,
+      "w": 44,
+      "h": 64,
+      "pivotPx": [
+        22,
+        62
+      ]
+    },
+    "character.researcher.ochre.front.idle": {
+      "x": 88,
+      "y": 0,
+      "w": 44,
+      "h": 64,
+      "pivotPx": [
+        22,
+        62
+      ]
+    },
+    "character.lead.navy.front.idle": {
+      "x": 132,
+      "y": 0,
+      "w": 44,
+      "h": 64,
+      "pivotPx": [
+        22,
+        62
+      ]
+    },
+    "character.designer.lavender.back.idle": {
+      "x": 0,
+      "y": 64,
+      "w": 44,
+      "h": 64,
+      "pivotPx": [
+        22,
+        62
+      ]
+    },
+    "character.engineer.teal.back.idle": {
+      "x": 44,
+      "y": 64,
+      "w": 44,
+      "h": 64,
+      "pivotPx": [
+        22,
+        62
+      ]
+    },
+    "character.researcher.ochre.back.idle": {
+      "x": 88,
+      "y": 64,
+      "w": 44,
+      "h": 64,
+      "pivotPx": [
+        22,
+        62
+      ]
+    },
+    "character.lead.navy.back.idle": {
+      "x": 132,
+      "y": 64,
+      "w": 44,
+      "h": 64,
+      "pivotPx": [
+        22,
+        62
+      ]
+    }
+  }
+}

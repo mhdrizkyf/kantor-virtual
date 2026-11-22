@@ -9,8 +9,12 @@ import Messages from "./messages";
 import Reminders from "./reminders";
 import Contacts from "./contacts";
 import { Px, PxText, type PxName } from "./pixel-icon";
+import { sharedJson } from "./visible-poll";
+import CharacterFace from "./character-face";
+import Stapler from "./stapler";
 
 export type Nav = { id: string; slug: string; name: string; attention?: number; switchOpen?: boolean };
+export type RosterAgent = { agentId: string; name: string; description: string; face: string | null; state: string };
 export type Section = "kantor" | "papan" | "tim" | "files";
 
 const MENU: { id: Section; path: string; icon: PxName; title: string; sub: string }[] = [
@@ -55,20 +59,28 @@ function NewWorkspace({ onClose }: { onClose: () => void }) {
   );
 }
 
-export default function Shell({ buildings, current, section, children }: { buildings: Nav[]; current: Nav; section: Section; children: React.ReactNode }) {
+export default function Shell({ buildings, current, section, roster = [], children }: { buildings: Nav[]; current: Nav; section: Section; roster?: RosterAgent[]; children: React.ReactNode }) {
   const router = useRouter();
   // Expanded by default on wide screens, a slim rail on phones. Your choice is remembered in this browser.
   const [open, setOpen] = useState(true);
   useEffect(() => {
+    if (section === "kantor") { setOpen(matchMedia("(min-width: 1000px)").matches); return; }
     let saved: string | null = null;
     try { saved = localStorage.getItem(KEY); } catch { /* storage unavailable */ }
     setOpen(saved ? saved === "open" : matchMedia("(min-width: 900px)").matches);
-  }, []);
+  }, [section]);
   const toggle = (v: boolean) => { setOpen(v); try { localStorage.setItem(KEY, v ? "open" : "closed"); } catch { /* ignore */ } };
+  useEffect(() => {
+    if (section !== "kantor") return;
+    const toggleNav = () => setOpen(v => !v);
+    window.addEventListener("kantor:nav-toggle", toggleNav);
+    return () => window.removeEventListener("kantor:nav-toggle", toggleNav);
+  }, [section]);
   const narrow = () => !matchMedia("(min-width: 900px)").matches;
 
   // Workspace switcher
   const [wsOpen, setWsOpen] = useState(false);
+  const [wsSummaries, setWsSummaries] = useState<Record<string, Pick<Nav, "attention" | "switchOpen">>>({});
   const [newWs, setNewWs] = useState(false);
   const wsBox = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -77,6 +89,21 @@ export default function Shell({ buildings, current, section, children }: { build
     document.addEventListener("mousedown", close); document.addEventListener("keydown", close);
     return () => { document.removeEventListener("mousedown", close); document.removeEventListener("keydown", close); };
   }, [wsOpen]);
+  useEffect(() => {
+    if (!wsOpen) return;
+    let active = true;
+    const missing = buildings.filter(b => b.id !== current.id && !wsSummaries[b.id]);
+    void (async () => {
+      for (let i = 0; i < missing.length && active; i += 2) {
+        await Promise.all(missing.slice(i, i + 2).map(b =>
+          sharedJson<Pick<Nav, "attention" | "switchOpen">>(`/api/workspace-summary?ws=${encodeURIComponent(b.id)}`)
+            .then(v => { if (active) setWsSummaries(old => ({ ...old, [b.id]: v })); }).catch(() => {})));
+      }
+    })();
+    return () => { active = false; };
+  // The list is captured when the switcher opens; results update the badge without restarting the queue.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wsOpen, buildings, current.id]);
 
   // Notifications
   const [unread, setUnread] = useState(0);
@@ -129,7 +156,7 @@ export default function Shell({ buildings, current, section, children }: { build
   const tip = (t: string) => (open ? undefined : t);
 
   return (
-    <div className={`shell ${open ? "side-open" : "side-rail"}`}>
+    <div className={`shell ${section === "kantor" ? "office-shell" : ""} ${open ? "side-open" : "side-rail"}`}>
       <aside className="side" aria-label="Main menu">
         <div className="side-top">
           <button className="side-toggle" onClick={() => toggle(!open)} aria-label={open ? "Collapse menu" : "Expand menu"} title={open ? "Collapse menu" : "Expand menu"}>
@@ -147,7 +174,7 @@ export default function Shell({ buildings, current, section, children }: { build
           {wsOpen && (
             <div className="ws-pop" role="listbox" aria-label="Switch workspace">
               <div className="ws-h">Switch workspace</div>
-              {buildings.map(b => (
+              {buildings.map(raw => { const b = { ...raw, ...wsSummaries[raw.id] }; return (
                 <Link key={b.id} href={`${path}?ws=${b.slug}`} role="option" aria-selected={b.id === current.id} className="ws-opt"
                   onClick={() => { setWsOpen(false); if (narrow()) toggle(false); }}>
                   <span className="ws-av sm">{initial(b.name)}</span><span className="ws-n">{b.name}</span>
@@ -155,7 +182,7 @@ export default function Shell({ buildings, current, section, children }: { build
                   {b.attention ? <span className="count">{b.attention}</span> : null}
                   {b.id === current.id && <span className="ws-check"><Px name="check" /></span>}
                 </Link>
-              ))}
+              ); })}
               <button className="ws-opt ws-new" onClick={() => { setWsOpen(false); setNewWs(true); }}>
                 <span className="ws-av sm"><Px name="plus" size="0.9em" /></span><span className="ws-n">New workspace</span>
               </button>
@@ -185,10 +212,12 @@ export default function Shell({ buildings, current, section, children }: { build
             {unread > 0 && <span className="sl-badge" aria-label={`${unread} unread`}>{unread > 99 ? "99+" : unread}</span>}
           </button>
         </nav>
+        {open && roster.length > 0 && <div className="agent-roster"><h2>AGENTS</h2>{roster.map(a => <button type="button" className="agent-row" key={a.agentId} onClick={() => { window.dispatchEvent(new CustomEvent("kantor:desk", { detail: { agentId: a.agentId } })); if (section === "kantor" || narrow()) toggle(false); }}><CharacterFace face={a.face} size={34} /><span><b>{a.name}</b><small>{a.description || a.state}</small></span><i className={a.state === "working" || a.state === "ready" ? "on" : ""} /></button>)}</div>}
       </aside>
       {open && <div className="side-scrim" onClick={() => toggle(false)} />}
 
       <div className="shell-main">{children}</div>
+      <Stapler ws={current.id} />
 
       {inboxOpen && !task && (
         <>

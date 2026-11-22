@@ -16,7 +16,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   catch (e) { return NextResponse.json({ error: String(e instanceof Error ? e.message : e) }, { status: 500 }); }
 }
 
-type Body = { ws?: string; files?: string[]; action: "approve" | "revise" | "reply" | "done" | "rename" | "rerun" | "reopen" | "stop" | "stop-extra" | "restart"; text?: string; link?: string };
+type Body = { ws?: string; files?: string[]; status?: string; action: "move" | "approve" | "revise" | "reply" | "done" | "rename" | "rerun" | "reopen" | "stop" | "stop-extra" | "restart"; text?: string; link?: string };
 
 /** Aksi dari kantor. Setiap aksi ditulis ke Multica atas nama pemilik token. */
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -36,6 +36,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const mutedMentions = officeClosed ? mentions.filter(m => m.kind === "agent").map(m => m.id) : [];
     const quiet = [...(issue.assignee_type === "agent" && issue.assignee_id ? [issue.assignee_id] : []), ...mutedMentions];
     switch (body.action) {
+      case "move":
+        if (!["backlog", "todo", "in_review"].includes(body.status ?? "")) return NextResponse.json({ error: "Use the task actions to start work or complete a task." }, { status: 400 });
+        if (issue.status === "in_progress") return NextResponse.json({ error: "Stop the active task before moving it." }, { status: 409 });
+        if (issue.status === "done" || issue.status === "cancelled") return NextResponse.json({ error: "Use Reopen to bring a finished task back, so it's logged." }, { status: 409 });
+        if (closed && body.status === "todo") await parkIssue(ws, id, "todo");
+        else await updateIssue(ws, id, { status: body.status! });
+        break;
       case "approve":
         // Komentar persetujuan tidak membangunkan agen (hemat token), lalu task ditutup.
         await addComment(ws, id, `✅ Approved by ${who} in Virtual Office.${text ? `\n\n${text}` : ""}`, quiet, files);

@@ -9,6 +9,8 @@ import { isQuotaError, isLoginError, quotaResetAt, fmtTime, quotaStates } from "
 import { friendlyTitle } from "./titles";
 import { telegram, telegramReady, botFor } from "./telegram";
 import { remindAt, remindNotes, reminderText, fmtWhen, REMIND_META } from "./reminders";
+import { ProcessBusyError, withProcessLock } from "./process-lock";
+import { closeOffice, openOffice } from "./office-control";
 
 type Memory = { sent?: Record<string, string>; retried?: Record<string, string>; started?: string; moved?: Moved };
 const ACTIVE = new Set(["queued", "dispatched", "running", "in_progress", "preparing", "started"]);
@@ -30,11 +32,18 @@ async function writeMemory(wsId: string, mem: Memory) {
 }
 
 export async function runWatchdog(opts: { notify?: boolean; dryRun?: boolean } = {}) {
+  try { return await withProcessLock("watchdog", async () => {
   const dry = !!opts.dryRun;
   const notify = (opts.notify ?? true) && !dry;
   const report: string[] = [];
   for (const w of await workspaces()) {
     const s = await loadWorkspace(w.id);
+    if (s.kantor.transition && !dry) {
+      if (s.kantor.transition.action === "close") await closeOffice(w.id, !!s.kantor.transition.stopRunning);
+      else await openOffice(w.id);
+      report.push(`kantor ${w.name}: melanjutkan proses ${s.kantor.transition.action}`);
+      continue;
+    }
     const { mem } = await readMemory(w.id);
     mem.sent ??= {}; mem.retried ??= {};
     const now = Date.now();
@@ -46,7 +55,10 @@ export async function runWatchdog(opts: { notify?: boolean; dryRun?: boolean } =
     if (canSend && !mem.started) mem.started = new Date().toISOString();
     const once = async (key: string, text: string, onlyName?: string | null) => {
       if (!canSend || mem.sent![key]) return;
-      if (!firstRun || key.startsWith("digest:")) await telegram(text, onlyName, tg);
+      if (!firstRun || key.startsWith("digest:")) {
+        const sent = await telegram(text, onlyName, tg);
+        if (!sent) return;
+      }
       mem.sent![key] = new Date().toISOString();
     };
     const open = s.kantor.open !== false;
@@ -120,7 +132,7 @@ export async function runWatchdog(opts: { notify?: boolean; dryRun?: boolean } =
       if ((!movedAway && now < readyAt) || !open || rt?.status !== "online") continue;
       if (s.runs.some(x => x.issue_id === issueId && ACTIVE.has(x.status))) continue;
       if (dry) { report.push(`[uji] akan mengulang: ${friendlyTitle(issue)}`); continue; }
-      await rerunIssue(w.id, issueId).catch(() => {});
+      await rerunIssue(w.id, issueId);
       mem.retried![r.id] = new Date().toISOString();
       report.push(`ulang: ${friendlyTitle(issue)}`);
       if (!movedAway) await once(`resume:${r.id}`, `▶️ Kuota ${provName(rt?.provider ?? "")} sudah pulih. Melanjutkan: **${friendlyTitle(issue)}**.`);
@@ -167,7 +179,11 @@ export async function runWatchdog(opts: { notify?: boolean; dryRun?: boolean } =
       const desc = (r.metadata ?? {})[REMIND_META] ? null
         : (await call<{ description?: string | null }>("GET", `/api/issues/${r.id}`, w.id).catch(() => null))?.description ?? null;
       const at = remindAt(r, desc);
-      if (!at || at.getTime() > now || mem.sent![`remind:${r.id}`]) continue;
+      if (!at || at.getTime() > now) continue;
+      if (mem.sent![`remind:${r.id}`]) {
+        if (!dry) await updateIssue(w.id, r.id, { status: "done" });
+        continue;
+      }
       if (dry) { report.push(`[uji] reminder: ${reminderText(r)} (${fmtWhen(at)})`); continue; }
       if (!canSend) continue;
       const who = r.assignee_type === "member" ? memberName(r.assignee_id) : null;
@@ -176,7 +192,7 @@ export async function runWatchdog(opts: { notify?: boolean; dryRun?: boolean } =
       const sent = await telegram(`⏰ **Reminder:** ${reminderText(r)}${notes ? `\n\n${notes.slice(0, 600)}` : ""}${late}`, who, tg);
       if (!sent) continue;
       mem.sent![`remind:${r.id}`] = new Date().toISOString();
-      await updateIssue(w.id, r.id, { status: "done" }).catch(() => {});
+      await updateIssue(w.id, r.id, { status: "done" });
       report.push(`reminder: ${reminderText(r)}`);
     }
 
@@ -188,4 +204,5 @@ export async function runWatchdog(opts: { notify?: boolean; dryRun?: boolean } =
     await writeMemory(w.id, mem);
   }
   return report;
+  }); } catch (e) { if (e instanceof ProcessBusyError) return []; throw e; }
 }

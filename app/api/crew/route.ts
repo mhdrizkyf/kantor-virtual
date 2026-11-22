@@ -6,12 +6,14 @@ import { AGENT_WHATSAPP, WA_MARKER } from "@/lib/whatsapp";
 import { FILES_MARKER } from "@/lib/knowledge";
 import { AGENT_TAIGA, TAIGA_MARKER } from "@/lib/taiga";
 import { AGENT_SHOTS, SHOTS_MARKER } from "@/lib/screenshots";
+import { saveCharacter } from "@/lib/characters";
+import { faceById } from "@/lib/character-presets";
 
 export const dynamic = "force-dynamic";
 
 type Body =
   | { ws?: string; kind: "human"; email: string; role?: "member" | "admin" }
-  | { ws?: string; kind: "agent"; name: string; emoji?: string; role: string; instructions?: string; runtimeId: string };
+  | { ws?: string; kind: "agent"; name: string; emoji?: string; face?: string; role: string; instructions?: string; runtimeId: string };
 
 /** Add to the team: invite a person by email, or create an AI agent. */
 export async function POST(req: Request) {
@@ -28,6 +30,7 @@ export async function POST(req: Request) {
       const name = (b.name ?? "").trim(), role = (b.role ?? "").trim();
       if (!name) return NextResponse.json({ error: "Give the agent a name first." }, { status: 400 });
       if (!b.runtimeId) return NextResponse.json({ error: "Pick an AI engine for this agent." }, { status: 400 });
+      if (b.face && !faceById(b.face)) return NextResponse.json({ error: "Unknown character." }, { status: 400 });
       const dir = await loadDirectory(ws);
       if (dir.agents.some(a => a.name.toLowerCase() === name.toLowerCase())) return NextResponse.json({ error: `There is already an agent called ${name}.` }, { status: 400 });
       const instructions = b.instructions?.trim() ||
@@ -38,7 +41,10 @@ export async function POST(req: Request) {
         name, description: role, instructions: [instructions, instructions.includes(FORMAT_MARKER) ? "" : AGENT_REPORT_FORMAT, instructions.includes(REMIND_MARKER) ? "" : AGENT_REMINDERS, instructions.includes(WA_MARKER) ? "" : AGENT_WHATSAPP, instructions.includes(TAIGA_MARKER) ? "" : AGENT_TAIGA, instructions.includes(SHOTS_MARKER) ? "" : AGENT_SHOTS].filter(Boolean).join("\n"), runtime_id: b.runtimeId, visibility: "workspace", max_concurrent_tasks: 2,
         avatar_url: b.emoji?.trim() ? `emoji:${b.emoji.trim()}` : null,
       });
-      return NextResponse.json({ ok: true, id: agent.id, message: `${name} joined the team! Give them a first task from the Task Board.` });
+      let faceWarning = "";
+      try { if (b.face) await saveCharacter(dir.workspace.id, agent.id, b.face); }
+      catch { faceWarning = " Character could not be saved locally; choose it again from Edit profile."; }
+      return NextResponse.json({ ok: true, id: agent.id, message: `${name} joined the team! Give them a first task from the Task Board.${faceWarning}` });
     }
     return NextResponse.json({ error: "Unknown team member type." }, { status: 400 });
   } catch (e) {
@@ -76,13 +82,19 @@ export async function GET(req: Request) {
 
 /** Switch an agent to another AI engine, or edit its profile ({ profile: { name, bio, instructions, emoji } }). */
 export async function PATCH(req: Request) {
-  const b = (await req.json()) as { ws?: string; agentId: string; runtimeId?: string; profile?: { name?: string; bio?: string; instructions?: string; emoji?: string | null } };
+  const b = (await req.json()) as { ws?: string; agentId: string; face?: string; runtimeId?: string; profile?: { name?: string; bio?: string; instructions?: string; emoji?: string | null; face?: string } };
   try {
     const ws = await workspace(b.ws ?? null);
     const dir = await loadDirectory(ws.id);
     if (!dir.agents.some(a => a.id === b.agentId)) return NextResponse.json({ error: "Agent not found." }, { status: 404 });
+    if (b.face) {
+      if (!faceById(b.face)) return NextResponse.json({ error: "Unknown character." }, { status: 400 });
+      await saveCharacter(ws.id, b.agentId, b.face);
+      return NextResponse.json({ ok: true, message: "Character saved on this computer." });
+    }
     if (b.profile) {
       const p = b.profile;
+      if (p.face && !faceById(p.face)) return NextResponse.json({ error: "Unknown character." }, { status: 400 });
       const name = (p.name ?? "").trim();
       if (!name) return NextResponse.json({ error: "The agent needs a name." }, { status: 400 });
       if (dir.agents.some(a => a.id !== b.agentId && a.name.toLowerCase() === name.toLowerCase())) return NextResponse.json({ error: `There is already an agent called ${name}.` }, { status: 400 });
@@ -91,7 +103,10 @@ export async function PATCH(req: Request) {
       const patch: Record<string, unknown> = { name, description: (p.bio ?? "").trim(), instructions: withBlocks((p.instructions ?? "").trim(), tail) };
       if (p.emoji) patch.avatar_url = `emoji:${p.emoji}`;
       await updateAgent(ws.id, b.agentId, patch);
-      return NextResponse.json({ ok: true, message: `${name}'s profile is saved.` });
+      let faceWarning = "";
+      try { if (p.face) await saveCharacter(ws.id, b.agentId, p.face); }
+      catch { faceWarning = " Character could not be saved locally; try again."; }
+      return NextResponse.json({ ok: true, message: `${name}'s profile is saved.${faceWarning}` });
     }
     if (!b.runtimeId) return NextResponse.json({ error: "Nothing to change." }, { status: 400 });
     const rt = dir.runtimes.find(r => r.id === b.runtimeId);

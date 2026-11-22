@@ -8,6 +8,7 @@ import {
   rerunIssue, cancelRun, saveKantorSettings, me, type Issue, type Run,
 } from "./multica";
 import { friendlyTitle } from "./titles";
+import { withProcessLock } from "./process-lock";
 
 export const PARK_KEY = "kantor_parked";
 const ACTIVE = new Set(["queued", "dispatched", "running", "in_progress", "preparing", "started"]);
@@ -50,7 +51,7 @@ export async function planOffice(ws: string, action: "close" | "open"): Promise<
   }
   const paused = new Set(s.kantor.pausedAutopilots ?? []);
   const resume = s.issues.filter(i => parkedOf(i) && i.status === "backlog");
-  const resumeIds = new Set(resume.map(i => i.id));
+  const resumeIds = new Set(s.issues.filter(i => parkedOf(i)).map(i => i.id));
   const rerun = agentIssues.filter(i => {
     if (resumeIds.has(i.id) || !(i.status === "todo" || i.status === "in_progress")) return false;
     const runs = runsByIssue.get(i.id) ?? [];
@@ -62,41 +63,51 @@ export async function planOffice(ws: string, action: "close" | "open"): Promise<
 }
 
 export async function closeOffice(ws: string, stopRunning: boolean) {
+  return withProcessLock(`office-${ws}`, async () => {
   const { s, runsByIssue } = await snapshot(ws);
   const who = (await me()).name;
-  const aps = (await autopilots(ws).catch(() => [])).filter(a => a.status === "active");
+  const aps = (await autopilots(ws)).filter(a => a.status === "active");
+  const pausedAutopilots = [...new Set([...(s.kantor.pausedAutopilots ?? []), ...aps.map(a => a.id)])];
+  // Save intent first. If a later API call fails, another Close can finish the remaining steps.
+  await saveKantorSettings(ws, { ...s.kantor, open: false, changedAt: new Date().toISOString(), changedBy: who, pausedAutopilots, transition: { action: "close", stopRunning } });
   for (const a of aps) await setAutopilotStatus(ws, a.id, "paused");
 
   let parked = 0, stopped = 0;
   for (const i of s.issues.filter(x => x.assignee_type === "agent" && (x.status === "todo" || x.status === "in_progress"))) {
     const active = (runsByIssue.get(i.id) ?? []).filter(r => ACTIVE.has(r.status));
     if (active.length && !stopRunning) continue; // biarkan yang sedang jalan selesai
-    for (const r of active) { await cancelRun(ws, i.id, r.id).catch(() => {}); stopped++; }
-    await setIssueMeta(ws, i.id, PARK_KEY, i.status);
+    for (const r of active) { await cancelRun(ws, i.id, r.id); stopped++; }
+    if (parkedOf(i) !== i.status) await setIssueMeta(ws, i.id, PARK_KEY, i.status);
     await updateIssue(ws, i.id, { status: "backlog" });
     parked++;
   }
-  await saveKantorSettings(ws, { ...s.kantor, open: false, changedAt: new Date().toISOString(), changedBy: who, pausedAutopilots: aps.map(a => a.id) });
+  await saveKantorSettings(ws, { ...s.kantor, open: false, changedAt: new Date().toISOString(), changedBy: who, pausedAutopilots, transition: undefined });
   return { autopilots: aps.length, parked, stopped };
+  });
 }
 
 export async function openOffice(ws: string) {
+  return withProcessLock(`office-${ws}`, async () => {
   const plan = await planOffice(ws, "open");
   const { s } = await snapshot(ws);
   const who = (await me()).name;
+  await saveKantorSettings(ws, { ...s.kantor, transition: { action: "open" } });
   const paused = new Set(s.kantor.pausedAutopilots ?? []);
-  const aps = (await autopilots(ws).catch(() => [])).filter(a => paused.has(a.id) && a.status === "paused");
-  for (const a of aps) await setAutopilotStatus(ws, a.id, "active");
+  const aps = (await autopilots(ws)).filter(a => paused.has(a.id) && a.status === "paused");
 
   for (const r of plan.resume) {
     const issue = s.issues.find(i => i.id === r.id)!;
     const back = parkedOf(issue) === "in_progress" ? "in_progress" : "todo";
     await updateIssue(ws, r.id, { status: back }); // keluar dari backlog = Multica menjalankan task
-    await deleteIssueMeta(ws, r.id, PARK_KEY).catch(() => {});
+    await deleteIssueMeta(ws, r.id, PARK_KEY);
   }
-  for (const r of plan.rerun) await rerunIssue(ws, r.id).catch(() => {});
-  await saveKantorSettings(ws, { ...s.kantor, open: true, changedAt: new Date().toISOString(), changedBy: who, pausedAutopilots: [] });
+  // A prior Open may have restored status but stopped before removing the park marker.
+  for (const i of s.issues.filter(i => parkedOf(i) && i.status !== "backlog")) await deleteIssueMeta(ws, i.id, PARK_KEY);
+  for (const r of plan.rerun) await rerunIssue(ws, r.id);
+  for (const a of aps) await setAutopilotStatus(ws, a.id, "active");
+  await saveKantorSettings(ws, { ...s.kantor, open: true, changedAt: new Date().toISOString(), changedBy: who, pausedAutopilots: [], transition: undefined });
   return { autopilots: aps.length, resumed: plan.resume.length, rerun: plan.rerun.length };
+  });
 }
 
 /** Saat kantor tutup: parkir satu task supaya pesan/revisi baru menunggu sampai kantor dibuka. */

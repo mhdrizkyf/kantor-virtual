@@ -7,12 +7,15 @@ import { useDraft, writeDraft } from "./drafts";
 import remarkGfm from "remark-gfm";
 import FilePicker, { uploadAll } from "./file-picker";
 import FilePreview from "./file-preview";
+import { sharedJson, useVisiblePoll } from "./visible-poll";
+import { localAttachmentHref } from "@/lib/attachment-meta";
 import { Px, Emo, PxSpan, rehypePx, type PxName } from "./pixel-icon";
 
 type Session = { id: string; agentId: string; title: string; updatedAt: string; unread: number; last: string };
 type Msg = { id: string; mine: boolean; text: string; when: string; failed: string | null; files: { id: string; name: string; url: string }[] };
 
-const md = (t: string) => <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypePx]} components={{ a: (p) => <a {...p} target="_blank" rel="noreferrer" />, span: PxSpan, pre: WaPre }}>{t}</ReactMarkdown>;
+const md = (t: string, ws: string) => <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypePx]}
+  components={{ a: ({ node: _node, ...p }) => <a {...p} href={localAttachmentHref(p.href, ws)} target="_blank" rel="noreferrer" />, span: PxSpan, pre: WaPre }}>{t}</ReactMarkdown>;
 
 /** Name of the office-manager agent. Set per install with NEXT_PUBLIC_KANTOR_MANAGER. */
 export const MANAGER = process.env.NEXT_PUBLIC_KANTOR_MANAGER?.trim() || "Mika";
@@ -41,9 +44,9 @@ function groupOf(iso: string) {
 const AgentIc = ({ a }: { a?: AgentInfo | null }) => <span className="ch-ic">{a?.emoji ? <Emo e={a.emoji} /> : <Px name="agent" />}</span>;
 
 /** Chat with your agents in a pop-up: a fresh chat each time you open it, past chats on the left (like Claude). */
-export default function ChatPanel({ ws, agent: start, laptopOn, onClose, onMakeTask }: {
+export default function ChatPanel({ ws, agent: start, laptopOn, initialPrompt, onClose, onMakeTask }: {
   ws: string; agent: AgentInfo;
-  isMika?: boolean; projectId?: string | null; laptopOn: boolean;
+  isMika?: boolean; projectId?: string | null; laptopOn: boolean; initialPrompt?: string;
   onClose: () => void; onMakeTask: (detail: string, agentId: string) => void;
 }) {
   const [agents, setAgents] = useState<AgentInfo[]>([start]);
@@ -67,6 +70,7 @@ export default function ChatPanel({ ws, agent: start, laptopOn, onClose, onMakeT
   const draft = useMemo(() => ({ text }), [text]);
   const restore = useCallback((v: { text: string }) => setText(v.text ?? ""), []);
   useDraft(draftKey, draft, restore, { text: "" }, v => !v.text.trim());
+  useEffect(() => { if (initialPrompt) setText(initialPrompt); }, [initialPrompt]);
 
   useEffect(() => {
     fetch(`/api/chat?ws=${ws}`).then(r => r.json()).then(j => {
@@ -82,16 +86,11 @@ export default function ChatPanel({ ws, agent: start, laptopOn, onClose, onMakeT
   useEffect(() => { document.getElementById("chat-msg")?.focus(); }, [sid, agent.id]);
 
   const load = useCallback(async (id: string) => {
-    const r = await fetch(`/api/chat/${id}?ws=${ws}`); const j = await r.json();
-    if (j.error) throw new Error(j.error);
+    const j = await sharedJson<{ messages: Msg[]; working: boolean }>(`/api/chat/${id}?ws=${ws}`);
     setMsgs(j.messages); setWorking(j.working);
   }, [ws]);
   useEffect(() => { if (sid) { setMsgs(null); load(sid).catch(e => setErr(String(e.message ?? e))); } }, [sid, load]);
-  useEffect(() => {
-    if (!sid || !working) return;
-    const t = setInterval(() => load(sid).catch(() => {}), 3000);
-    return () => clearInterval(t);
-  }, [sid, working, load]);
+  useVisiblePoll(() => sid ? load(sid) : undefined, 3000, !!sid && working);
   useEffect(() => { requestAnimationFrame(() => body.current && (body.current.scrollTop = body.current.scrollHeight)); }, [msgs, sending, working, showHelp]);
 
   const byId = (id: string) => agents.find(a => a.id === id) ?? null;
@@ -192,12 +191,12 @@ export default function ChatPanel({ ws, agent: start, laptopOn, onClose, onMakeT
               {msgs.map(m => (
                 <div key={m.id} className={`msg ${m.mine ? "me" : "bot"}`}>
                   <div className="from"><span>{m.mine ? "You" : <>{agent.emoji ? <Emo e={agent.emoji} /> : null} {agent.name}</>}</span><span>{m.when}</span></div>
-                  {m.text && <div className="md">{md(m.text)}</div>}
+                  {m.text && <div className="md">{md(m.text, ws)}</div>}
                   {m.failed && <div className="note bad">{m.failed}</div>}
                   {m.files.map(f => <FilePreview key={f.id} f={f} />)}
                 </div>
               ))}
-              {sending !== null && <div className="msg me sending"><div className="from"><span>You</span><span><span className="spinner sm" /> sending…</span></div>{sending && <div className="md">{md(sending)}</div>}</div>}
+              {sending !== null && <div className="msg me sending"><div className="from"><span>You</span><span><span className="spinner sm" /> sending…</span></div>{sending && <div className="md">{md(sending, ws)}</div>}</div>}
               {isMika && !sending && (msgs.length === 0 || showHelp) && (
                 <div className="mikahelp">
                   <b><Px name="wave" /> Hi! Here is what we can do together:</b>

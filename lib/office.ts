@@ -2,6 +2,12 @@
 import type { Snapshot, Issue, Run, Agent } from "./multica";
 import { friendlyTitle } from "./titles";
 import { quotaStates, fmtTime } from "./quota";
+import { readCharacters } from "./characters";
+import { defaultFace } from "./character-presets";
+import { readSquads } from "./squads";
+import { readWorkCalendar } from "./work-calendar";
+import type { WorkCalendar } from "./office-time";
+import { suggestedSquad } from "./squad-plan";
 
 export type Due = "late" | "risk" | "done" | null; // done = lewat tenggat, tapi worker sudah menyelesaikan bagiannya
 export type TaskView = {
@@ -10,13 +16,14 @@ export type TaskView = {
 };
 export type DeskState = "working" | "failed" | "review" | "ready" | "home" | "off" | "closed" | "break";
 export type Desk = {
-  agentId: string; name: string; emoji: string | null; avatar: string | null; description: string;
-  runtime: string; state: DeskState; bubble: string; reviewCount: number; lateCount: number; riskCount: number; tasks: TaskView[];
+  agentId: string; name: string; emoji: string | null; avatar: string | null; face: string | null; description: string;
+  runtime: string; squad: string; state: DeskState; bubble: string; reviewCount: number; lateCount: number; riskCount: number; tasks: TaskView[];
 };
 export type Room = { id: string; name: string; icon: string | null; progress: string | null; desks: Desk[] };
 export type RunView = { id: string; issueId: string | null; ws: string; agent: string; status: string; when: string; error: string | null; issueTitle: string | null; url: string | null };
 export type Office = {
-  workspace: string; workspaceId: string; workspaceSlug: string; today: string; updatedAt: string; open: boolean;
+  workspace: string; workspaceId: string; workspaceSlug: string; today: string; updatedAt: string; timeZone: string; open: boolean;
+  workCalendar?: WorkCalendar;
   switchOpen: boolean; parked: number; changedBy: string | null;
   alerts: string[];
   seen: Record<string, string>;
@@ -77,6 +84,8 @@ function loginAlerts(s: Snapshot): string[] {
 }
 
 export function buildOffice(s: Snapshot): Office {
+  const characters = readCharacters(s.workspace.id);
+  const squads = readSquads(s.workspace.id);
   const tz = process.env.KANTOR_TIMEZONE || "Asia/Jakarta";
   const today = todayIn(tz);
   const memberName = (id: string | null) => s.members.find(m => m.id === id || m.user_id === id)?.name ?? "Member";
@@ -172,7 +181,8 @@ export function buildOffice(s: Snapshot): Office {
       bubble = backlog ? `Off duty · ${backlog} in backlog` : "Off duty · no tasks";
     }
     return {
-      agentId: a.id, name: a.name, emoji: emojiOf(a), avatar: imgOf(a), description: a.description || "",
+      agentId: a.id, name: a.name, emoji: emojiOf(a), avatar: imgOf(a), face: characters[a.id] ?? defaultFace(a.id), description: a.description || "",
+      squad: squads[a.id] ?? suggestedSquad(a.name, a.description || ""),
       runtime: rt ? `${rt.provider === "claude" ? "Claude" : rt.provider === "codex" ? "GPT (Codex)" : rt.provider}${s.runtimes.filter(x => x.provider === rt.provider).length > 1 ? " · " + (s.members.find(m => m.user_id === rt.owner_id || m.id === rt.owner_id)?.name.split(/\s+/)[0] ?? "") : ""}${a.model ? " · " + a.model : ""}${s.moved?.[a.id]?.to === a.runtime_id ? " · temporary 🔁" : ""}` : "No engine",
       state, bubble,
     };
@@ -191,21 +201,17 @@ export function buildOffice(s: Snapshot): Office {
   };
 
   const agentIssues = open.filter(i => i.assignee_type === "agent" && i.assignee_id);
-  const rooms: Room[] = s.projects.map(p => {
-    const inRoom = agentIssues.filter(i => i.project_id === p.id);
-    const ids = [...new Set(inRoom.map(i => i.assignee_id!))].filter(id => agentById.has(id));
-    return {
-      id: p.id, name: p.title, icon: p.icon,
-      progress: p.issue_count ? `${p.done_count}/${p.issue_count} done` + (p.due_date ? ` · due ${fmtDate(p.due_date)}` : "") : null,
-      desks: ids.map(id => makeDesk(agentById.get(id)!, inRoom.filter(i => i.assignee_id === id)))
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    };
-  }).filter(r => r.desks.length);
-
-  const seated = new Set(rooms.flatMap(r => r.desks.map(d => d.agentId)));
-  // Ruang Staf: worker tanpa project, dan worker yang punya task tanpa ruangan.
-  const idleDesks = s.agents.filter(a => !seated.has(a.id) || agentIssues.some(i => i.assignee_id === a.id && !i.project_id))
-    .map(a => makeDesk(a, agentIssues.filter(i => i.assignee_id === a.id && !i.project_id)));
+  // Squad is a stable room assignment, independent of projects and active tasks.
+  const roomMap = new Map<string, Room>();
+  for (const agent of s.agents) {
+    const desk = makeDesk(agent, agentIssues.filter(i => i.assignee_id === agent.id));
+    let room = roomMap.get(desk.squad);
+    if (!room) { room = { id: `squad:${desk.squad}`, name: desk.squad, icon: null, progress: null, desks: [] }; roomMap.set(desk.squad, room); }
+    room.desks.push(desk);
+  }
+  const rooms = [...roomMap.values()].map(room => ({ ...room, desks: room.desks.sort((a, b) => a.name.localeCompare(b.name)) }))
+    .sort((a, b) => b.desks.length - a.desks.length || a.name.localeCompare(b.name));
+  const idleDesks: Desk[] = [];
 
   const allViews = open.map(view);
   // Gagal hanya ditampilkan kalau itu kejadian terakhir untuk task tersebut dan task-nya masih terbuka.
@@ -222,7 +228,8 @@ export function buildOffice(s: Snapshot): Office {
   };
 
   return {
-    workspace: s.workspace.name, workspaceId: s.workspace.id, workspaceSlug: s.workspace.slug,
+    workspace: s.workspace.name, workspaceId: s.workspace.id, workspaceSlug: s.workspace.slug, timeZone: tz,
+    workCalendar: readWorkCalendar(s.workspace.id),
     today: new Intl.DateTimeFormat("en-GB", { timeZone: tz, weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(new Date()),
     updatedAt: new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit" }).format(new Date()),
     open: s.runtimes.some(r => r.status === "online"),

@@ -1,0 +1,2427 @@
+{
+  "name": "Kantor Virtual Golden Retina Assets",
+  "version": "3.0.0",
+  "phase": "03 — full 23 workstation rollout (Retina)",
+  "status": "static assets validated; requires in-app acceptance",
+  "retina": {
+    "minimumAssetScale": 2,
+    "logicalTilePx": [
+      16,
+      16
+    ],
+    "physicalTilePx": [
+      32,
+      32
+    ],
+    "sceneGrid": [
+      48,
+      28
+    ],
+    "recommendedBackbufferPx": [
+      1536,
+      896
+    ]
+  },
+  "compatibility": {
+    "deskCollisionFootprintTiles": [
+      2,
+      1
+    ],
+    "deskVisualLogicalSizePx": [
+      36,
+      28
+    ],
+    "characterLogicalSizePx": [
+      22,
+      32
+    ],
+    "characterFeetAnchorLogicalPx": [
+      11,
+      31
+    ],
+    "legacySceneSpritePx": [
+      18,
+      32
+    ],
+    "rendererUpdateNeeded": true,
+    "assetPreviewIsNotLiveRuntime": true
+  },
+  "composition": {
+    "zoom": "8x logical (4x Retina pixels)",
+    "logicalBounds": {
+      "canvas": [
+        120,
+        80
+      ],
+      "desk": [
+        36,
+        28
+      ],
+      "character": [
+        22,
+        32
+      ]
+    },
+    "north": {
+      "desk": [
+        42,
+        33
+      ],
+      "chair": [
+        52,
+        25
+      ],
+      "character": [
+        49,
+        16
+      ],
+      "laptop": [
+        52,
+        31
+      ],
+      "mug": [
+        46,
+        38
+      ],
+      "plant": [
+        68,
+        35
+      ]
+    },
+    "south": {
+      "desk": [
+        42,
+        21
+      ],
+      "chair": [
+        52,
+        40
+      ],
+      "character": [
+        49,
+        45
+      ],
+      "laptop": [
+        52,
+        21
+      ],
+      "mug": [
+        46,
+        26
+      ],
+      "plant": [
+        68,
+        23
+      ]
+    },
+    "zOrder": {
+      "north": [
+        "chair",
+        "character",
+        "desk",
+        "laptop",
+        "mug",
+        "plant"
+      ],
+      "south": [
+        "desk",
+        "laptop",
+        "mug",
+        "plant",
+        "chair",
+        "character"
+      ]
+    },
+    "meaning": {
+      "north": "Agent above desk, screen faces north, lid back faces viewer",
+      "south": "Agent below desk, screen faces south, display faces viewer"
+    },
+    "warnings": [
+      "Inspector spatial coordinates are visual preview only; application must use equivalent relative anchors in Phase 03.",
+      "Plant is an additional compact asset; original plant remains available in the pack."
+    ],
+    "relativeToDeskLogicalPx": {
+      "north": {
+        "desk": [
+          0,
+          0
+        ],
+        "chair": [
+          10,
+          -8
+        ],
+        "character": [
+          7,
+          -17
+        ],
+        "laptop": [
+          10,
+          -2
+        ],
+        "mug": [
+          4,
+          5
+        ],
+        "plant": [
+          26,
+          2
+        ]
+      },
+      "south": {
+        "desk": [
+          0,
+          0
+        ],
+        "chair": [
+          10,
+          19
+        ],
+        "character": [
+          7,
+          24
+        ],
+        "laptop": [
+          10,
+          0
+        ],
+        "mug": [
+          4,
+          5
+        ],
+        "plant": [
+          26,
+          2
+        ]
+      }
+    },
+    "accessoryLayout": {
+      "layoutName": "Balanced Three-Zone Work Surface",
+      "version": "1.0",
+      "deskTopLogicalSizePx": [
+        36,
+        14
+      ],
+      "safeTopBoundsLogicalPx": [
+        2,
+        1,
+        34,
+        14
+      ],
+      "zones": {
+        "drink": {
+          "purpose": "left tabletop beverage, clear of front apron",
+          "anchorRelativeDeskLogicalPx": [
+            4,
+            5
+          ],
+          "asset": "prop.mug.desk",
+          "priority": "secondary"
+        },
+        "focus": {
+          "purpose": "central operator-facing laptop",
+          "anchorRelativeDeskLogicalPx": {
+            "north": [
+              10,
+              -2
+            ],
+            "south": [
+              10,
+              0
+            ]
+          },
+          "asset": "laptop.{direction}.{state}",
+          "priority": "primary"
+        },
+        "greenery": {
+          "purpose": "right-rear tabletop plant",
+          "anchorRelativeDeskLogicalPx": [
+            26,
+            2
+          ],
+          "asset": "prop.plant.desk",
+          "priority": "tertiary"
+        }
+      },
+      "rules": [
+        "Objects must be supported by the tabletop, not the desk apron or floor.",
+        "Ensure visible whitespace between active props and laptop.",
+        "Plant stays inside right tabletop edge, never on or beyond the outer outline.",
+        "Use compact desktop plant; larger original plant is not used in workstation composition.",
+        "Relative offsets are shared between north and south, except laptop hinge orientation/position.",
+        "Cup and plant positions remain stable across laptop states and character changes.",
+        "Purpose-sized compact mug keeps handle and saucer fully inside the usable tabletop while preserving clearance from laptop."
+      ],
+      "renderOrder": {
+        "north": [
+          "chair",
+          "character",
+          "desk",
+          "laptop",
+          "mug",
+          "plant"
+        ],
+        "south": [
+          "desk",
+          "laptop",
+          "mug",
+          "plant",
+          "chair",
+          "character"
+        ]
+      },
+      "mug": {
+        "offsetLogicalPx": [
+          4,
+          5
+        ],
+        "sizeLogicalPx": [
+          6,
+          6
+        ],
+        "asset": "prop.mug.desk",
+        "role": "left-side beverage"
+      },
+      "plant": {
+        "offsetLogicalPx": [
+          26,
+          2
+        ],
+        "sizeLogicalPx": [
+          8,
+          11
+        ],
+        "asset": "prop.plant.desk",
+        "role": "right-side decoration"
+      }
+    },
+    "accessorySafeZone": {
+      "deskTopLogicalPx": [
+        2,
+        1,
+        32,
+        13
+      ],
+      "laptopReservedLogicalPx": [
+        10,
+        1,
+        16,
+        11
+      ],
+      "decorationInsetsLogicalPx": {
+        "mugLeft": 4,
+        "plantRight": 2
+      },
+      "policy": "Beveled tabletop safe spacing, no overlap with laptop or other accessories."
+    }
+  },
+  "assets": {
+    "desk.body.north": {
+      "id": "desk.body.north",
+      "uri": "/art/retina-v2.7/desks/desk-body-north@2x.png",
+      "relativePath": "public/art/retina-v2.7/desks/desk-body-north@2x.png",
+      "resolutionScale": 2,
+      "logicalSizePx": [
+        36,
+        28
+      ],
+      "pixelSize": [
+        72,
+        56
+      ],
+      "alpha": "binary RGBA",
+      "visualBoundsPx": [
+        1,
+        2,
+        71,
+        55
+      ],
+      "sha256": "780170c854d0f278d8d274c76a9b803b4c5654b6f19b64fe5888dbb483b5bff4",
+      "pixelFiltering": "nearest",
+      "status": "export-verified",
+      "provenance": "v2.5 master with v2.6 corrective geometry or authored pixel art",
+      "orientation": "north",
+      "footprintTiles": [
+        2,
+        1
+      ],
+      "drawOffsetLogicalPx": [
+        -2,
+        -2
+      ],
+      "note": "Desk raster fully contained, leg structure lengthened, no clipping."
+    },
+    "desk.body.south": {
+      "id": "desk.body.south",
+      "uri": "/art/retina-v2.7/desks/desk-body-south@2x.png",
+      "relativePath": "public/art/retina-v2.7/desks/desk-body-south@2x.png",
+      "resolutionScale": 2,
+      "logicalSizePx": [
+        36,
+        28
+      ],
+      "pixelSize": [
+        72,
+        56
+      ],
+      "alpha": "binary RGBA",
+      "visualBoundsPx": [
+        1,
+        1,
+        71,
+        55
+      ],
+      "sha256": "4b232b42fc4e22473f46405ab7408a0e5c5f95191a794098f707121f6c4b3f09",
+      "pixelFiltering": "nearest",
+      "status": "export-verified",
+      "provenance": "v2.5 master with v2.6 corrective geometry or authored pixel art",
+      "orientation": "south",
+      "footprintTiles": [
+        2,
+        1
+      ],
+      "drawOffsetLogicalPx": [
+        -2,
+        -2
+      ],
+      "note": "Desk raster fully contained, leg structure lengthened, no clipping."
+    },
+    "chair.north": {
+      "id": "chair.north",
+      "uri": "/art/retina-v2.7/chairs/chair-north@2x.png",
+      "relativePath": "public/art/retina-v2.7/chairs/chair-north@2x.png",
+      "resolutionScale": 2,
+      "logicalSizePx": [
+        15,
+        13
+      ],
+      "pixelSize": [
+        30,
+        26
+      ],
+      "alpha": "binary RGBA",
+      "visualBoundsPx": [
+        1,
+        1,
+        28,
+        25
+      ],
+      "sha256": "f04180655dabf4ae76832a0b1d62ac9ece0c195077016d3ad739a18d9eaf82fd",
+      "pixelFiltering": "nearest",
+      "status": "export-verified",
+      "provenance": "v2.5 master with v2.6 corrective geometry or authored pixel art",
+      "orientation": "north"
+    },
+    "chair.south": {
+      "id": "chair.south",
+      "uri": "/art/retina-v2.7/chairs/chair-south@2x.png",
+      "relativePath": "public/art/retina-v2.7/chairs/chair-south@2x.png",
+      "resolutionScale": 2,
+      "logicalSizePx": [
+        15,
+        20
+      ],
+      "pixelSize": [
+        30,
+        40
+      ],
+      "alpha": "binary RGBA",
+      "visualBoundsPx": [
+        1,
+        6,
+        29,
+        39
+      ],
+      "sha256": "260d462237d65ab76f5f7d1503263c8d121a2d937dd1789e3f11d617c94043dd",
+      "pixelFiltering": "nearest",
+      "status": "export-verified",
+      "provenance": "v2.5 master with v2.6 corrective geometry or authored pixel art",
+      "orientation": "south"
+    },
+    "prop.mug": {
+      "id": "prop.mug",
+      "uri": "/art/retina-v2.7/props/prop-mug@2x.png",
+      "relativePath": "public/art/retina-v2.7/props/prop-mug@2x.png",
+      "resolutionScale": 2,
+      "logicalSizePx": [
+        8,
+        8
+      ],
+      "pixelSize": [
+        16,
+        16
+      ],
+      "alpha": "binary RGBA",
+      "visualBoundsPx": [
+        2,
+        3,
+        15,
+        14
+      ],
+      "sha256": "ac2d3fec65816d7293a8e3861505373a713d956d2cdd289a46fca85ea3ef385e",
+      "pixelFiltering": "nearest",
+      "status": "export-verified",
+      "provenance": "v2.5 master with v2.6 corrective geometry or authored pixel art",
+      "optional": true
+    },
+    "prop.plant": {
+      "id": "prop.plant",
+      "uri": "/art/retina-v2.7/props/prop-plant@2x.png",
+      "relativePath": "public/art/retina-v2.7/props/prop-plant@2x.png",
+      "resolutionScale": 2,
+      "logicalSizePx": [
+        10,
+        14
+      ],
+      "pixelSize": [
+        20,
+        28
+      ],
+      "alpha": "binary RGBA",
+      "visualBoundsPx": [
+        1,
+        2,
+        19,
+        26
+      ],
+      "sha256": "3a48dc63a71fc48a0a7e25bf38efe53d2f80a4f21662f900b1defb9d1ad73669",
+      "pixelFiltering": "nearest",
+      "status": "export-verified",
+      "provenance": "v2.5 master with v2.6 corrective geometry or authored pixel art",
+      "optional": true
+    },
+    "character.base.front.0": {
+      "id": "character.base.front.0",
+      "uri": "/art/retina-v2.7/characters/base/character-base-front-0@2x.png",
+      "relativePath": "public/art/retina-v2.7/characters/base/character-base-front-0@2x.png",
+      "resolutionScale": 2,
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "pixelSize": [
+        44,
+        64
+      ],
+      "alpha": "binary RGBA",
+      "visualBoundsPx": [
+        1,
+        1,
+        41,
+        63
+      ],
+      "sha256": "a2656ace786bfda713a2613f08e933deb5b7ba746ccea5206d6be5cd9066b13d",
+      "pixelFiltering": "nearest",
+      "status": "export-verified",
+      "provenance": "v2.5 master with v2.6 corrective geometry or authored pixel art",
+      "anchorLogicalPx": [
+        11,
+        31
+      ],
+      "anchorPixelPx": [
+        22,
+        62
+      ],
+      "direction": "front",
+      "frame": 0,
+      "animation": "walk-3-frames"
+    },
+    "character.base.front.1": {
+      "id": "character.base.front.1",
+      "uri": "/art/retina-v2.7/characters/base/character-base-front-1@2x.png",
+      "relativePath": "public/art/retina-v2.7/characters/base/character-base-front-1@2x.png",
+      "resolutionScale": 2,
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "pixelSize": [
+        44,
+        64
+      ],
+      "alpha": "binary RGBA",
+      "visualBoundsPx": [
+        2,
+        2,
+        42,
+        63
+      ],
+      "sha256": "7a373ccd52d98c98349834e110b8f84bedd8839e6c435ceb94adb18768d92496",
+      "pixelFiltering": "nearest",
+      "status": "export-verified",
+      "provenance": "v2.5 master with v2.6 corrective geometry or authored pixel art",
+      "anchorLogicalPx": [
+        11,
+        31
+      ],
+      "anchorPixelPx": [
+        22,
+        62
+      ],
+      "direction": "front",
+      "frame": 1,
+      "animation": "walk-3-frames"
+    },
+    "character.base.front.2": {
+      "id": "character.base.front.2",
+      "uri": "/art/retina-v2.7/characters/base/character-base-front-2@2x.png",
+      "relativePath": "public/art/retina-v2.7/characters/base/character-base-front-2@2x.png",
+      "resolutionScale": 2,
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "pixelSize": [
+        44,
+        64
+      ],
+      "alpha": "binary RGBA",
+      "visualBoundsPx": [
+        3,
+        2,
+        42,
+        63
+      ],
+      "sha256": "9b12da9bc05b5b53657ee5861330667fc9cc8b9996eb229ecd0d189feb4f0913",
+      "pixelFiltering": "nearest",
+      "status": "export-verified",
+      "provenance": "v2.5 master with v2.6 corrective geometry or authored pixel art",
+      "anchorLogicalPx": [
+        11,
+        31
+      ],
+      "anchorPixelPx": [
+        22,
+        62
+      ],
+      "direction": "front",
+      "frame": 2,
+      "animation": "walk-3-frames"
+    },
+    "character.base.back.0": {
+      "id": "character.base.back.0",
+      "uri": "/art/retina-v2.7/characters/base/character-base-back-0@2x.png",
+      "relativePath": "public/art/retina-v2.7/characters/base/character-base-back-0@2x.png",
+      "resolutionScale": 2,
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "pixelSize": [
+        44,
+        64
+      ],
+      "alpha": "binary RGBA",
+      "visualBoundsPx": [
+        3,
+        1,
+        40,
+        63
+      ],
+      "sha256": "6f71499980ff8d190714d129697e9555a7a41babf96c0e426623f3504bf0c66c",
+      "pixelFiltering": "nearest",
+      "status": "export-verified",
+      "provenance": "v2.5 master with v2.6 corrective geometry or authored pixel art",
+      "anchorLogicalPx": [
+        11,
+        31
+      ],
+      "anchorPixelPx": [
+        22,
+        62
+      ],
+      "direction": "back",
+      "frame": 0,
+      "animation": "walk-3-frames"
+    },
+    "character.base.back.1": {
+      "id": "character.base.back.1",
+      "uri": "/art/retina-v2.7/characters/base/character-base-back-1@2x.png",
+      "relativePath": "public/art/retina-v2.7/characters/base/character-base-back-1@2x.png",
+      "resolutionScale": 2,
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "pixelSize": [
+        44,
+        64
+      ],
+      "alpha": "binary RGBA",
+      "visualBoundsPx": [
+        2,
+        1,
+        41,
+        63
+      ],
+      "sha256": "6f0dd37c105db06614da94f89d548fc1b7d1ddbc311b10ba3771b90482fe37b3",
+      "pixelFiltering": "nearest",
+      "status": "export-verified",
+      "provenance": "v2.5 master with v2.6 corrective geometry or authored pixel art",
+      "anchorLogicalPx": [
+        11,
+        31
+      ],
+      "anchorPixelPx": [
+        22,
+        62
+      ],
+      "direction": "back",
+      "frame": 1,
+      "animation": "walk-3-frames"
+    },
+    "character.base.back.2": {
+      "id": "character.base.back.2",
+      "uri": "/art/retina-v2.7/characters/base/character-base-back-2@2x.png",
+      "relativePath": "public/art/retina-v2.7/characters/base/character-base-back-2@2x.png",
+      "resolutionScale": 2,
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "pixelSize": [
+        44,
+        64
+      ],
+      "alpha": "binary RGBA",
+      "visualBoundsPx": [
+        2,
+        2,
+        42,
+        63
+      ],
+      "sha256": "b4bb3069753fc9f060aaf6a582edf4041a5e7b540b4475bd66a3bc7088626964",
+      "pixelFiltering": "nearest",
+      "status": "export-verified",
+      "provenance": "v2.5 master with v2.6 corrective geometry or authored pixel art",
+      "anchorLogicalPx": [
+        11,
+        31
+      ],
+      "anchorPixelPx": [
+        22,
+        62
+      ],
+      "direction": "back",
+      "frame": 2,
+      "animation": "walk-3-frames"
+    },
+    "character.designer.lavender.front.idle": {
+      "id": "character.designer.lavender.front.idle",
+      "uri": "/art/retina-v2.7/characters/roles/character-designer-lavender-front-idle@2x.png",
+      "relativePath": "public/art/retina-v2.7/characters/roles/character-designer-lavender-front-idle@2x.png",
+      "resolutionScale": 2,
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "pixelSize": [
+        44,
+        64
+      ],
+      "alpha": "binary RGBA",
+      "visualBoundsPx": [
+        2,
+        2,
+        41,
+        63
+      ],
+      "sha256": "fec469211dd3f372c4b7e714514e0895097c66b750f71aa18fd9f6adb1cb45b1",
+      "pixelFiltering": "nearest",
+      "status": "export-verified",
+      "provenance": "v2.5 master with v2.6 corrective geometry or authored pixel art",
+      "direction": "front",
+      "role": "designer.lavender",
+      "anchorLogicalPx": [
+        11,
+        31
+      ],
+      "anchorPixelPx": [
+        22,
+        62
+      ],
+      "animation": "idle-only",
+      "walkFramesPending": true
+    },
+    "character.designer.lavender.back.idle": {
+      "id": "character.designer.lavender.back.idle",
+      "uri": "/art/retina-v2.7/characters/roles/character-designer-lavender-back-idle@2x.png",
+      "relativePath": "public/art/retina-v2.7/characters/roles/character-designer-lavender-back-idle@2x.png",
+      "resolutionScale": 2,
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "pixelSize": [
+        44,
+        64
+      ],
+      "alpha": "binary RGBA",
+      "visualBoundsPx": [
+        3,
+        1,
+        41,
+        63
+      ],
+      "sha256": "84347d22e14fb74e8d5825957ec8768d204dfb4a471fd122cdb71672077f7fc2",
+      "pixelFiltering": "nearest",
+      "status": "export-verified",
+      "provenance": "v2.5 master with v2.6 corrective geometry or authored pixel art",
+      "direction": "back",
+      "role": "designer.lavender",
+      "anchorLogicalPx": [
+        11,
+        31
+      ],
+      "anchorPixelPx": [
+        22,
+        62
+      ],
+      "animation": "idle-only",
+      "walkFramesPending": true
+    },
+    "character.engineer.teal.front.idle": {
+      "id": "character.engineer.teal.front.idle",
+      "uri": "/art/retina-v2.7/characters/roles/character-engineer-teal-front-idle@2x.png",
+      "relativePath": "public/art/retina-v2.7/characters/roles/character-engineer-teal-front-idle@2x.png",
+      "resolutionScale": 2,
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "pixelSize": [
+        44,
+        64
+      ],
+      "alpha": "binary RGBA",
+      "visualBoundsPx": [
+        5,
+        1,
+        39,
+        63
+      ],
+      "sha256": "31eb2eab24020ba5dad52a33c0e87cf89ae01704df17755c5626e4a26faed3d1",
+      "pixelFiltering": "nearest",
+      "status": "export-verified",
+      "provenance": "v2.5 master with v2.6 corrective geometry or authored pixel art",
+      "direction": "front",
+      "role": "engineer.teal",
+      "anchorLogicalPx": [
+        11,
+        31
+      ],
+      "anchorPixelPx": [
+        22,
+        62
+      ],
+      "animation": "idle-only",
+      "walkFramesPending": true
+    },
+    "character.engineer.teal.back.idle": {
+      "id": "character.engineer.teal.back.idle",
+      "uri": "/art/retina-v2.7/characters/roles/character-engineer-teal-back-idle@2x.png",
+      "relativePath": "public/art/retina-v2.7/characters/roles/character-engineer-teal-back-idle@2x.png",
+      "resolutionScale": 2,
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "pixelSize": [
+        44,
+        64
+      ],
+      "alpha": "binary RGBA",
+      "visualBoundsPx": [
+        5,
+        1,
+        39,
+        63
+      ],
+      "sha256": "f16f530087d66670af7530a5d1ed725324e662c19e748553cefb7a97520de4ca",
+      "pixelFiltering": "nearest",
+      "status": "export-verified",
+      "provenance": "v2.5 master with v2.6 corrective geometry or authored pixel art",
+      "direction": "back",
+      "role": "engineer.teal",
+      "anchorLogicalPx": [
+        11,
+        31
+      ],
+      "anchorPixelPx": [
+        22,
+        62
+      ],
+      "animation": "idle-only",
+      "walkFramesPending": true
+    },
+    "character.researcher.ochre.front.idle": {
+      "id": "character.researcher.ochre.front.idle",
+      "uri": "/art/retina-v2.7/characters/roles/character-researcher-ochre-front-idle@2x.png",
+      "relativePath": "public/art/retina-v2.7/characters/roles/character-researcher-ochre-front-idle@2x.png",
+      "resolutionScale": 2,
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "pixelSize": [
+        44,
+        64
+      ],
+      "alpha": "binary RGBA",
+      "visualBoundsPx": [
+        4,
+        2,
+        40,
+        63
+      ],
+      "sha256": "c90ac9619f04dda98265616cbcec5e8725f9bfbadb68d53c128e3f06e1db6c26",
+      "pixelFiltering": "nearest",
+      "status": "export-verified",
+      "provenance": "v2.5 master with v2.6 corrective geometry or authored pixel art",
+      "direction": "front",
+      "role": "researcher.ochre",
+      "anchorLogicalPx": [
+        11,
+        31
+      ],
+      "anchorPixelPx": [
+        22,
+        62
+      ],
+      "animation": "idle-only",
+      "walkFramesPending": true
+    },
+    "character.researcher.ochre.back.idle": {
+      "id": "character.researcher.ochre.back.idle",
+      "uri": "/art/retina-v2.7/characters/roles/character-researcher-ochre-back-idle@2x.png",
+      "relativePath": "public/art/retina-v2.7/characters/roles/character-researcher-ochre-back-idle@2x.png",
+      "resolutionScale": 2,
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "pixelSize": [
+        44,
+        64
+      ],
+      "alpha": "binary RGBA",
+      "visualBoundsPx": [
+        5,
+        1,
+        38,
+        63
+      ],
+      "sha256": "39f98a75938934dc3ba830a3f7b8a2db711cedab05b53961f83e5d1a253a251e",
+      "pixelFiltering": "nearest",
+      "status": "export-verified",
+      "provenance": "v2.5 master with v2.6 corrective geometry or authored pixel art",
+      "direction": "back",
+      "role": "researcher.ochre",
+      "anchorLogicalPx": [
+        11,
+        31
+      ],
+      "anchorPixelPx": [
+        22,
+        62
+      ],
+      "animation": "idle-only",
+      "walkFramesPending": true
+    },
+    "character.lead.navy.front.idle": {
+      "id": "character.lead.navy.front.idle",
+      "uri": "/art/retina-v2.7/characters/roles/character-lead-navy-front-idle@2x.png",
+      "relativePath": "public/art/retina-v2.7/characters/roles/character-lead-navy-front-idle@2x.png",
+      "resolutionScale": 2,
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "pixelSize": [
+        44,
+        64
+      ],
+      "alpha": "binary RGBA",
+      "visualBoundsPx": [
+        6,
+        2,
+        38,
+        63
+      ],
+      "sha256": "4e856d90333a8ce4df2f4039cfdbd2ae51723656e08b20116f76ff00fe01709b",
+      "pixelFiltering": "nearest",
+      "status": "export-verified",
+      "provenance": "v2.5 master with v2.6 corrective geometry or authored pixel art",
+      "direction": "front",
+      "role": "lead.navy",
+      "anchorLogicalPx": [
+        11,
+        31
+      ],
+      "anchorPixelPx": [
+        22,
+        62
+      ],
+      "animation": "idle-only",
+      "walkFramesPending": true
+    },
+    "character.lead.navy.back.idle": {
+      "id": "character.lead.navy.back.idle",
+      "uri": "/art/retina-v2.7/characters/roles/character-lead-navy-back-idle@2x.png",
+      "relativePath": "public/art/retina-v2.7/characters/roles/character-lead-navy-back-idle@2x.png",
+      "resolutionScale": 2,
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "pixelSize": [
+        44,
+        64
+      ],
+      "alpha": "binary RGBA",
+      "visualBoundsPx": [
+        6,
+        1,
+        38,
+        63
+      ],
+      "sha256": "6ed51f382a0a59957495d77ccf6848cc148ba87bf42dc1039fa65fabbbcc9359",
+      "pixelFiltering": "nearest",
+      "status": "export-verified",
+      "provenance": "v2.5 master with v2.6 corrective geometry or authored pixel art",
+      "direction": "back",
+      "role": "lead.navy",
+      "anchorLogicalPx": [
+        11,
+        31
+      ],
+      "anchorPixelPx": [
+        22,
+        62
+      ],
+      "animation": "idle-only",
+      "walkFramesPending": true
+    },
+    "laptop.north.active": {
+      "id": "laptop.north.active",
+      "uri": "/art/retina-v2.7/devices/laptop-north-active@2x.png",
+      "relativePath": "public/art/retina-v2.7/devices/laptop-north-active@2x.png",
+      "resolutionScale": 2,
+      "logicalSizePx": [
+        16,
+        11
+      ],
+      "pixelSize": [
+        32,
+        22
+      ],
+      "alpha": "binary RGBA",
+      "visualBoundsPx": [
+        4,
+        2,
+        28,
+        21
+      ],
+      "sha256": "0dbfd8b9f8f8f47493d448c2b16400f12890d067d731e437fd42a75f8948d1cb",
+      "pixelFiltering": "nearest",
+      "status": "export-verified",
+      "provenance": "v2.5 master with v2.6 corrective geometry or authored pixel art",
+      "orientation": "north",
+      "state": "active",
+      "screenFacing": "operator",
+      "viewerSide": "lid-back",
+      "independentLayer": true,
+      "geometry": "open clamshell",
+      "note": "Open laptop orientation follows seat direction; closed has no upright screen."
+    },
+    "laptop.north.working": {
+      "id": "laptop.north.working",
+      "uri": "/art/retina-v2.7/devices/laptop-north-working@2x.png",
+      "relativePath": "public/art/retina-v2.7/devices/laptop-north-working@2x.png",
+      "resolutionScale": 2,
+      "logicalSizePx": [
+        16,
+        11
+      ],
+      "pixelSize": [
+        32,
+        22
+      ],
+      "alpha": "binary RGBA",
+      "visualBoundsPx": [
+        4,
+        2,
+        28,
+        21
+      ],
+      "sha256": "6fa41b7607bf7ad028deb3c2811ae06a6b637752f4f7661adbd220bfd37cb46a",
+      "pixelFiltering": "nearest",
+      "status": "export-verified",
+      "provenance": "v2.5 master with v2.6 corrective geometry or authored pixel art",
+      "orientation": "north",
+      "state": "working",
+      "screenFacing": "operator",
+      "viewerSide": "lid-back",
+      "independentLayer": true,
+      "geometry": "open clamshell",
+      "note": "Open laptop orientation follows seat direction; closed has no upright screen."
+    },
+    "laptop.north.idle": {
+      "id": "laptop.north.idle",
+      "uri": "/art/retina-v2.7/devices/laptop-north-idle@2x.png",
+      "relativePath": "public/art/retina-v2.7/devices/laptop-north-idle@2x.png",
+      "resolutionScale": 2,
+      "logicalSizePx": [
+        16,
+        11
+      ],
+      "pixelSize": [
+        32,
+        22
+      ],
+      "alpha": "binary RGBA",
+      "visualBoundsPx": [
+        4,
+        2,
+        28,
+        21
+      ],
+      "sha256": "5d2123e01ab8ee5ef437a57eb7cff302ed314a14ec44812b363c5dabfbf11b63",
+      "pixelFiltering": "nearest",
+      "status": "export-verified",
+      "provenance": "v2.5 master with v2.6 corrective geometry or authored pixel art",
+      "orientation": "north",
+      "state": "idle",
+      "screenFacing": "operator",
+      "viewerSide": "lid-back",
+      "independentLayer": true,
+      "geometry": "open clamshell",
+      "note": "Open laptop orientation follows seat direction; closed has no upright screen."
+    },
+    "laptop.north.closed": {
+      "id": "laptop.north.closed",
+      "uri": "/art/retina-v2.7/devices/laptop-north-closed@2x.png",
+      "relativePath": "public/art/retina-v2.7/devices/laptop-north-closed@2x.png",
+      "resolutionScale": 2,
+      "logicalSizePx": [
+        16,
+        11
+      ],
+      "pixelSize": [
+        32,
+        22
+      ],
+      "alpha": "binary RGBA",
+      "visualBoundsPx": [
+        3,
+        11,
+        29,
+        20
+      ],
+      "sha256": "40aef031a00c79ce3627851fdb5cd3ace1613a0564bf71945734e223256a784e",
+      "pixelFiltering": "nearest",
+      "status": "export-verified",
+      "provenance": "v2.5 master with v2.6 corrective geometry or authored pixel art",
+      "orientation": "north",
+      "state": "closed",
+      "screenFacing": "operator",
+      "viewerSide": "flat-lid",
+      "independentLayer": true,
+      "geometry": "flat clamshell",
+      "note": "Open laptop orientation follows seat direction; closed has no upright screen."
+    },
+    "laptop.south.active": {
+      "id": "laptop.south.active",
+      "uri": "/art/retina-v2.7/devices/laptop-south-active@2x.png",
+      "relativePath": "public/art/retina-v2.7/devices/laptop-south-active@2x.png",
+      "resolutionScale": 2,
+      "logicalSizePx": [
+        16,
+        11
+      ],
+      "pixelSize": [
+        32,
+        22
+      ],
+      "alpha": "binary RGBA",
+      "visualBoundsPx": [
+        4,
+        2,
+        28,
+        21
+      ],
+      "sha256": "5803f13a6c8d588e4182b152e07b641197e7776260fa57b0b1615aec5f7fc34b",
+      "pixelFiltering": "nearest",
+      "status": "export-verified",
+      "provenance": "v2.5 master with v2.6 corrective geometry or authored pixel art",
+      "orientation": "south",
+      "state": "active",
+      "screenFacing": "operator",
+      "viewerSide": "display",
+      "independentLayer": true,
+      "geometry": "open clamshell",
+      "note": "Open laptop orientation follows seat direction; closed has no upright screen."
+    },
+    "laptop.south.working": {
+      "id": "laptop.south.working",
+      "uri": "/art/retina-v2.7/devices/laptop-south-working@2x.png",
+      "relativePath": "public/art/retina-v2.7/devices/laptop-south-working@2x.png",
+      "resolutionScale": 2,
+      "logicalSizePx": [
+        16,
+        11
+      ],
+      "pixelSize": [
+        32,
+        22
+      ],
+      "alpha": "binary RGBA",
+      "visualBoundsPx": [
+        4,
+        2,
+        28,
+        21
+      ],
+      "sha256": "644d16f01081ca0481fd01dde94805e822a27e15f878fbd9df03721f913c8cbb",
+      "pixelFiltering": "nearest",
+      "status": "export-verified",
+      "provenance": "v2.5 master with v2.6 corrective geometry or authored pixel art",
+      "orientation": "south",
+      "state": "working",
+      "screenFacing": "operator",
+      "viewerSide": "display",
+      "independentLayer": true,
+      "geometry": "open clamshell",
+      "note": "Open laptop orientation follows seat direction; closed has no upright screen."
+    },
+    "laptop.south.idle": {
+      "id": "laptop.south.idle",
+      "uri": "/art/retina-v2.7/devices/laptop-south-idle@2x.png",
+      "relativePath": "public/art/retina-v2.7/devices/laptop-south-idle@2x.png",
+      "resolutionScale": 2,
+      "logicalSizePx": [
+        16,
+        11
+      ],
+      "pixelSize": [
+        32,
+        22
+      ],
+      "alpha": "binary RGBA",
+      "visualBoundsPx": [
+        4,
+        2,
+        28,
+        21
+      ],
+      "sha256": "1652b5f20dafc20908e657af7b78dc5630497156d528e3ae30d583f068fe9cae",
+      "pixelFiltering": "nearest",
+      "status": "export-verified",
+      "provenance": "v2.5 master with v2.6 corrective geometry or authored pixel art",
+      "orientation": "south",
+      "state": "idle",
+      "screenFacing": "operator",
+      "viewerSide": "display",
+      "independentLayer": true,
+      "geometry": "open clamshell",
+      "note": "Open laptop orientation follows seat direction; closed has no upright screen."
+    },
+    "laptop.south.closed": {
+      "id": "laptop.south.closed",
+      "uri": "/art/retina-v2.7/devices/laptop-south-closed@2x.png",
+      "relativePath": "public/art/retina-v2.7/devices/laptop-south-closed@2x.png",
+      "resolutionScale": 2,
+      "logicalSizePx": [
+        16,
+        11
+      ],
+      "pixelSize": [
+        32,
+        22
+      ],
+      "alpha": "binary RGBA",
+      "visualBoundsPx": [
+        3,
+        11,
+        29,
+        20
+      ],
+      "sha256": "d65c642425771b8f3964708edae217e5231bc46f53cbf9fcc5627a62b96c19b9",
+      "pixelFiltering": "nearest",
+      "status": "export-verified",
+      "provenance": "v2.5 master with v2.6 corrective geometry or authored pixel art",
+      "orientation": "south",
+      "state": "closed",
+      "screenFacing": "operator",
+      "viewerSide": "flat-lid",
+      "independentLayer": true,
+      "geometry": "flat clamshell",
+      "note": "Open laptop orientation follows seat direction; closed has no upright screen."
+    },
+    "prop.plant.desk": {
+      "id": "prop.plant.desk",
+      "uri": "/art/retina-v2.7/props/prop-plant-desk@2x.png",
+      "relativePath": "public/art/retina-v2.7/props/prop-plant-desk@2x.png",
+      "resolutionScale": 2,
+      "logicalSizePx": [
+        8,
+        11
+      ],
+      "pixelSize": [
+        16,
+        22
+      ],
+      "alpha": "binary RGBA",
+      "visualBoundsPx": [
+        1,
+        2,
+        15,
+        20
+      ],
+      "sha256": "1a8e2eb5ed57ded9d0171c90c56cff7e13f0f94e7c269218ecf1908e6ee4d54e",
+      "pixelFiltering": "nearest",
+      "status": "export-verified",
+      "provenance": "Downscaled from original v2.6 potted plant using nearest-neighbor, composed as tabletop-safe desk variant",
+      "optional": true,
+      "usage": "desktop decorative plant only; original large plant remains available",
+      "anchor": {
+        "basePx": [
+          8,
+          20
+        ],
+        "type": "bottom-center"
+      }
+    },
+    "prop.mug.desk": {
+      "id": "prop.mug.desk",
+      "uri": "/art/retina-v2.7/props/prop-mug-desk@2x.png",
+      "relativePath": "public/art/retina-v2.7/props/prop-mug-desk@2x.png",
+      "resolutionScale": 2,
+      "logicalSizePx": [
+        6,
+        6
+      ],
+      "pixelSize": [
+        12,
+        12
+      ],
+      "alpha": "binary RGBA",
+      "visualBoundsPx": [
+        1,
+        2,
+        11,
+        10
+      ],
+      "sha256": "4af8a96105ee3faab8f54dce1289e6290b29e88e877997b3052d847958754171",
+      "pixelFiltering": "nearest",
+      "status": "export-verified",
+      "provenance": "Purpose-sized tabletop cup from full-size original pixel art, nearest-neighbor retina export",
+      "optional": true,
+      "usage": "desk-top cup with inset margins; original full-sized mug remains available"
+    },
+    "character.preset.raya.front.0": {
+      "uri": "/art/retina-v2.7/characters/presets/raya/front-0@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "raya",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.raya.front.1": {
+      "uri": "/art/retina-v2.7/characters/presets/raya/front-1@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "raya",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.raya.front.2": {
+      "uri": "/art/retina-v2.7/characters/presets/raya/front-2@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "raya",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.raya.back.0": {
+      "uri": "/art/retina-v2.7/characters/presets/raya/back-0@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "raya",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.raya.back.1": {
+      "uri": "/art/retina-v2.7/characters/presets/raya/back-1@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "raya",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.raya.back.2": {
+      "uri": "/art/retina-v2.7/characters/presets/raya/back-2@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "raya",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.niko.front.0": {
+      "uri": "/art/retina-v2.7/characters/presets/niko/front-0@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "niko",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.niko.front.1": {
+      "uri": "/art/retina-v2.7/characters/presets/niko/front-1@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "niko",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.niko.front.2": {
+      "uri": "/art/retina-v2.7/characters/presets/niko/front-2@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "niko",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.niko.back.0": {
+      "uri": "/art/retina-v2.7/characters/presets/niko/back-0@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "niko",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.niko.back.1": {
+      "uri": "/art/retina-v2.7/characters/presets/niko/back-1@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "niko",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.niko.back.2": {
+      "uri": "/art/retina-v2.7/characters/presets/niko/back-2@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "niko",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.sari.front.0": {
+      "uri": "/art/retina-v2.7/characters/presets/sari/front-0@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "sari",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.sari.front.1": {
+      "uri": "/art/retina-v2.7/characters/presets/sari/front-1@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "sari",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.sari.front.2": {
+      "uri": "/art/retina-v2.7/characters/presets/sari/front-2@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "sari",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.sari.back.0": {
+      "uri": "/art/retina-v2.7/characters/presets/sari/back-0@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "sari",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.sari.back.1": {
+      "uri": "/art/retina-v2.7/characters/presets/sari/back-1@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "sari",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.sari.back.2": {
+      "uri": "/art/retina-v2.7/characters/presets/sari/back-2@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "sari",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.bima.front.0": {
+      "uri": "/art/retina-v2.7/characters/presets/bima/front-0@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "bima",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.bima.front.1": {
+      "uri": "/art/retina-v2.7/characters/presets/bima/front-1@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "bima",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.bima.front.2": {
+      "uri": "/art/retina-v2.7/characters/presets/bima/front-2@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "bima",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.bima.back.0": {
+      "uri": "/art/retina-v2.7/characters/presets/bima/back-0@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "bima",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.bima.back.1": {
+      "uri": "/art/retina-v2.7/characters/presets/bima/back-1@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "bima",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.bima.back.2": {
+      "uri": "/art/retina-v2.7/characters/presets/bima/back-2@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "bima",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.lia.front.0": {
+      "uri": "/art/retina-v2.7/characters/presets/lia/front-0@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "lia",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.lia.front.1": {
+      "uri": "/art/retina-v2.7/characters/presets/lia/front-1@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "lia",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.lia.front.2": {
+      "uri": "/art/retina-v2.7/characters/presets/lia/front-2@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "lia",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.lia.back.0": {
+      "uri": "/art/retina-v2.7/characters/presets/lia/back-0@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "lia",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.lia.back.1": {
+      "uri": "/art/retina-v2.7/characters/presets/lia/back-1@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "lia",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.lia.back.2": {
+      "uri": "/art/retina-v2.7/characters/presets/lia/back-2@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "lia",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.danu.front.0": {
+      "uri": "/art/retina-v2.7/characters/presets/danu/front-0@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "danu",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.danu.front.1": {
+      "uri": "/art/retina-v2.7/characters/presets/danu/front-1@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "danu",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.danu.front.2": {
+      "uri": "/art/retina-v2.7/characters/presets/danu/front-2@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "danu",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.danu.back.0": {
+      "uri": "/art/retina-v2.7/characters/presets/danu/back-0@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "danu",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.danu.back.1": {
+      "uri": "/art/retina-v2.7/characters/presets/danu/back-1@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "danu",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.danu.back.2": {
+      "uri": "/art/retina-v2.7/characters/presets/danu/back-2@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "danu",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.mira.front.0": {
+      "uri": "/art/retina-v2.7/characters/presets/mira/front-0@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "mira",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.mira.front.1": {
+      "uri": "/art/retina-v2.7/characters/presets/mira/front-1@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "mira",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.mira.front.2": {
+      "uri": "/art/retina-v2.7/characters/presets/mira/front-2@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "mira",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.mira.back.0": {
+      "uri": "/art/retina-v2.7/characters/presets/mira/back-0@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "mira",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.mira.back.1": {
+      "uri": "/art/retina-v2.7/characters/presets/mira/back-1@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "mira",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.mira.back.2": {
+      "uri": "/art/retina-v2.7/characters/presets/mira/back-2@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "mira",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.ardi.front.0": {
+      "uri": "/art/retina-v2.7/characters/presets/ardi/front-0@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "ardi",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.ardi.front.1": {
+      "uri": "/art/retina-v2.7/characters/presets/ardi/front-1@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "ardi",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.ardi.front.2": {
+      "uri": "/art/retina-v2.7/characters/presets/ardi/front-2@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "ardi",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.ardi.back.0": {
+      "uri": "/art/retina-v2.7/characters/presets/ardi/back-0@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "ardi",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.ardi.back.1": {
+      "uri": "/art/retina-v2.7/characters/presets/ardi/back-1@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "ardi",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.ardi.back.2": {
+      "uri": "/art/retina-v2.7/characters/presets/ardi/back-2@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "ardi",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.nala.front.0": {
+      "uri": "/art/retina-v2.7/characters/presets/nala/front-0@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "nala",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.nala.front.1": {
+      "uri": "/art/retina-v2.7/characters/presets/nala/front-1@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "nala",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.nala.front.2": {
+      "uri": "/art/retina-v2.7/characters/presets/nala/front-2@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "nala",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.nala.back.0": {
+      "uri": "/art/retina-v2.7/characters/presets/nala/back-0@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "nala",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.nala.back.1": {
+      "uri": "/art/retina-v2.7/characters/presets/nala/back-1@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "nala",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.nala.back.2": {
+      "uri": "/art/retina-v2.7/characters/presets/nala/back-2@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "nala",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.yusuf.front.0": {
+      "uri": "/art/retina-v2.7/characters/presets/yusuf/front-0@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "yusuf",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.yusuf.front.1": {
+      "uri": "/art/retina-v2.7/characters/presets/yusuf/front-1@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "yusuf",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.yusuf.front.2": {
+      "uri": "/art/retina-v2.7/characters/presets/yusuf/front-2@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "yusuf",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.yusuf.back.0": {
+      "uri": "/art/retina-v2.7/characters/presets/yusuf/back-0@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "yusuf",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.yusuf.back.1": {
+      "uri": "/art/retina-v2.7/characters/presets/yusuf/back-1@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "yusuf",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.yusuf.back.2": {
+      "uri": "/art/retina-v2.7/characters/presets/yusuf/back-2@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "yusuf",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.tari.front.0": {
+      "uri": "/art/retina-v2.7/characters/presets/tari/front-0@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "tari",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.tari.front.1": {
+      "uri": "/art/retina-v2.7/characters/presets/tari/front-1@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "tari",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.tari.front.2": {
+      "uri": "/art/retina-v2.7/characters/presets/tari/front-2@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "tari",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.tari.back.0": {
+      "uri": "/art/retina-v2.7/characters/presets/tari/back-0@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "tari",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.tari.back.1": {
+      "uri": "/art/retina-v2.7/characters/presets/tari/back-1@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "tari",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.tari.back.2": {
+      "uri": "/art/retina-v2.7/characters/presets/tari/back-2@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "tari",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.reno.front.0": {
+      "uri": "/art/retina-v2.7/characters/presets/reno/front-0@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "reno",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.reno.front.1": {
+      "uri": "/art/retina-v2.7/characters/presets/reno/front-1@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "reno",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.reno.front.2": {
+      "uri": "/art/retina-v2.7/characters/presets/reno/front-2@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "reno",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.reno.back.0": {
+      "uri": "/art/retina-v2.7/characters/presets/reno/back-0@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "reno",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.reno.back.1": {
+      "uri": "/art/retina-v2.7/characters/presets/reno/back-1@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "reno",
+      "source": "original Golden Assets v2.7 base recolor"
+    },
+    "character.preset.reno.back.2": {
+      "uri": "/art/retina-v2.7/characters/presets/reno/back-2@2x.png",
+      "logicalSizePx": [
+        22,
+        32
+      ],
+      "physicalSizePx": [
+        44,
+        64
+      ],
+      "scale": 2,
+      "presetId": "reno",
+      "source": "original Golden Assets v2.7 base recolor"
+    }
+  },
+  "limits": [
+    "Only golden workstation assets, not full environment kit",
+    "Four role characters have idle poses only",
+    "Static QA and inspector scenario tests do not prove in-app runtime or responsive browser correctness",
+    "Automatic tabletop clearance is verified only for the golden workstation assets and current four accessory presets."
+  ],
+  "characterVariants": {
+    "strategy": "recolored original Retina base animation",
+    "preserves": "all six original 22x32 logical animation frames and consistent feet pivots",
+    "limitation": "shared hair silhouette and glasses; unique hairstyles deferred to Phase 05",
+    "presets": [
+      {
+        "id": "raya",
+        "label": "Raya",
+        "skin": "#e7ad84",
+        "hair": "#472a25",
+        "shirt": "#d76778"
+      },
+      {
+        "id": "niko",
+        "label": "Niko",
+        "skin": "#f2c7a7",
+        "hair": "#27212b",
+        "shirt": "#6f9ab9"
+      },
+      {
+        "id": "sari",
+        "label": "Sari",
+        "skin": "#b87958",
+        "hair": "#241d25",
+        "shirt": "#e7b34f"
+      },
+      {
+        "id": "bima",
+        "label": "Bima",
+        "skin": "#9d654c",
+        "hair": "#29242c",
+        "shirt": "#72a28b"
+      },
+      {
+        "id": "lia",
+        "label": "Lia",
+        "skin": "#f2c9ae",
+        "hair": "#9c6444",
+        "shirt": "#b991cb"
+      },
+      {
+        "id": "danu",
+        "label": "Danu",
+        "skin": "#d59b71",
+        "hair": "#3a302b",
+        "shirt": "#cf715a"
+      },
+      {
+        "id": "mira",
+        "label": "Mira",
+        "skin": "#dba682",
+        "hair": "#26202a",
+        "shirt": "#6fa7a7"
+      },
+      {
+        "id": "ardi",
+        "label": "Ardi",
+        "skin": "#a96e50",
+        "hair": "#6b4431",
+        "shirt": "#8e91bb"
+      },
+      {
+        "id": "nala",
+        "label": "Nala",
+        "skin": "#8d5a47",
+        "hair": "#241b1d",
+        "shirt": "#d884a2"
+      },
+      {
+        "id": "yusuf",
+        "label": "Yusuf",
+        "skin": "#edbf9c",
+        "hair": "#867b73",
+        "shirt": "#8eaa77"
+      },
+      {
+        "id": "tari",
+        "label": "Tari",
+        "skin": "#c68762",
+        "hair": "#39272a",
+        "shirt": "#e5aa63"
+      },
+      {
+        "id": "reno",
+        "label": "Reno",
+        "skin": "#f0c8aa",
+        "hair": "#b88c5e",
+        "shirt": "#7c9abd"
+      }
+    ]
+  }
+}

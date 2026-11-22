@@ -4,7 +4,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import FilePreview, { kindOf, ICON } from "../file-preview";
-import ThemeToggle from "../theme-toggle";
 import { Px, Emo } from "../pixel-icon";
 
 export type Folder = { id: string; name: string; sub: string; emoji: string | null; rel: string; links: string[] };
@@ -152,7 +151,6 @@ export default function FilesView({ folders: initial, hasRoot, lastSync, lastRes
           <div className="brand"><h1><Px name="books" /> Knowledge &amp; Files</h1><p className="pdesc">Each agent&apos;s folder in your OneDrive: what it reads, and what it made.</p></div>
           <div className="chiprow">
             <button className="btn" onClick={syncNow} disabled={sync.busy || !hasRoot}>{sync.busy ? <><span className="spinner sm" /> Copying…</> : <><Px name="refresh" /> Copy new outputs</>}</button>
-            <ThemeToggle />
             <span className="clock" title={sync.result ?? undefined}>Outputs copied {ago(sync.at)}</span>
           </div>
         </div>
@@ -202,7 +200,7 @@ export default function FilesView({ folders: initial, hasRoot, lastSync, lastRes
             )}
 
             {err && <div className="note bad">{err}</div>}
-            {!folder.rel && <p className="desc">This agent doesn&apos;t have a folder yet. Click <b>Copy new outputs</b> to make one.</p>}
+            {!folder.rel && <p className="desc">{hasRoot ? <>This folder hasn&apos;t been created yet. Click <b>Copy new outputs</b> to make it.</> : <>Connect OneDrive and reload this page to enable folders and file actions.</>}</p>}
             {folder.rel && !entries && !err && <div className="loading"><span className="spinner" /> Loading…</div>}
             {folder.rel && empty && (
               <div className="kf-empty">

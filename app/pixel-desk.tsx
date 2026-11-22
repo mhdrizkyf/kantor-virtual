@@ -2,6 +2,7 @@
 // Meja bergaya piksel: tokoh duduk di meja, layar menyala saat bekerja, cangkir kopi saat istirahat,
 // kursi kosong saat pulang. Semua gambar dibuat di sini (tanpa aset dari luar).
 import { useEffect, useRef, useState } from "react";
+import { faceById } from "@/lib/character-presets";
 
 // Warna meja mengikuti tema yang dipilih (dibaca dari variabel CSS, lalu diubah jadi rgb biasa).
 const TONES = {
@@ -10,6 +11,7 @@ const TONES = {
   lamp: "var(--yellow)", cup: "var(--orange)", rev: "var(--yellow)", rev2: "color-mix(in srgb,var(--yellow) 30%,#fff)", dot: "var(--pink)",
 };
 type Tones = Record<keyof typeof TONES, string>;
+const SCENE_TONES: Tones = { o: "#292735", chair: "#6d657c", top: "#cba67c", front: "#98724f", stripe: "#bd916b", scrA: "#8ccde1", scrB: "#d7e8ef", idle: "#6d6d79", lamp: "#f5bd4d", cup: "#c88b55", rev: "#ffd35e", rev2: "#fff2c2", dot: "#e38ba5" };
 let cache: { key: string; t: Tones } | null = null;
 function tones(): Tones {
   const d = document.documentElement, key = `${d.dataset.palette ?? ""}|${d.dataset.theme ?? ""}`;
@@ -33,7 +35,7 @@ const subs = new Set<(t: number) => void>();
 let tick = 0, timer: ReturnType<typeof setInterval> | null = null;
 function subscribe(fn: (t: number) => void) {
   subs.add(fn);
-  if (!timer) timer = setInterval(() => { tick++; subs.forEach(f => f(tick)); }, 110);
+  if (!timer) timer = setInterval(() => { if (document.visibilityState !== "visible") return; tick++; subs.forEach(f => f(tick)); }, 150);
   return () => { subs.delete(fn); if (!subs.size && timer) { clearInterval(timer); timer = null; } };
 }
 
@@ -41,7 +43,9 @@ const HAIR = ["#2a1a14", "#1c1c22", "#4a2e1f", "#8a3b1c", "#9a9a96", "#5b3a29", 
 const SKIN = ["#f0c8a4", "#e8b894", "#d9a07a", "#c98e66", "#a8714a"];
 const SHIRT = ["#FF69B4", "#FFEA00", "#00D9C0", "#FF6B35", "#A259FF", "#FF8FC8", "#3FE6D2", "#C18CFF"];
 function hash(s: string) { let h = 7; for (const ch of s) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h; }
-export function lookOf(name: string) {
+export function lookOf(name: string, face?: string | null) {
+  const chosen = faceById(face);
+  if (chosen) return chosen;
   const h = hash(name);
   return { hair: HAIR[h % HAIR.length], skin: SKIN[(h >> 3) % SKIN.length], shirt: SHIRT[(h >> 6) % SHIRT.length] };
 }
@@ -74,18 +78,19 @@ function useMyChar(name: string, human?: boolean) {
   return c;
 }
 
-export type PixelState = "working" | "ready" | "review" | "failed" | "break" | "away" | "present";
+export type PixelState = "working" | "ready" | "idle" | "review" | "failed" | "break" | "away" | "present";
 
-export default function PixelDesk({ name, state, human, papers = 0 }: { name: string; state: PixelState; human?: boolean; papers?: number }) {
+export default function PixelDesk({ name, state, human, papers = 0, face, scene = false }: { name: string; state: PixelState; human?: boolean; papers?: number; face?: string | null; scene?: boolean }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const themeV = useThemeVersion();
   const mine = useMyChar(name, human);
   useEffect(() => {
-    const T = tones();
+    const T = scene ? SCENE_TONES : tones();
     const cv = ref.current; if (!cv) return;
     const lo = document.createElement("canvas"); lo.width = W; lo.height = H;
     const c = lo.getContext("2d")!, X = cv.getContext("2d")!;
-    const look = lookOf(name);
+    const look = lookOf(name, face);
+    const seed = hash(name);
     const r = (x: number, y: number, w: number, h: number, col: string) => { c.fillStyle = col; c.fillRect(x, y, w, h); };
     const seated = state !== "away";
     const blit = () => { X.imageSmoothingEnabled = false; X.drawImage(lo, 0, 0, W * S, H * S); };
@@ -110,22 +115,32 @@ export default function PixelDesk({ name, state, human, papers = 0 }: { name: st
       if (mine) { X.clearRect(0, 0, cv.width, cv.height); blit(); figure(t); c.clearRect(0, 0, W, H); }
       // tokoh
       if (seated && !mine) {
-        const y = 7 + (state === "working" && Math.floor(t / 4) % 2 ? 1 : 0), x = 24;
+        const idle = state === "ready" || state === "idle" || state === "present" || state === "review";
+        const bob = state === "working" ? Math.floor(t / 4) % 2 : idle && (Math.floor((t + seed) / 16) % 4 === 0) ? 1 : 0;
+        const y = 7 + bob, x = 24;
         r(x + 1, y, 7, 2, look.hair); r(x + 1, y + 2, 1, 2, look.hair); r(x + 7, y + 2, 1, 2, look.hair);
-        r(x + 2, y + 2, 5, 3, look.skin); r(x + 3, y + 3, 1, 1, "#2b2420"); r(x + 6, y + 3, 1, 1, "#2b2420");
+        r(x + 2, y + 2, 5, 3, look.skin);
+        const blink = Math.floor((t + seed) / 27) % 5 === 0;
+        r(x + 3, y + 3, 1, 1, blink ? look.hair : "#2b2420"); r(x + 6, y + 3, 1, 1, blink ? look.hair : "#2b2420");
         r(x + 1, y + 5, 7, 5, look.shirt); r(x, y + 6, 1, 4, look.skin); r(x + 8, y + 6, 1, 4, look.skin);
+        if (idle && Math.floor((t + seed) / 18) % 3 === 1) r(x + 8, y + 5, 1, 2, look.skin);
       }
       // meja
       r(2, 17, 44, 13, T.o); r(3, 18, 42, 4, T.top); r(3, 22, 42, 7, T.front); r(6, 24, 6, 1, T.stripe); r(5, 30, 3, 3, T.o); r(40, 30, 3, 3, T.o);
       if (!human) {
-        // layar
-        r(7, 8, 13, 10, T.o);
-        const blink = Math.floor(t / 6) % 2;
-        const screen = state === "working" ? (Math.floor(t / 3) % 2 ? T.scrA : T.scrB)
-          : state === "failed" ? (blink ? "#E24B4A" : "#791F1F")
-          : state === "away" ? "#4A3A50" : T.idle;
-        r(8, 9, 11, 7, screen); r(12, 17, 3, 1, T.o);
-        if (state === "working") for (let i = 0; i < 3; i++) r(9 + i * 3, 10 + ((t + i) % 4), 2, 1, T.o);
+        if (state === "idle" || state === "away") {
+          // Laptop ditutup saat off duty; karakter tetap terlihat di belakang meja.
+          r(7, 15, 14, 3, T.o); r(8, 15, 12, 1, T.chair); r(10, 16, 8, 1, T.stripe);
+        } else {
+          r(7, 8, 13, 10, T.o);
+          const blink = Math.floor(t / 6) % 2;
+          const screen = state === "working" ? (Math.floor(t / 3) % 2 ? T.scrA : T.scrB)
+            : state === "failed" ? (blink ? "#E24B4A" : "#791F1F")
+            : seated && Math.floor((t + seed) / 10) % 2 ? T.scrB : T.idle;
+          r(8, 9, 11, 7, screen); r(12, 17, 3, 1, T.o);
+          if (state === "working") for (let i = 0; i < 3; i++) r(9 + i * 3, 10 + ((t + i) % 4), 2, 1, T.o);
+          else if (seated) { r(9, 11, 5, 1, T.scrA); r(9, 13, 3 + Math.floor((t + seed) / 12) % 3, 1, T.scrA); }
+        }
       } else {
         // laptop & lampu meja
         r(8, 14, 12, 4, T.o); r(9, 15, 10, 2, seated ? T.scrA : "#6E5A73");
@@ -138,9 +153,9 @@ export default function PixelDesk({ name, state, human, papers = 0 }: { name: st
       blit();
     };
     draw(tick);
-    const still = matchMedia("(prefers-reduced-motion: reduce)").matches || !(["working", "failed", "break"].includes(state) || (mine && seated));
+    const still = matchMedia("(prefers-reduced-motion: reduce)").matches || !seated;
     if (still) return;
     return subscribe(draw);
-  }, [name, state, human, papers, themeV, mine]);
+  }, [name, state, human, papers, face, scene, themeV, mine]);
   return <canvas ref={ref} width={W * S} height={H * S} className="pixdesk" aria-hidden="true" />;
 }

@@ -156,13 +156,13 @@ export async function heartbeat(wsPick: string | null | undefined, name: string)
 }
 
 /** Kapan tiap orang terakhir membuka kantor: { nama: waktu ISO }. */
-export async function presence(wsPick?: string | null, issues?: Issue[]): Promise<Record<string, string>> {
+export async function presence(wsPick?: string | null, issues?: Issue[], workspaceSettings?: Record<string, unknown>): Promise<Record<string, string>> {
   const ws = await workspace(wsPick);
   const out: Record<string, string> = {};
   const put = (name: string, at: string) => { if (name && at && (!out[name] || at > out[name])) out[name] = at; };
   // Data lama (dari pengaturan workspace) tetap dibaca supaya tidak hilang.
-  const full = await get<{ settings?: Record<string, unknown> | null }>(`/api/workspaces/${ws.id}`, ws.id).catch(() => ({ settings: null }));
-  for (const [n, at] of Object.entries(((full.settings ?? {}).kantor_presence as Record<string, string>) ?? {})) put(n, at);
+  const settings = workspaceSettings ?? (await get<{ settings?: Record<string, unknown> | null }>(`/api/workspaces/${ws.id}`, ws.id).catch(() => ({ settings: null }))).settings ?? {};
+  for (const [n, at] of Object.entries((settings.kantor_presence as Record<string, string>) ?? {})) put(n, at);
   for (const i of (issues ?? await allIssues(ws.id)).filter(isPresence)) {
     for (const [k, v] of Object.entries(i.metadata ?? {})) {
       if (!k.startsWith("kantor_seen_") || typeof v !== "string") continue;
@@ -290,13 +290,11 @@ export async function loadWorkspace(wsPick?: string | null) {
   const [dir, everything] = await Promise.all([loadDirectory(id), allIssues(id)]);
   // Private chats and the presence board are stored as hidden issues; they never show up as work.
   const issues = everything.filter(i => !isHiddenIssue(i));
-  const runs = (await Promise.all(
-    dir.agents.map(a => get<unknown>(`/api/agents/${a.id}/tasks?limit=20`, id).then(d => list<Run>(d, "tasks")).catch(() => [] as Run[]))
-  )).flat();
-  const [settings, seen] = await Promise.all([
+  const [runs, settings] = await Promise.all([
+    Promise.all(dir.agents.map(a => get<unknown>(`/api/agents/${a.id}/tasks?limit=20`, id).then(d => list<Run>(d, "tasks")).catch(() => [] as Run[]))).then(pages => pages.flat()),
     get<WorkspaceFull>(`/api/workspaces/${id}`, id).then(f => (f.settings ?? {}) as Record<string, unknown>).catch(() => ({} as Record<string, unknown>)),
-    presence(id, everything).catch(() => ({} as Record<string, string>)),
   ]);
+  const seen = await presence(id, everything, settings).catch(() => ({} as Record<string, string>));
   // Multica yang menyala di laptop seseorang (runtime online) juga dihitung "di kantor", jadi orang yang
   // memakai VO versi lain atau tidak membuka VO tetap terlihat. Runtime yang mati hanya memberi "terakhir terlihat".
   const OFFICE_MS = 5 * 60000;
@@ -342,6 +340,7 @@ async function waitingOnAnswer(wsId: string, issues: Issue[], runs: Run[]) {
 export type KantorSettings = {
   open?: boolean; changedAt?: string; changedBy?: string;
   pausedAutopilots?: string[];
+  transition?: { action: "open" | "close"; stopRunning?: boolean };
 };
 type WorkspaceFull = Workspace & { settings?: Record<string, unknown> | null };
 
@@ -420,8 +419,8 @@ export async function fileText(wsPick: string | null | undefined, id: string) {
   if (!res.ok) throw new Error(`Could not read the file (${res.status})`);
   return res.text();
 }
-export async function fileRaw(wsPick: string | null | undefined, id: string) {
+export async function fileRaw(wsPick: string | null | undefined, id: string, range?: string | null) {
   const ws = await workspace(wsPick);
-  return fetch(`${API}/api/attachments/${id}/download`, { headers: { Authorization: `Bearer ${token()}`, "X-Workspace-ID": ws.id }, cache: "no-store", redirect: "follow" });
+  return fetch(`${API}/api/attachments/${id}/download`, { headers: { Authorization: `Bearer ${token()}`, "X-Workspace-ID": ws.id, ...(range ? { Range: range } : {}) }, cache: "no-store", redirect: "follow" });
 }
 export const call_ = call;

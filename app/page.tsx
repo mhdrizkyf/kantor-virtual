@@ -5,24 +5,23 @@ import Shell from "./shell";
 
 export const dynamic = "force-dynamic";
 
-export type Building = { id: string; slug: string; name: string; attention: number; open: boolean; switchOpen: boolean };
+export type Building = { id: string; slug: string; name: string; attention?: number; open?: boolean; switchOpen?: boolean };
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ ws?: string }> }) {
   const { ws } = await searchParams;
   try {
     const [all, mine] = await Promise.all([workspaces(), me().catch(() => null)]);
-    // Semua gedung dimuat supaya tiap tombol gedung bisa menunjukkan jumlah yang perlu perhatian.
-    const offices: Office[] = await Promise.all(all.map(w => loadWorkspace(w.id).then(buildOffice)));
-    const current = offices.find(o => o.workspaceSlug === ws || o.workspaceId === ws) ?? offices[0];
+    const selected = all.find(w => w.slug === ws || w.id === ws)
+      ?? all.find(w => w.id === process.env.MULTICA_WORKSPACE_ID) ?? all[0];
+    // Only the selected workspace needs issues, agent task history, and question comments.
+    const current: Office = buildOffice(await loadWorkspace(selected.id));
     const count = (o: Office) => o.attention.overdue.length + o.attention.human.length + o.attention.review.length + o.attention.failed.length;
-    const buildings: Building[] = offices.map(o => ({ id: o.workspaceId, slug: o.workspaceSlug, name: o.workspace, attention: count(o), open: o.open, switchOpen: o.switchOpen }));
-    // "Perlu perhatian" dan "Tim" hanya untuk gedung yang sedang dibuka.
-    // Gedung lain cukup ditandai angka di tombol gedungnya.
-    const seen: Record<string, string> = {};
-    for (const o of offices) for (const [n, t] of Object.entries(o.seen)) if (current.people.includes(n) && (!seen[n] || t > seen[n])) seen[n] = t;
+    const buildings: Building[] = all.map(w => ({ id: w.id, slug: w.slug, name: w.name,
+      ...(w.id === selected.id ? { attention: count(current), open: current.open, switchOpen: current.switchOpen } : {}) }));
+    const seen = current.seen;
     const cur = buildings.find(b => b.id === current.workspaceId)!;
     return (
-      <Shell buildings={buildings} current={cur} section="kantor">
+      <Shell buildings={buildings} current={cur} section="kantor" roster={[...new Map([...current.rooms.flatMap(r => r.desks), ...current.idleDesks].map(d => [d.agentId, d])).values()].map(d => ({ agentId: d.agentId, name: d.name, description: d.description, face: d.face, state: d.state }))}>
         <OfficeView office={current} buildings={buildings} attention={current.attention} people={current.people} seen={seen} meId={mine?.id ?? null} />
       </Shell>
     );

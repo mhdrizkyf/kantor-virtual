@@ -4,15 +4,15 @@ import { useRouter } from "next/navigation";
 import type { Board, Card } from "@/lib/crew";
 import { COLS } from "@/lib/board-cols";
 import TaskPanel from "../task-panel";
-import ThemeToggle from "../theme-toggle";
 import NewProject from "../new-project";
 import { Px, Emo, PxText } from "../pixel-icon";
+import { useVisiblePoll } from "../visible-poll";
 
 const LOOSE = "none";
 
-function CardItem({ c, showProject, onOpen }: { c: Card; showProject: boolean; onOpen: () => void }) {
+function CardItem({ c, showProject, onOpen, draggable }: { c: Card; showProject: boolean; onOpen: () => void; draggable: boolean }) {
   return (
-    <button className={`kcard ${c.dueFlag ?? ""}`} onClick={onOpen}>
+    <button className={`kcard ${c.dueFlag ?? ""}`} onClick={onOpen} draggable={draggable} onDragStart={e => { e.dataTransfer.setData("text/task-id", c.id); e.dataTransfer.effectAllowed = "move"; }}>
       <b className="kc-t"><PxText text={c.title} /></b>
       {showProject && <span className="kc-proj">{c.project ? <>{c.projectIcon ? <Emo e={c.projectIcon} /> : <Px name="folder" />} {c.project}</> : <><Px name="loose" /> No project</>}</span>}
       <span className="kc-foot">
@@ -79,11 +79,24 @@ export default function BoardView({ board, initialProject }: { board: Board; ini
   const [refreshing, start] = useTransition();
   const refresh = () => start(() => router.refresh());
   const [proj, setProj] = useState(initialProject);
+  const [dropCol, setDropCol] = useState<string | null>(null);
+  const [moving, setMoving] = useState(false);
+  const [moveNotice, setMoveNotice] = useState("");
+  async function moveCard(id: string, status: string) {
+    if (moving || !board.cards.some(c => c.id === id && c.col !== status)) return;
+    setMoving(true); setMoveNotice("Moving task…");
+    try {
+      const res = await fetch(`/api/task/${id}`, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ws:board.workspaceId,action:status === "done" ? "approve" : "move",status})});
+      const data = await res.json(); if (!res.ok || data.error) throw new Error(data.error || "Could not move task");
+      setMoveNotice("Task moved successfully."); refresh();
+    } catch(e) {setMoveNotice(e instanceof Error ? e.message : "Could not move task");}
+    finally {setMoving(false);setDropCol(null);}
+  }
   const [who, setWho] = useState("all");
   const [open, setOpen] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [newProject, setNewProject] = useState(false);
-  useEffect(() => { const t = setInterval(() => start(() => router.refresh()), 30_000); return () => clearInterval(t); }, [router]);
+  useVisiblePoll(refresh, 30_000);
   // Keep the chosen project in the URL so it can be shared or reloaded.
   useEffect(() => {
     const u = new URL(location.href);
@@ -105,7 +118,6 @@ export default function BoardView({ board, initialProject }: { board: Board; ini
           <div className="brand"><h1><Px name="board" /> Task Board</h1><p className="pdesc">Every task in this workspace, by project.</p></div>
           <div className="chiprow">
             <button className="btn primary" onClick={() => setAdding(true)}><Px name="plus" size="0.9em" /> New task</button>
-            <ThemeToggle />
             <span className="clock">{refreshing ? <><span className="spinner sm" /> Refreshing…</> : `${total} open task${total === 1 ? "" : "s"}`}</span>
           </div>
         </div>
@@ -147,15 +159,15 @@ export default function BoardView({ board, initialProject }: { board: Board; ini
           </label>
         </div>
 
-        <div className="kanban">
+        <p role="status" className="hint">{moveNotice || "Drag tasks between columns. Open a task to start or stop active work."}</p><div className="kanban" aria-busy={moving}>
           {COLS.map(col => {
             const cs = shown.filter(c => c.col === col.id);
             const list = col.id === "done" ? cs.slice(0, 20) : cs;
             return (
-              <section key={col.id} className={`kcol c-${col.id}`} aria-label={col.title}>
+              <section key={col.id} className={`kcol c-${col.id} ${dropCol === col.id ? "drop-target" : ""}`} aria-label={col.title} onDragOver={e => { if (!moving) { e.preventDefault(); setDropCol(col.id); } }} onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropCol(null); }} onDrop={e => { e.preventDefault(); setDropCol(null); void moveCard(e.dataTransfer.getData("text/task-id"), col.id); }}>
                 <div className="kc-head"><b><Px name={col.icon} /> {col.title}</b><span className="count">{cs.length}</span><small>{col.sub}</small></div>
                 <div className="kc-list">
-                  {list.map(c => <CardItem key={c.id} c={c} showProject={proj === "all"} onOpen={() => setOpen(c.id)} />)}
+                  {list.map(c => { const locked = c.col === "in_progress" || c.col === "done"; return <div key={c.id} className="movable-card"><CardItem c={c} showProject={proj === "all"} onOpen={() => setOpen(c.id)} draggable={!locked} /><select aria-label={`Move ${c.title} to column`} value="" disabled={moving || locked} onChange={e => void moveCard(c.id, e.target.value)}><option value="">Move to…</option>{COLS.filter(x => x.id !== c.col && x.id !== "in_progress").map(x => <option key={x.id} value={x.id}>{x.title}</option>)}</select></div>; })}
                   {!cs.length && <p className="kc-empty">{col.id === "in_review" ? <>Nothing to review <Px name="coffee" /></> : col.id === "done" ? "Nothing finished yet. Keep going!" : "Empty"}</p>}
                 </div>
               </section>

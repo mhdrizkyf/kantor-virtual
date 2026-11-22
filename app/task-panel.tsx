@@ -14,10 +14,13 @@ import { encodeMentions, type Mentionable } from "@/lib/mentions";
 import { answersToText } from "@/lib/digest";
 import { useAutoGrow } from "./auto-grow";
 import { useDraft } from "./drafts";
+import { sharedJson, useVisiblePoll } from "./visible-poll";
+import { localAttachmentHref } from "@/lib/attachment-meta";
 
 /** Only the ```taiga and ```whatsapp blocks of a text (they become cards). */
 const actionBlocks = (text: string) => (text.match(/^```(?:taiga|whatsapp|wa)\b[\s\S]*?^```/gim) ?? []).join("\n\n");
-const md = (text: string) => <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypePx]} urlTransform={keepMentionUrl} components={{ a: mentionLink, span: PxSpan, pre: WaPre }}>{text}</ReactMarkdown>;
+const md = (text: string, ws: string) => <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypePx]} urlTransform={keepMentionUrl}
+  components={{ a: p => mentionLink({ ...p, href: localAttachmentHref(p.href, ws) }), span: PxSpan, pre: WaPre }}>{text}</ReactMarkdown>;
 const POLL_MS = 4000;
 type Tab = "chat" | "files" | "brief";
 
@@ -49,8 +52,7 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
 
   const sig = useRef("");
   const load = useCallback(async () => {
-    const r = await fetch(`/api/task/${id}?ws=${ws}`); const j = await r.json();
-    if (j.error) throw new Error(j.error);
+    const j = await sharedJson<TaskDetail>(`/api/task/${id}?ws=${ws}`);
     setD(j);
     // Refresh the office only when something changed (new message / status).
     const now = `${j.messages.length}|${j.status}|${j.live.state}`;
@@ -102,11 +104,7 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
   }, [d, pending, tab]);
 
   const watching = !!d && (d.live.state === "running" || d.live.state === "queued" || Date.now() < watchUntil);
-  useEffect(() => {
-    if (!watching) return;
-    const t = setInterval(() => { load().catch(() => {}); }, POLL_MS);
-    return () => clearInterval(t);
-  }, [watching, load]);
+  useVisiblePoll(load, POLL_MS, watching);
 
   // Unsaved drafts count too, so nothing you typed is ever lost when you send.
   const flat = Object.fromEntries(Object.entries(answers).map(([n, a]) => [n, ansText(a)]));
@@ -132,6 +130,7 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
       const j = await r.json();
       if (j.error) throw new Error(j.error);
       setD(j); setText(""); setPicked([]); setAnswers({}); setLink(""); setFiles([]); setConfirm(null); onChanged();
+      if (["approve", "done", "revise", "reply"].includes(action)) window.dispatchEvent(new CustomEvent("kantor:workflow", { detail: { action, title: d?.title ?? "Task", agentId: d?.assignee.kind === "agent" ? d.assignee.id : null } }));
       if (action === "revise" || action === "reply" || action === "rerun" || action === "restart" || (action === "reopen" && out)) setWatchUntil(Date.now() + 3 * 60_000);
       else if (action === "approve" || action === "done") setWatchUntil(0); // closed: nobody is expected to reply
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
@@ -193,14 +192,14 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
                 {actionBlocks(d.brief) && (
                   <div className="msg bot">
                     <div className="from"><span><Px name="todo" /> From the brief</span><span /></div>
-                    <div className="md">{md(actionBlocks(d.brief))}</div>
+                    <div className="md">{md(actionBlocks(d.brief), ws)}</div>
                   </div>
                 )}
                 {d.messages.length === 0 && !pending && !actionBlocks(d.brief) && <p className="desc">No messages yet. The agent will post results here.</p>}
                 {d.messages.map(m => (
                   <div key={m.id} id={`m-${m.id}`} className={`msg ${m.whoKind === "member" ? "me" : "bot"} ${dg?.messageId === m.id ? "hl" : ""}`}>
                     <div className="from"><span>{m.emoji ? <><Emo e={m.emoji} /> </> : null}{m.who}</span><span>{m.when}</span></div>
-                    {m.text && <div className="md">{md(m.text)}</div>}
+                    {m.text && <div className="md">{md(m.text, ws)}</div>}
                     {/* The newest files are previewed right here in the conversation, so revisions can be checked without leaving. */}
                     {m.id === lastFilesMsg && m.files.map(f => <FilePreview key={f.id} f={f} />)}
                     {(m.images.length > 0 || (m.files.length > 0 && m.id !== lastFilesMsg)) && (
@@ -214,7 +213,7 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
                 {pending && (
                   <div className="msg me sending">
                     <div className="from"><span>You</span><span><span className="spinner sm" /> sending…</span></div>
-                    {pending.text && <div className="md">{md(pending.text)}</div>}
+                    {pending.text && <div className="md">{md(pending.text, ws)}</div>}
                     {pending.files.length > 0 && <div className="chips">{pending.files.map(f => <span key={f} className="chip"><Px name="clip" /> {f}</span>)}</div>}
                   </div>
                 )}
@@ -259,7 +258,7 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
                 {(() => { const a = d.artifacts.find(x => x.id === (pick ?? d.artifacts[0].id)) ?? d.artifacts[0]; return <FilePreview key={a.id} f={a} />; })()}
               </div>
             )}
-            {tab === "brief" && <div className="md tp-brief">{md(d.brief)}</div>}
+            {tab === "brief" && <div className="md tp-brief">{md(d.brief, ws)}</div>}
             <details className="extra">
               <summary>More info</summary>
               <p className="desc">Code: {d.key} · Original title: {d.originalTitle}</p>

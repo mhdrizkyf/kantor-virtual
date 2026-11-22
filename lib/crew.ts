@@ -17,7 +17,7 @@ export type Board = { workspaceId: string; workspace: string; projects: ProjectT
 
 export type Load = { queued: number; doing: number; review: number; late: number; open: number; level: "santai" | "pas" | "sibuk" | "kewalahan" };
 export type Mate = {
-  kind: "human" | "agent"; id: string; name: string; emoji: string | null; avatar: string | null; sub: string; role: string | null;
+  kind: "human" | "agent"; id: string; name: string; emoji: string | null; avatar: string | null; face: string | null; sub: string; role: string | null;
   status: string; state: Desk["state"] | "here" | "away"; projects: { id: string; name: string; icon: string | null; open: number }[];
   load: Load; tasks: Card[]; runtimeOnline: boolean; runtimeId: string | null; isMe?: boolean;
 };
@@ -124,14 +124,14 @@ export function buildTeam(s: Snapshot, invites: { invitee_email: string; role: s
   const humans: Mate[] = s.members.map((m): Mate => {
     const tasks = all.filter(c => c.who?.kind === "member" && c.who.id === m.user_id);
     const p = rel(seen[m.name]);
-    return { kind: "human", id: m.user_id, name: m.name, emoji: null, avatar: null, sub: m.email, role: ROLE[m.role] ?? m.role,
+    return { kind: "human", id: m.user_id, name: m.name, emoji: null, avatar: null, face: null, sub: m.email, role: ROLE[m.role] ?? m.role,
       status: p.text, state: p.here ? "here" : "away", projects: projectsOf(tasks), load: loadOf(tasks), tasks, runtimeOnline: true, runtimeId: null, isMe: m.user_id === meId };
   }).sort((a, b) => Number(!!b.isMe) - Number(!!a.isMe) || a.name.localeCompare(b.name));
 
   const agents: Mate[] = s.agents.map((a): Mate => {
     const tasks = all.filter(c => c.who?.kind === "agent" && c.who.id === a.id);
     const d = desks.get(a.id);
-    return { kind: "agent", id: a.id, name: a.name, emoji: emojiOf(a.avatar_url), avatar: imgOf(a.avatar_url), sub: a.description || "", role: null,
+    return { kind: "agent", id: a.id, name: a.name, emoji: emojiOf(a.avatar_url), avatar: imgOf(a.avatar_url), face: d?.face ?? null, sub: a.description || "", role: null,
       status: d?.bubble ?? "", state: d?.state ?? "home", projects: projectsOf(tasks), load: loadOf(tasks), tasks, runtimeOnline: !!rtOnline.get(a.runtime_id), runtimeId: a.runtime_id };
   }).sort((a, b) => b.load.open - a.load.open || a.name.localeCompare(b.name));
 
