@@ -71,7 +71,7 @@ Virtual Office runs **on your own computer** (`http://127.0.0.1:3456`). It is no
 With Git:
 
 ```bash
-git clone https://github.com/sarahshafiran/kantor-virtual.git
+git clone https://github.com/mhdrizkyf/kantor-virtual.git
 cd kantor-virtual
 ```
 
@@ -118,7 +118,7 @@ The launcher installs everything on first run (1–2 minutes), updates from GitH
 **The developer way:**
 
 ```bash
-npm install
+npm ci
 ```
 
 ```bash
@@ -126,6 +126,22 @@ npm run dev
 ```
 
 Then open http://127.0.0.1:3456.
+
+### Moving to another computer
+
+Clone the default `main` branch from this repository. Install Node.js 22 LTS and Git, then:
+
+```bash
+git clone https://github.com/mhdrizkyf/kantor-virtual.git
+cd kantor-virtual
+npm ci
+```
+
+Copy `.env.example` to `.env.local` (`cp` on macOS/Linux, `copy` in Windows Command Prompt). Fill in the Multica server URL and sign in to Multica Desktop on the new computer, or set your personal access token. Set `MULTICA_WORKSPACE_ID` if you want a particular workspace to open first. Then run `npm run dev` and open `http://127.0.0.1:3456`.
+
+Tasks, agents, and conversations load from Multica. Local preferences and integration state do not travel through Git: transfer the required files from `data/` securely, especially `characters.json`, `squads.json`, `work-calendar.json`, and unfinished `chains.json`. Files containing tokens, contacts, or credentials must stay private. Sign in to WhatsApp again on the new computer if needed. OneDrive files require OneDrive access on that computer. Avoid running two copies of the automatic office guard against the same workspace at once.
+
+To update an existing clone, first commit or back up local code edits, then run `git pull --ff-only` and `npm ci`. Keep `.env.local` and private local data outside Git.
 
 ### 4. Look around
 

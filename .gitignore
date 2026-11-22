@@ -30,3 +30,9 @@ data/characters.json.*.tmp
 
 # Workspace calendar stays local
 data/work-calendar.json
+
+# Keep all workspace state and temporary files private by default
+data/*
+!data/judul.example.json
+.env*
+!.env.example
