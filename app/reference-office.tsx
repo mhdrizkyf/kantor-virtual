@@ -160,14 +160,13 @@ const ReferenceOffice = memo(function ReferenceOffice({
   const retinaPackRef = useRef<unknown>(null);
   const [sceneReady, setSceneReady] = useState(0);
   const speechElsRef = useRef<Map<string, HTMLElement>>(new Map());
-  const latest = useRef({ desks, lunch, paused, previewWorking, previewReviewId, walks, onDelivered, onDone, onDropAgent, onMeeting, onPropClick, onHuman });
-  latest.current = { desks, lunch, paused, previewWorking, previewReviewId, walks, onDelivered, onDone, onDropAgent, onMeeting, onPropClick, onHuman };
-
   const orderedHumans = ownerId ? [...humans.filter(h => h.id === ownerId), ...humans.filter(h => h.id !== ownerId)] : humans;
   const visibleHumans = orderedHumans.slice(0, 6);
   const owner = visibleHumans[0];
   const coworkers = visibleHumans.slice(1);
   const { coworkerSeats, agentSeats } = floorSeats(visibleHumans.length);
+  const latest = useRef({ desks, lunch, paused, previewWorking, previewReviewId, walks, onDelivered, onDone, onDropAgent, onMeeting, onPropClick, onHuman, agentSeats, coworkerSeats, visibleHumans });
+  latest.current = { desks, lunch, paused, previewWorking, previewReviewId, walks, onDelivered, onDone, onDropAgent, onMeeting, onPropClick, onHuman, agentSeats, coworkerSeats, visibleHumans };
 
   // Two real break destinations: Kitchen Pantry (x=7, y=7) & Dedicated Coffee Machine Bar (x=35, y=5)
   const breakSpotCursorRef = useRef(0);
@@ -530,10 +529,11 @@ const ReferenceOffice = memo(function ReferenceOffice({
         s.grab(dr.agentId);
       }
       s.hold(dr.agentId, pt.wx, pt.wy);
+      const { agentSeats: curAgentSeats, coworkerSeats: curCoworkerSeats, visibleHumans: curHumans } = latest.current;
       const zone = resolveDropZone(pt.wx, pt.wy, {
         draggedAgentId: dr.agentId,
-        agentDesks: shownRef.current.map((d, i) => ({ agentId: d.agentId, name: d.name, seatIndex: agentSeats[i] })),
-        humanDesks: visibleHumans.map((h, i) => ({ name: h.name, seatIndex: i === 0 ? OWNER_SEAT : coworkerSeats[i - 1] })),
+        agentDesks: shownRef.current.map((d, i) => ({ agentId: d.agentId, name: d.name, seatIndex: curAgentSeats[i] })),
+        humanDesks: curHumans.map((h, i) => ({ name: h.name, seatIndex: i === 0 ? OWNER_SEAT : curCoworkerSeats[i - 1] })),
       });
       dr.zone = zone;
       setDragUI({ agentId: dr.agentId, name: dr.desk.name, zone, x: pt.relX, y: pt.relY });
@@ -575,7 +575,7 @@ const ReferenceOffice = memo(function ReferenceOffice({
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
     };
-  }, [agentSeats, coworkerSeats, visibleHumans]);
+  }, []);
 
   // Build prioritized live speech bubbles (position tracked smoothly at 24fps in s.onTick)
   const speechBubbles = useMemo<SpeechBubbleItem[]>(() => {
@@ -723,13 +723,22 @@ const ReferenceOffice = memo(function ReferenceOffice({
       }
 
       const pending = new Map<string, { h: OfficeWalk; delivered: boolean }>();
+      const lastSpeechPos = new Map<string, string>();
       const syncSpeechDOM = () => {
         speechElsRef.current.forEach((el, actorId) => {
           const a = s.get(actorId);
           if (!a || a.hidden) {
-            el.style.opacity = '0';
+            if (lastSpeechPos.get(actorId) !== 'hidden') {
+              el.style.opacity = '0';
+              lastSpeechPos.set(actorId, 'hidden');
+            }
             return;
           }
+          const rx = Math.round(a.fx * 2);
+          const ry = Math.round(a.fy * 2);
+          const key = `${rx},${ry}`;
+          if (lastSpeechPos.get(actorId) === key) return;
+          lastSpeechPos.set(actorId, key);
           el.style.opacity = '1';
           el.style.left = `${(a.fx / s.W) * 100}%`;
           el.style.top = `${(Math.max(24, a.fy - 36) / s.H) * 100}%`;

@@ -53,7 +53,13 @@ async function call<T>(method: string, path: string, workspaceId?: string, body?
   const headers: Record<string, string> = { Authorization: `Bearer ${token()}`, Accept: "application/json" };
   if (workspaceId) headers["X-Workspace-ID"] = workspaceId;
   if (body !== undefined) headers["Content-Type"] = "application/json";
-  const res = await fetch(API + path, { method, headers, cache: "no-store", body: body === undefined ? undefined : JSON.stringify(body) });
+  const res = await fetch(API + path, {
+    method,
+    headers,
+    cache: "no-store",
+    signal: AbortSignal.timeout(25_000),
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
   if (!res.ok) {
     const msg = await res.text().catch(() => "");
     throw new Error(`Multica ${method} ${path} → ${res.status} ${msg.slice(0, 200)}`);
@@ -356,6 +362,10 @@ async function inspectReviewDigests(wsId: string, issues: Issue[], runs: Run[]) 
         summary: dg?.summary.slice(0, 3) ?? [],
         questionCount: openQuestions,
       };
+      if (askCache.size >= 500) {
+        const oldest = askCache.keys().next().value;
+        if (oldest !== undefined) askCache.delete(oldest);
+      }
       askCache.set(i.id, entry);
     }
     if (entry.asking) asking.add(i.id);

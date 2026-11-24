@@ -1,4 +1,4 @@
-import { loadWorkspace, workspaces, me } from "@/lib/multica";
+import { loadWorkspaceCached, workspaces, me } from "@/lib/multica";
 import { buildOffice, type Office } from "@/lib/office";
 import { fetchLiveCodexQuota } from "@/lib/codex-quota";
 import OfficeView from "./office-view";
@@ -15,7 +15,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ w
     const selected = all.find(w => w.slug === ws || w.id === ws)
       ?? all.find(w => w.id === process.env.MULTICA_WORKSPACE_ID) ?? all[0];
     // Only the selected workspace needs issues, agent task history, and question comments.
-    const snap = await loadWorkspace(selected.id);
+    const snap = await loadWorkspaceCached(selected.id, 4000);
     const built: Office = buildOffice(snap);
     const liveCodex = await fetchLiveCodexQuota({ runtimes: built.runtimes, timeZone: built.timeZone }).catch(() => built.codexQuota);
     const current: Office = liveCodex ? { ...built, codexQuota: liveCodex } : built;

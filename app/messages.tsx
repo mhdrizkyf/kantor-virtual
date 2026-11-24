@@ -8,6 +8,7 @@ import remarkGfm from "remark-gfm";
 import type { DmMessage, DmPerson } from "@/lib/dm";
 import { mentionLink, keepMentionUrl } from "./mention-box";
 import { Px, PxSpan, rehypePx } from "./pixel-icon";
+import { useVisiblePoll } from "./visible-poll";
 
 const REMARK_PLUGINS = [remarkGfm];
 const REHYPE_PLUGINS = [rehypePx];
@@ -63,9 +64,8 @@ export default function Messages({ ws, start, onClose, onUnread }: { ws: string;
     setMsgs(null); setErr(null);
     // Opening a chat marks it read, so refresh the unread counts afterwards.
     loadThread(withId).then(() => loadPeople()).catch(e => setErr(String(e.message ?? e)));
-    const t = setInterval(() => loadThread(withId).catch(() => {}), POLL_MS);
-    return () => clearInterval(t);
   }, [withId, loadThread, loadPeople]);
+  useVisiblePoll(() => (withId ? loadThread(withId) : undefined), POLL_MS, !!withId);
   useEffect(() => { requestAnimationFrame(() => body.current && (body.current.scrollTop = body.current.scrollHeight)); }, [msgs, sending]);
   useEffect(() => {
     const k = (e: KeyboardEvent) => { if (e.key === "Escape") { if (withId && !start) setWithId(null); else onClose(); } };
