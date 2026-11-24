@@ -17,7 +17,7 @@ function CardItem({ c, showProject, onOpen, draggable }: { c: Card; showProject:
       <b className="kc-t"><PxText text={c.title} /></b>
       {showProject && <span className="kc-proj">{c.project ? <>{c.projectIcon ? <Emo e={c.projectIcon} /> : <Px name="folder" />} {c.project}</> : <><Px name="loose" /> No project</>}</span>}
       <span className="kc-foot">
-        {c.who ? <span className={`kc-who ${c.who.kind}`}><i>{c.who.kind === "agent" ? <CharacterFace face={c.who.face} size={20} shape="circle" /> : c.who.name.slice(0, 1).toUpperCase()}</i>{c.who.name}</span>
+        {c.who ? <span className={`kc-who ${c.who.kind}`}><i>{c.who.face ? <CharacterFace face={c.who.face} size={20} shape="circle" /> : c.who.name.slice(0, 1).toUpperCase()}</i>{c.who.name}</span>
           : <span className="kc-who none"><i>?</i>Unassigned</span>}
         {c.dueText && <span className={`due ${c.dueFlag ?? "ok"}`}>{c.dueFlag === "late" ? <><Px name="dot-late" /> </> : c.dueFlag === "risk" ? <><Px name="dot-risk" /> </> : <><Px name="calendar" /> </>}{c.dueText}</span>}
       </span>

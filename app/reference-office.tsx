@@ -643,7 +643,7 @@ export default function ReferenceOffice({
   const letterPoint = seatPoint(agentSeats[Math.max(0, shown.findIndex(d => d.agentId === letter))]);
   const letterX = letterPoint.x;
   const letterY = letterPoint.y;
-  const identity = shown.map(d => d.agentId + ':' + d.face).join('|');
+  const identity = shown.map(d => d.agentId).join('|');
   const humanIdentity = visibleHumans.map(h => h.id + ':' + h.name).join('|');
 
   useEffect(() => {
