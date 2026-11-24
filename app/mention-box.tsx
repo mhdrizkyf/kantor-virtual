@@ -83,9 +83,13 @@ export default function MentionBox({ value, onChange, people, picked, onPick, ..
   }, [open, hi]);
 
   function sync(text: string, caret: number) {
+    if (!text.includes("@")) {
+      if (q !== null) setQ(null);
+      return;
+    }
     const before = text.slice(0, caret);
     const m = before.match(/(^|\s)@([^\s@]{0,24})$/);
-    if (m) { setQ(m[2]); setAt(caret - m[2].length - 1); setHi(0); } else setQ(null);
+    if (m) { setQ(m[2]); setAt(caret - m[2].length - 1); setHi(0); } else if (q !== null) setQ(null);
   }
 
   function choose(p: Mentionable) {

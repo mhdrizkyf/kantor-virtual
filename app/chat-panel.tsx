@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { WaPre } from "./wa-card";
 import { GrowText } from "./auto-grow";
@@ -15,8 +15,16 @@ import CharacterFace from "./character-face";
 type Session = { id: string; agentId: string; title: string; updatedAt: string; unread: number; last: string };
 type Msg = { id: string; mine: boolean; text: string; when: string; failed: string | null; files: { id: string; name: string; url: string }[] };
 
-const md = (t: string, ws: string) => <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypePx]}
-  components={{ a: ({ node: _node, ...p }) => <a {...p} href={localAttachmentHref(p.href, ws)} target="_blank" rel="noreferrer" />, span: PxSpan, pre: WaPre }}>{t}</ReactMarkdown>;
+const REMARK_PLUGINS = [remarkGfm];
+const REHYPE_PLUGINS = [rehypePx];
+const MemoChatMd = memo(function MemoChatMd({ text, ws }: { text: string; ws: string }) {
+  const components = useMemo(
+    () => ({ a: ({ node: _node, ...p }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { node?: unknown }) => <a {...p} href={localAttachmentHref(p.href, ws)} target="_blank" rel="noreferrer" />, span: PxSpan, pre: WaPre }),
+    [ws]
+  );
+  return <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS} components={components}>{text}</ReactMarkdown>;
+});
+const md = (t: string, ws: string) => <MemoChatMd text={t} ws={ws} />;
 
 /** Name of the office-manager agent. Set per install with NEXT_PUBLIC_KANTOR_MANAGER. */
 export const MANAGER = process.env.NEXT_PUBLIC_KANTOR_MANAGER?.trim() || "Mika";
@@ -130,10 +138,18 @@ export default function ChatPanel({ ws, agent: start, laptopOn, initialPrompt, o
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)); } finally { setSending(null); }
   }
 
-  const lastReply = [...(msgs ?? [])].reverse().find(m => !m.mine && m.text)?.text ?? "";
-  const shown = (sessions ?? []).filter(x => !onlyThis || x.agentId === agent.id);
-  const groups: [string, Session[]][] = [];
-  for (const x of shown) { const g = groupOf(x.updatedAt); const last = groups[groups.length - 1]; if (last?.[0] === g) last[1].push(x); else groups.push([g, [x]]); }
+  const lastReply = useMemo(() => [...(msgs ?? [])].reverse().find(m => !m.mine && m.text)?.text ?? "", [msgs]);
+  const { shown, groups } = useMemo(() => {
+    const list = (sessions ?? []).filter(x => !onlyThis || x.agentId === agent.id);
+    const out: [string, Session[]][] = [];
+    for (const x of list) {
+      const g = groupOf(x.updatedAt);
+      const last = out[out.length - 1];
+      if (last?.[0] === g) last[1].push(x);
+      else out.push([g, [x]]);
+    }
+    return { shown: list, groups: out };
+  }, [sessions, onlyThis, agent.id]);
   const fresh = !sid;
 
   return (

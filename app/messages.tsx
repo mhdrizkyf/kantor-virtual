@@ -1,6 +1,6 @@
 "use client";
 // Person-to-person chat: a list of teammates, then the conversation with one of them.
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDraft } from "./drafts";
 import ReactMarkdown from "react-markdown";
 import { GrowText } from "./auto-grow";
@@ -9,7 +9,13 @@ import type { DmMessage, DmPerson } from "@/lib/dm";
 import { mentionLink, keepMentionUrl } from "./mention-box";
 import { Px, PxSpan, rehypePx } from "./pixel-icon";
 
-const md = (t: string) => <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypePx]} urlTransform={keepMentionUrl} components={{ a: mentionLink, span: PxSpan }}>{t}</ReactMarkdown>;
+const REMARK_PLUGINS = [remarkGfm];
+const REHYPE_PLUGINS = [rehypePx];
+const DM_COMPONENTS = { a: mentionLink, span: PxSpan };
+const MemoDmMd = memo(function MemoDmMd({ text }: { text: string }) {
+  return <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS} urlTransform={keepMentionUrl} components={DM_COMPONENTS}>{text}</ReactMarkdown>;
+});
+const md = (t: string) => <MemoDmMd text={t} />;
 const POLL_MS = 5000;
 
 /** Highlight the search term inside a piece of text. */

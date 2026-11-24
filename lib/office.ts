@@ -8,12 +8,15 @@ import { assignUniqueFaces, defaultFace } from "./character-presets";
 import { readSquads } from "./squads";
 import { readWorkCalendar } from "./work-calendar";
 import type { WorkCalendar } from "./office-time";
+import type { OfficeSchedule } from "./office-schedule";
+import { normalizeSchedule } from "./office-schedule";
 import { suggestedSquad } from "./squad-plan";
 
 export type Due = "late" | "risk" | "done" | null; // done = lewat tenggat, tapi worker sudah menyelesaikan bagiannya
 export type TaskView = {
   id: string; key: string; title: string; status: string; statusLabel: string; due: string | null; dueFlag: Due;
   dueText: string | null; url: string; ws: string; wsName: string; assignee: string | null; assigneeId: string | null; assigneeType: "agent" | "member" | null; project: string | null; projectId: string | null;
+  summary?: string[]; questionCount?: number;
 };
 export type DeskState = "working" | "failed" | "review" | "ready" | "home" | "off" | "closed" | "break";
 export type Desk = {
@@ -25,6 +28,8 @@ export type RunView = { id: string; issueId: string | null; ws: string; agent: s
 export type Office = {
   workspace: string; workspaceId: string; workspaceSlug: string; today: string; updatedAt: string; timeZone: string; open: boolean;
   workCalendar?: WorkCalendar;
+  schedule?: OfficeSchedule;
+  autoHealStuck?: boolean;
   switchOpen: boolean; parked: number; changedBy: string | null;
   alerts: string[];
   seen: Record<string, string>;
@@ -140,12 +145,15 @@ export function buildOffice(s: Snapshot): Office {
     }
     const assignee = i.assignee_type === "agent" ? agentById.get(i.assignee_id || "")?.name ?? "Agent"
       : i.assignee_type === "member" ? memberName(i.assignee_id) : null;
+    const hint = (s as Partial<Snapshot>).digests?.[i.id];
     return {
       id: i.id, key: i.identifier, title: friendlyTitle(i), status: i.status,
       statusLabel: i.status === "backlog" && (i.metadata ?? {}).kantor_parked ? "Waiting for office to open" : asking.has(i.id) ? "Waiting for your answer" : i.status_name || STATUS_LABEL[i.status] || i.status,
       due: i.due_date, dueFlag, dueText, url: url(i), ws: s.workspace.id, wsName: s.workspace.name, assignee, assigneeId: i.assignee_id ?? null, assigneeType: i.assignee_type,
       project: i.project_id ? projectById.get(i.project_id)?.title ?? null : null,
       projectId: i.project_id ?? null,
+      ...(hint?.summary?.length ? { summary: hint.summary } : {}),
+      ...(hint?.questionCount ? { questionCount: hint.questionCount } : {}),
     };
   };
 
@@ -260,6 +268,8 @@ export function buildOffice(s: Snapshot): Office {
   return {
     workspace: s.workspace.name, workspaceId: s.workspace.id, workspaceSlug: s.workspace.slug, timeZone: tz,
     workCalendar: readWorkCalendar(s.workspace.id),
+    schedule: normalizeSchedule(s.kantor.schedule),
+    autoHealStuck: !!s.kantor.autoHealStuck,
     today: new Intl.DateTimeFormat("en-GB", { timeZone: tz, weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(new Date()),
     updatedAt: new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit" }).format(new Date()),
     open: s.runtimes.some(r => r.status === "online"),

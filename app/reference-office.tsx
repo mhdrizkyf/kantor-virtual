@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import type { Desk } from '@/lib/office';
 import { castFor } from '@/lib/munder-cast';
 import { floorSeats, OFFICE_PLAN, OWNER_SEAT, seatBounds } from '@/lib/floor-seats';
@@ -70,7 +70,7 @@ function describeDropTarget(draggedName: string, zone: DropZone): string {
 export type ReviewTaskInfo = { id: string; ws: string; title: string };
 export type OfficeWalk = Handover & { key: string; kind?: 'assign' | 'revise' | 'review' | 'handoff' };
 
-export default function ReferenceOffice({
+const ReferenceOffice = memo(function ReferenceOffice({
   desks,
   humans,
   ownerId,
@@ -83,6 +83,7 @@ export default function ReferenceOffice({
   reviewTasksByAgent = {},
   floorTheme = 'harvest',
   harvestPhase = 'day',
+  paused = false,
   onDesk,
   onHuman,
   onMeeting,
@@ -105,6 +106,7 @@ export default function ReferenceOffice({
   reviewTasksByAgent?: Record<string, ReviewTaskInfo>;
   floorTheme?: FloorTheme;
   harvestPhase?: HarvestPhase;
+  paused?: boolean;
   onDesk: (d: Desk) => void;
   onHuman: (name: string) => void;
   onMeeting: (focusAgentId?: string) => void;
@@ -158,8 +160,8 @@ export default function ReferenceOffice({
   const retinaPackRef = useRef<unknown>(null);
   const [sceneReady, setSceneReady] = useState(0);
   const speechElsRef = useRef<Map<string, HTMLElement>>(new Map());
-  const latest = useRef({ desks, lunch, previewWorking, previewReviewId, walks, onDelivered, onDone, onDropAgent, onMeeting, onPropClick, onHuman });
-  latest.current = { desks, lunch, previewWorking, previewReviewId, walks, onDelivered, onDone, onDropAgent, onMeeting, onPropClick, onHuman };
+  const latest = useRef({ desks, lunch, paused, previewWorking, previewReviewId, walks, onDelivered, onDone, onDropAgent, onMeeting, onPropClick, onHuman });
+  latest.current = { desks, lunch, paused, previewWorking, previewReviewId, walks, onDelivered, onDone, onDropAgent, onMeeting, onPropClick, onHuman };
 
   const orderedHumans = ownerId ? [...humans.filter(h => h.id === ownerId), ...humans.filter(h => h.id !== ownerId)] : humans;
   const visibleHumans = orderedHumans.slice(0, 6);
@@ -195,7 +197,10 @@ export default function ReferenceOffice({
 
   const pages = Math.max(1, Math.ceil(desks.length / agentSeats.length));
   const currentPage = Math.min(page, pages - 1);
-  const shown = desks.slice(currentPage * agentSeats.length, currentPage * agentSeats.length + agentSeats.length);
+  const shown = useMemo(
+    () => desks.slice(currentPage * agentSeats.length, currentPage * agentSeats.length + agentSeats.length),
+    [desks, currentPage, agentSeats.length]
+  );
   const shownRef = useRef(shown);
   shownRef.current = shown;
 
@@ -835,7 +840,7 @@ export default function ReferenceOffice({
       }
 
       const reduced = matchMedia('(prefers-reduced-motion: reduce)');
-      const visibility = () => { if (document.visibilityState === 'visible' && !reduced.matches) s.start(); else { s.stop(); s.draw(); syncSpeechDOM(); } };
+      const visibility = () => { if (document.visibilityState === 'visible' && !reduced.matches && !latest.current.paused) s.start(); else { s.stop(); s.draw(); syncSpeechDOM(); } };
       visibility();
       document.addEventListener('visibilitychange', visibility);
       reduced.addEventListener('change', visibility);
@@ -863,6 +868,19 @@ export default function ReferenceOffice({
     // Rebuild only when seats or appearances change, not on polling updates.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [identity, humanIdentity]);
+
+  // Pause 60fps canvas loop while a foreground modal/drawer is open so typing stays lag-free.
+  useEffect(() => {
+    const s = scene.current;
+    if (!s) return;
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (paused || reduced || document.visibilityState !== 'visible') {
+      s.stop();
+      s.draw();
+    } else {
+      s.start();
+    }
+  }, [paused, sceneReady]);
 
   // Instant zero-rebuild floor sprite swap whenever any human member or agent changes avatar!
   const faceSignature = shown.map(d => `${d.agentId}:${d.face ?? ''}`).join('|')
@@ -1078,4 +1096,6 @@ export default function ReferenceOffice({
       {lunch && <span className="lunch-sign">Lunch break · until 13:00</span>}
     </div>
   );
-}
+});
+
+export default ReferenceOffice;
