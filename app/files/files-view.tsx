@@ -4,9 +4,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import FilePreview, { kindOf, ICON } from "../file-preview";
-import { Px, Emo } from "../pixel-icon";
+import { Px } from "../pixel-icon";
+import CharacterFace from "../character-face";
 
-export type Folder = { id: string; name: string; sub: string; emoji: string | null; rel: string; links: string[] };
+export type Folder = { id: string; name: string; sub: string; emoji: string | null; face?: string | null; rel: string; links: string[] };
 type Entry = { name: string; path: string; dir: boolean; size: number; modified: string; count?: number };
 type Tab = "Knowledge" | "Outputs";
 /** Where the list is: a base folder (its label in the crumbs) and the subfolders opened below it. */
@@ -161,7 +162,7 @@ export default function FilesView({ folders: initial, hasRoot, lastSync, lastRes
           <nav className="kf-side" aria-label="Folders">
             {folders.map(f => (
               <button key={f.id} className="kf-who" aria-pressed={f.id === folder.id} onClick={() => choose(f)}>
-                <span className="avatar sm">{isShared(f) ? <Px name="team" /> : f.emoji ? <Emo e={f.emoji} /> : <Px name="agent" />}</span>
+                <span className="avatar sm">{isShared(f) ? <Px name="team" /> : <CharacterFace face={f.face} size={30} shape="circle" />}</span>
                 <span className="kf-wt"><b>{f.name}</b>{(f.sub || f.links.length > 0) && <small>{f.sub || `+ ${f.links.map(leaf).join(", ")}`}</small>}</span>
               </button>
             ))}

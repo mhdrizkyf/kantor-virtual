@@ -3,7 +3,7 @@ import type { Snapshot, Issue, Run, Agent } from "./multica";
 import { friendlyTitle } from "./titles";
 import { quotaStates, fmtTime } from "./quota";
 import { readCharacters } from "./characters";
-import { defaultFace } from "./character-presets";
+import { assignUniqueFaces, defaultFace } from "./character-presets";
 import { readSquads } from "./squads";
 import { readWorkCalendar } from "./work-calendar";
 import type { WorkCalendar } from "./office-time";
@@ -12,12 +12,12 @@ import { suggestedSquad } from "./squad-plan";
 export type Due = "late" | "risk" | "done" | null; // done = lewat tenggat, tapi worker sudah menyelesaikan bagiannya
 export type TaskView = {
   id: string; key: string; title: string; status: string; statusLabel: string; due: string | null; dueFlag: Due;
-  dueText: string | null; url: string; ws: string; wsName: string; assignee: string | null; assigneeType: "agent" | "member" | null; project: string | null;
+  dueText: string | null; url: string; ws: string; wsName: string; assignee: string | null; assigneeId: string | null; assigneeType: "agent" | "member" | null; project: string | null; projectId: string | null;
 };
 export type DeskState = "working" | "failed" | "review" | "ready" | "home" | "off" | "closed" | "break";
 export type Desk = {
   agentId: string; name: string; emoji: string | null; avatar: string | null; face: string | null; description: string;
-  runtime: string; squad: string; state: DeskState; bubble: string; reviewCount: number; lateCount: number; riskCount: number; tasks: TaskView[];
+  runtime: string; runtimeId: string | null; squad: string; state: DeskState; bubble: string; reviewCount: number; lateCount: number; riskCount: number; tasks: TaskView[];
 };
 export type Room = { id: string; name: string; icon: string | null; progress: string | null; desks: Desk[] };
 export type RunView = { id: string; issueId: string | null; ws: string; agent: string; status: string; when: string; error: string | null; issueTitle: string | null; url: string | null };
@@ -30,9 +30,10 @@ export type Office = {
   runtimes: { id: string; name: string; owner: string | null; provider: string; online: boolean; lastSeen: string; quotaReset: string | null; quotaOut: boolean }[];
   rooms: Room[]; idleDesks: Desk[];
   attention: { overdue: TaskView[]; human: TaskView[]; review: TaskView[]; failed: RunView[] };
+  openTasks: TaskView[];
   people: string[];
   agentsDetail: Record<string, { runs: RunView[]; tasks: TaskView[] }>;
-  projects: { id: string; name: string }[];
+  projects: { id: string; name: string; icon: string | null }[];
   members: { id: string; name: string }[];
 };
 
@@ -85,6 +86,7 @@ function loginAlerts(s: Snapshot): string[] {
 
 export function buildOffice(s: Snapshot): Office {
   const characters = readCharacters(s.workspace.id);
+  const assignedFaces = assignUniqueFaces(s.agents.map(a => a.id), characters);
   const squads = readSquads(s.workspace.id);
   const tz = process.env.KANTOR_TIMEZONE || "Asia/Jakarta";
   const today = todayIn(tz);
@@ -135,8 +137,9 @@ export function buildOffice(s: Snapshot): Office {
     return {
       id: i.id, key: i.identifier, title: friendlyTitle(i), status: i.status,
       statusLabel: i.status === "backlog" && (i.metadata ?? {}).kantor_parked ? "Waiting for office to open" : asking.has(i.id) ? "Waiting for your answer" : i.status_name || STATUS_LABEL[i.status] || i.status,
-      due: i.due_date, dueFlag, dueText, url: url(i), ws: s.workspace.id, wsName: s.workspace.name, assignee, assigneeType: i.assignee_type,
+      due: i.due_date, dueFlag, dueText, url: url(i), ws: s.workspace.id, wsName: s.workspace.name, assignee, assigneeId: i.assignee_id ?? null, assigneeType: i.assignee_type,
       project: i.project_id ? projectById.get(i.project_id)?.title ?? null : null,
+      projectId: i.project_id ?? null,
     };
   };
 
@@ -181,9 +184,10 @@ export function buildOffice(s: Snapshot): Office {
       bubble = backlog ? `Off duty · ${backlog} in backlog` : "Off duty · no tasks";
     }
     return {
-      agentId: a.id, name: a.name, emoji: emojiOf(a), avatar: imgOf(a), face: characters[a.id] ?? defaultFace(a.id), description: a.description || "",
+      agentId: a.id, name: a.name, emoji: emojiOf(a), avatar: imgOf(a), face: assignedFaces[a.id] ?? defaultFace(a.id), description: a.description || "",
       squad: squads[a.id] ?? suggestedSquad(a.name, a.description || ""),
       runtime: rt ? `${rt.provider === "claude" ? "Claude" : rt.provider === "codex" ? "GPT (Codex)" : rt.provider}${s.runtimes.filter(x => x.provider === rt.provider).length > 1 ? " · " + (s.members.find(m => m.user_id === rt.owner_id || m.id === rt.owner_id)?.name.split(/\s+/)[0] ?? "") : ""}${a.model ? " · " + a.model : ""}${s.moved?.[a.id]?.to === a.runtime_id ? " · temporary 🔁" : ""}` : "No engine",
+      runtimeId: a.runtime_id || null,
       state, bubble,
     };
   };
@@ -253,8 +257,9 @@ export function buildOffice(s: Snapshot): Office {
       overdue: sortTasks(allViews.filter(t => (t.dueFlag === "late" || t.dueFlag === "risk") && t.assigneeType !== "member" && t.status !== "in_review" && !asking.has(t.id))),
       failed,
     },
+    openTasks: sortTasks([...allViews]),
     people: [...new Set(s.members.map(m => m.name))],
-    projects: s.projects.map(p => ({ id: p.id, name: p.title })),
+    projects: s.projects.map(p => ({ id: p.id, name: p.title, icon: p.icon ?? null })),
     members: s.members.map(m => ({ id: m.user_id, name: m.name })),
     agentsDetail,
   };

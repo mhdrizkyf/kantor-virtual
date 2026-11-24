@@ -59,6 +59,11 @@ test("Office loading and critical Multica flows", async t => {
     if (path === "/api/runtimes") return respond({ runtimes: [{ id: "rt", name: "Laptop", provider: "codex", status: "online", last_seen_at: now, owner_id: "user" }] });
     if (/^\/api\/agents\/[^/]+\/tasks$/.test(path)) return respond({ tasks: [] });
     if (path === "/api/issues" && method === "GET") return respond({ issues: issues[ws], has_more: false });
+    if (path === "/api/issues" && method === "POST") {
+      const created = { id: `created-${issues[ws].length + 1}`, identifier: `W1-${issues[ws].length + 1}`, priority: "medium", due_date: null, start_date: null, project_id: null, updated_at: now, last_activity_at: now, created_at: now, metadata: {}, description: "", ...body };
+      issues[ws].push(created);
+      return respond(created);
+    }
     if (path === "/api/autopilots") return respond({ autopilots: autopilots[ws] });
     if (path.startsWith("/api/autopilots/") && method === "PATCH") { autopilots[ws][0].status = body.status; return respond({ ok: true }); }
     const parts = path.split("/");
@@ -88,6 +93,7 @@ test("Office loading and critical Multica flows", async t => {
     const multica = await import("../lib/multica");
     const { buildOffice } = await import("../lib/office");
     const { POST } = await import("../app/api/task/[id]/route");
+    const { POST: createTask } = await import("../app/api/task/route");
     const { closeOffice, openOffice } = await import("../lib/office-control");
     const { addChain, runChains } = await import("../lib/chain");
     const { withProcessLock, ProcessBusyError } = await import("../lib/process-lock");
@@ -182,6 +188,45 @@ test("Office loading and critical Multica flows", async t => {
       issues.w1.find(i=>i.id==="queue")!.status="done";
       assert.equal((await move("todo")).status, 409);
       issues.w1.find(i=>i.id==="queue")!.status="todo";
+    });
+
+    await t.test("agent desk drawer can assign existing cards and create prioritized project tasks", async () => {
+      issues.w1.push({ id: "unassigned-1", identifier: "W1-9", title: "Draft launch email", status: "backlog", assignee_type: null, assignee_id: null, priority: "medium", due_date: null, start_date: null, project_id: "p1", updated_at: now, last_activity_at: now, created_at: now, metadata: {}, description: "" });
+      const office = buildOffice(await multica.loadWorkspace("w1"));
+      const openCard = office.openTasks.find(x => x.id === "unassigned-1");
+      assert.ok(openCard);
+      assert.equal(openCard.assigneeId, null);
+      assert.equal(openCard.projectId, "p1");
+      assert.equal(office.rooms.flatMap(r => r.desks).find(d => d.agentId === "a1")?.runtimeId, "rt");
+
+      const assign = (id: string, body: Record<string, unknown>) =>
+        POST(new Request(`http://localhost/api/task/${id}`, { method: "POST", body: JSON.stringify({ ws: "w1", action: "assign", ...body }) }), { params: Promise.resolve({ id }) });
+
+      assert.equal((await assign("unassigned-1", { assigneeType: "agent", assigneeId: "a1", startNow: true })).status, 200);
+      const card = issues.w1.find(i => i.id === "unassigned-1")!;
+      assert.equal(card.assignee_type, "agent");
+      assert.equal(card.assignee_id, "a1");
+      assert.equal(card.status, "todo");
+      assert.match(comments["unassigned-1"][0].content, /Assigned to Agent/);
+
+      assert.equal((await assign("unassigned-1", { assigneeType: "agent", assigneeId: "a1", startNow: false })).status, 200);
+      assert.equal(card.status, "backlog");
+
+      card.status = "in_progress";
+      assert.equal((await assign("unassigned-1", { assigneeType: "agent", assigneeId: "a1", startNow: true })).status, 409);
+      card.status = "backlog";
+
+      const createdRes = await createTask(new Request("http://localhost/api/task", {
+        method: "POST",
+        body: JSON.stringify({ ws: "w1", agentId: "a1", title: "Build KPI deck", projectId: "p1", priority: "high", now: true }),
+      }));
+      assert.equal(createdRes.status, 200);
+      const createdJson = await createdRes.json();
+      const created = issues.w1.find(i => i.id === createdJson.id)!;
+      assert.equal(created.assignee_id, "a1");
+      assert.equal(created.project_id, "p1");
+      assert.equal(created.priority, "high");
+      assert.equal(created.status, "todo");
     });
 
     await t.test("approve closes task; revise records feedback and queues work", async () => {

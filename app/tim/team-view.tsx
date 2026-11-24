@@ -56,7 +56,7 @@ function MateCard({ m, team, onOpenTask, onChat, onToast }: { m: Mate; team: Tea
   return (
     <article className={`mate ${m.kind} st-${m.state}`}>
       <div className="mate-top">
-        <span className="avatar">{m.kind === "agent" ? <CharacterFace face={m.face} size={40} /> : m.avatar ? <img src={m.avatar} alt="" /> : m.emoji ? <Emo e={m.emoji} /> : m.name.slice(0, 1).toUpperCase()}<span className="status-dot" /></span>
+        <span className="avatar">{m.kind === "agent" ? <CharacterFace face={m.face} size={48} shape="circle" /> : m.avatar ? <img src={m.avatar} alt="" /> : m.emoji ? <Emo e={m.emoji} /> : m.name.slice(0, 1).toUpperCase()}<span className="status-dot" /></span>
         <div className="mate-id">
           <h3>{m.name}{m.isMe && <span className="me-tag">you</span>}</h3>
           {m.kind === "human" && <small>{[m.role, m.sub].filter(Boolean).join(" · ")}</small>}
@@ -296,7 +296,7 @@ export default function TeamView({ team }: { team: Team }) {
       {task && <TaskPanel id={task} ws={team.workspaceId} onClose={() => setTask(null)} onChanged={refresh} />}
       {chat && <div className="scrim" onClick={() => setChat(null)} />}
       {chat && (
-        <ChatPanel ws={team.workspaceId} agent={{ id: chat.id, name: chat.name, emoji: chat.emoji, role: chat.sub }}
+        <ChatPanel ws={team.workspaceId} agent={{ id: chat.id, name: chat.name, emoji: chat.emoji, face: chat.face, role: chat.sub }}
           isMika={isManager(chat.name)} projectId={null} laptopOn={chat.runtimeOnline}
           onClose={() => setChat(null)} onMakeTask={() => { setChat(null); router.push(`/papan?ws=${team.workspaceId}`); }} />
       )}

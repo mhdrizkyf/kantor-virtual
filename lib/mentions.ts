@@ -1,7 +1,7 @@
 // Mention ala Multica: [@Nama](mention://member/<user_id>) atau [@Nama](mention://agent/<agent_id>).
 // Dipakai di browser (mengubah "@Nama" jadi tautan mention) dan di server (membaca siapa yang dipanggil).
 
-export type Mentionable = { kind: "member" | "agent"; id: string; name: string; emoji: string | null };
+export type Mentionable = { kind: "member" | "agent"; id: string; name: string; emoji: string | null; face?: string | null };
 
 const RE = /\[@?([^\]]+?)\]\(mention:\/\/(member|agent)\/([0-9a-fA-F-]+)\)/g;
 

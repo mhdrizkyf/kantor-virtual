@@ -12,6 +12,7 @@ import { Px, PxText, type PxName } from "./pixel-icon";
 import { sharedJson } from "./visible-poll";
 import CharacterFace from "./character-face";
 import Stapler from "./stapler";
+import ThemeToggle from "./theme-toggle";
 
 export type Nav = { id: string; slug: string; name: string; attention?: number; switchOpen?: boolean };
 export type RosterAgent = { agentId: string; name: string; description: string; face: string | null; state: string };
@@ -213,6 +214,9 @@ export default function Shell({ buildings, current, section, roster = [], childr
           </button>
         </nav>
         {open && roster.length > 0 && <div className="agent-roster"><h2>AGENTS</h2>{roster.map(a => <button type="button" className="agent-row" key={a.agentId} onClick={() => { window.dispatchEvent(new CustomEvent("kantor:desk", { detail: { agentId: a.agentId } })); if (section === "kantor" || narrow()) toggle(false); }}><CharacterFace face={a.face} size={34} /><span><b>{a.name}</b><small>{a.description || a.state}</small></span><i className={a.state === "working" || a.state === "ready" ? "on" : ""} /></button>)}</div>}
+        <div className="side-foot">
+          {open ? <ThemeToggle variant="segmented" /> : <ThemeToggle variant="compact" />}
+        </div>
       </aside>
       {open && <div className="side-scrim" onClick={() => toggle(false)} />}
 

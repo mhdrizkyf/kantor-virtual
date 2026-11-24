@@ -8,7 +8,8 @@ import remarkGfm from "remark-gfm";
 import type { TaskDetail } from "@/lib/detail";
 import FilePicker, { uploadAll } from "./file-picker";
 import FilePreview, { kindOf, ICON } from "./file-preview";
-import { Px, Emo, PxText, PxSpan, rehypePx } from "./pixel-icon";
+import { Px, PxText, PxSpan, rehypePx } from "./pixel-icon";
+import CharacterFace from "./character-face";
 import MentionBox, { mentionLink, keepMentionUrl } from "./mention-box";
 import { encodeMentions, type Mentionable } from "@/lib/mentions";
 import { answersToText } from "@/lib/digest";
@@ -144,7 +145,7 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
 
   const head = (
     <div className="tp-head">
-      <span className="avatar">{d?.assignee.emoji ? <Emo e={d.assignee.emoji} /> : <Px name={d?.assignee.kind === "member" ? "person" : "file"} />}</span>
+      <span className="avatar">{d?.assignee.kind === "agent" ? <CharacterFace face={d.assignee.face} size={44} shape="circle" /> : <Px name={d?.assignee.kind === "member" ? "person" : "file"} />}</span>
       <div className="meta">
         {renaming ? (
           <form onSubmit={e => { e.preventDefault(); act("rename", { text: newName }).then(() => setRenaming(false)); }} style={{ display: "flex", gap: 6 }}>
@@ -198,7 +199,7 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
                 {d.messages.length === 0 && !pending && !actionBlocks(d.brief) && <p className="desc">No messages yet. The agent will post results here.</p>}
                 {d.messages.map(m => (
                   <div key={m.id} id={`m-${m.id}`} className={`msg ${m.whoKind === "member" ? "me" : "bot"} ${dg?.messageId === m.id ? "hl" : ""}`}>
-                    <div className="from"><span>{m.emoji ? <><Emo e={m.emoji} /> </> : null}{m.who}</span><span>{m.when}</span></div>
+                    <div className="from"><span className="from-who">{m.whoKind === "agent" ? <><CharacterFace face={m.face} size={18} shape="circle" /> </> : null}{m.who}</span><span>{m.when}</span></div>
                     {m.text && <div className="md">{md(m.text, ws)}</div>}
                     {/* The newest files are previewed right here in the conversation, so revisions can be checked without leaving. */}
                     {m.id === lastFilesMsg && m.files.map(f => <FilePreview key={f.id} f={f} />)}

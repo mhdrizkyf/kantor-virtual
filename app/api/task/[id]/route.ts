@@ -6,6 +6,7 @@ import { telegram } from "@/lib/telegram";
 import { friendlyTitle } from "@/lib/titles";
 import { parkIssue } from "@/lib/office-control";
 import { afterReviewApproved } from "@/lib/taiga-flow";
+import { runChains } from "@/lib/chain";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,18 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   catch (e) { return NextResponse.json({ error: String(e instanceof Error ? e.message : e) }, { status: 500 }); }
 }
 
-type Body = { ws?: string; files?: string[]; status?: string; action: "move" | "approve" | "revise" | "reply" | "done" | "rename" | "rerun" | "reopen" | "stop" | "stop-extra" | "restart"; text?: string; link?: string };
+type Body = {
+  ws?: string;
+  files?: string[];
+  status?: string;
+  assigneeType?: "agent" | "member" | null;
+  assigneeId?: string | null;
+  projectId?: string | null;
+  startNow?: boolean;
+  action: "move" | "assign" | "approve" | "revise" | "reply" | "done" | "rename" | "rerun" | "reopen" | "stop" | "stop-extra" | "restart";
+  text?: string;
+  link?: string;
+};
 
 /** Aksi dari kantor. Setiap aksi ditulis ke Multica atas nama pemilik token. */
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -43,12 +55,45 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         if (closed && body.status === "todo") await parkIssue(ws, id, "todo");
         else await updateIssue(ws, id, { status: body.status! });
         break;
+      case "assign": {
+        if (issue.status === "in_progress") return NextResponse.json({ error: "Stop the active task before reassigning it." }, { status: 409 });
+        if (issue.status === "done" || issue.status === "cancelled") return NextResponse.json({ error: "Reopen this task before reassigning it." }, { status: 409 });
+        const targetType = body.assigneeType ?? (body.assigneeId ? "agent" : null);
+        const targetId = targetType ? (body.assigneeId ?? null) : null;
+        if (targetType && !targetId) return NextResponse.json({ error: "Pick an assignee first." }, { status: 400 });
+        const patch: Record<string, unknown> = { assignee_type: targetType, assignee_id: targetId };
+        if (body.projectId !== undefined) patch.project_id = body.projectId || null;
+        const shouldStart = !!body.startNow;
+        const targetClosed = officeClosed && targetType === "agent";
+        if (body.startNow === true) {
+          patch.status = targetClosed ? "backlog" : "todo";
+        } else if (body.startNow === false) {
+          patch.status = "backlog";
+        } else if (targetClosed && issue.status === "todo") {
+          patch.status = "backlog";
+        }
+        await updateIssue(ws, id, patch);
+        if ((shouldStart || (body.startNow === undefined && issue.status === "todo")) && targetClosed) {
+          await parkIssue(ws, id, "todo");
+        }
+        if (targetId) {
+          const dir = await loadDirectory(ws).catch(() => null);
+          const targetName = targetType === "agent"
+            ? dir?.agents.find(a => a.id === targetId)?.name ?? "Agent"
+            : dir?.members.find(m => m.user_id === targetId || m.id === targetId)?.name ?? "Member";
+          const suppress = targetType === "agent" && (!shouldStart || targetClosed) ? [targetId] : [];
+          await addComment(ws, id, `↪️ Assigned to ${targetName} by ${who} in Virtual Office.${text ? `\n\n${text}` : ""}`, suppress, files);
+        }
+        break;
+      }
       case "approve":
         // Komentar persetujuan tidak membangunkan agen (hemat token), lalu task ditutup.
         await addComment(ws, id, `✅ Approved by ${who} in Virtual Office.${text ? `\n\n${text}` : ""}`, quiet, files);
         await updateIssue(ws, id, { status: "done" });
         // An approved activity review becomes a Taiga task with its card right away.
         await afterReviewApproved((await workspace(ws)).id, issue, comments, meId, who).catch(e => console.error("[taiga] review → task", e));
+        // If this task belongs to a sequential delegated chain, kick off the next step right away.
+        if (!officeClosed) void runChains().catch(e => console.warn("[chain] after approve:", e));
         break;
       case "revise":
         if (!text && !files.length) return NextResponse.json({ error: "The change request is empty." }, { status: 400 });

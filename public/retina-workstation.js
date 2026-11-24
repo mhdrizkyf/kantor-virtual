@@ -54,7 +54,7 @@
             !item.uri.startsWith('/art/retina-v2.7/') || !item.uri.endsWith('@2x.png')) {
           throw new Error('Invalid Retina asset: '+id);
         }
-        var img=new Image(); img.src=item.uri;
+        var img=new Image(); img.src=item.uri+'?v=4';
         if (typeof img.decode === 'function') await img.decode();
         else await new Promise(function(resolve,reject){
           img.onload=resolve; img.onerror=function(){reject(new Error('Image load failed: '+id));};
