@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -12,6 +12,7 @@ import { GrowText } from "../auto-grow";
 import CharacterFace from "../character-face";
 import CharacterPicker from "../character-picker";
 import WorkflowHubModal from "../workflow-hub-modal";
+import { useVisiblePoll } from "../visible-poll";
 
 const LEVEL: Record<Load["level"], { icon: PxName; label: string; tip: string }> = {
   santai: { icon: "dot-on", label: "Free", tip: "no open tasks" },
@@ -294,7 +295,7 @@ function Recruit({ team, onDone }: { team: Team; onDone: (msg: string | null) =>
 export default function TeamView({ team }: { team: Team }) {
   const router = useRouter();
   const [refreshing, start] = useTransition();
-  const refresh = () => start(() => router.refresh());
+  const refresh = useCallback(() => start(() => router.refresh()), [router]);
   const [tab, setTab] = useState<"all" | "human" | "agent">("all");
   const [task, setTask] = useState<string | null>(null);
   const [chat, setChat] = useState<Mate | null>(null);
@@ -338,7 +339,7 @@ export default function TeamView({ team }: { team: Team }) {
     }
   }
 
-  useEffect(() => { const t = setInterval(() => start(() => router.refresh()), 60_000); return () => clearInterval(t); }, [router]);
+  useVisiblePoll(refresh, 60_000);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 6000); return () => clearTimeout(t); }, [toast]);
 
   const busy = [...team.humans, ...team.agents].filter(m => m.load.level === "kewalahan" || m.load.late > 0);

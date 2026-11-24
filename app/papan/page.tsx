@@ -1,4 +1,4 @@
-import { loadWorkspace, workspaces } from "@/lib/multica";
+import { loadWorkspaceCached, workspaces } from "@/lib/multica";
 import { buildBoard } from "@/lib/crew";
 import Shell from "../shell";
 import BoardView from "./board-view";
@@ -10,7 +10,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ w
   const { ws, p } = await searchParams;
   try {
     const all = await workspaces();
-    const snap = await loadWorkspace(ws);
+    const snap = await loadWorkspaceCached(ws, 4000);
     const board = buildBoard(snap);
     const buildings = all.map(w => ({ id: w.id, slug: w.slug, name: w.name }));
     return (

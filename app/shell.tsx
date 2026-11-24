@@ -9,7 +9,7 @@ import Messages from "./messages";
 import Reminders from "./reminders";
 import Contacts from "./contacts";
 import { Px, PxText, type PxName } from "./pixel-icon";
-import { sharedJson } from "./visible-poll";
+import { sharedJson, useVisiblePoll } from "./visible-poll";
 import CharacterFace from "./character-face";
 import Stapler from "./stapler";
 import ThemeToggle from "./theme-toggle";
@@ -118,10 +118,11 @@ export default function Shell({ buildings, current, section, roster = [], childr
   const [dmUnread, setDmUnread] = useState(0);
   const [remindOpen, setRemindOpen] = useState(false);
   const [contactsOpen, setContactsOpen] = useState(false);
-  useEffect(() => {
-    const load = () => fetch(`/api/dm?ws=${current.id}`).then(r => r.json()).then(j => typeof j.unread === "number" && setDmUnread(j.unread)).catch(() => {});
-    load(); const t = setInterval(load, INBOX_MS); return () => clearInterval(t);
+  const loadDmCount = useCallback(() => {
+    fetch(`/api/dm?ws=${current.id}&count=1`).then(r => r.json()).then(j => typeof j.unread === "number" && setDmUnread(j.unread)).catch(() => {});
   }, [current.id]);
+  useEffect(() => { loadDmCount(); }, [loadDmCount]);
+  useVisiblePoll(loadDmCount, INBOX_MS);
   useEffect(() => {
     const f = (e: Event) => { setDmWith((e as CustomEvent).detail?.userId ?? null); setDmOpen(true); };
     addEventListener("kantor:dm", f); return () => removeEventListener("kantor:dm", f);
@@ -136,7 +137,8 @@ export default function Shell({ buildings, current, section, roster = [], childr
     try { const j = await (await fetch(`/api/inbox?ws=${current.id}`)).json(); if (j.error) throw new Error(j.error); setItems(j.items); setUnread(j.unread); }
     catch (e) { setInboxErr(e instanceof Error ? e.message : String(e)); }
   }, [current.id]);
-  useEffect(() => { loadCount(); const t = setInterval(loadCount, INBOX_MS); return () => clearInterval(t); }, [loadCount]);
+  useEffect(() => { loadCount(); }, [loadCount]);
+  useVisiblePoll(loadCount, INBOX_MS);
   useEffect(() => { if (inboxOpen) loadItems(); }, [inboxOpen, loadItems]);
   useEffect(() => {
     const base = document.title.replace(/^\(\d+\)\s*/, "");

@@ -489,10 +489,17 @@ export default function OfficeView({ office, buildings, attention, people, seen,
     resolved.forEach(h => logEvent({ kind: "handoff", title: `${h.fromName} → ${h.toName}`, detail: h.title, agentId: h.to.startsWith("person:") ? undefined : h.to }));
   }, [uniqueDesks, logEvent, resolveActorKey]);
   useHandoverDetector(office, reviewer, nameOf, startWalks);
+  const handoverRef = useRef({ startWalks, nameOf });
+  handoverRef.current = { startWalks, nameOf };
   useEffect(() => {
-    const f = (e: Event) => { const d = (e as CustomEvent).detail; startWalks([{ ...d, fromName: nameOf(d.from), toName: nameOf(d.to) }]); };
-    addEventListener("kantor:handover", f); return () => removeEventListener("kantor:handover", f);
-  });
+    const f = (e: Event) => {
+      const d = (e as CustomEvent).detail;
+      const { startWalks: go, nameOf: nm } = handoverRef.current;
+      go([{ ...d, fromName: nm(d.from), toName: nm(d.to) }]);
+    };
+    addEventListener("kantor:handover", f);
+    return () => removeEventListener("kantor:handover", f);
+  }, []);
   useEffect(() => {
     const f = (event: Event) => {
       const detail = (event as CustomEvent<{ action: string; title: string; agentId: string | null }>).detail;

@@ -200,15 +200,17 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
   };
 
   const sig = useRef("");
+  const onChangedRef = useRef(onChanged);
+  onChangedRef.current = onChanged;
   const load = useCallback(async () => {
     const j = await sharedJson<TaskDetail>(`/api/task/${id}?ws=${ws}`);
     setD(j);
     // Refresh the office only when something changed (new message / status).
     const now = `${j.messages.length}|${j.status}|${j.live.state}`;
-    if (sig.current && sig.current !== now) onChanged();
+    if (sig.current && sig.current !== now) onChangedRef.current();
     sig.current = now;
     return j as TaskDetail;
-  }, [id, ws, onChanged]);
+  }, [id, ws]);
 
   useEffect(() => { setD(null); setErr(null); lastCount.current = 0; load().catch(e => setErr(String(e))); }, [load]);
   // Unsent feedback and answers stay as a draft in this browser, so closing the pop-up loses nothing.

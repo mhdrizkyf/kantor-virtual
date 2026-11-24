@@ -54,21 +54,29 @@ function around(text: string, q: string) {
   return (from > 0 ? "…" : "") + t.slice(from, at + q.length + 60) + (at + q.length + 60 < t.length ? "…" : "");
 }
 
+/** Fast unread DM count for the sidebar badge (avoids loading allIssues + every DM thread's comments). */
+export async function unreadCount(wsPick?: string | null): Promise<number> {
+  const ws = await workspace(wsPick);
+  const d = await call_<unknown>("GET", "/api/inbox", ws.id).catch(() => []);
+  const items = (Array.isArray(d) ? d : (d as { items?: unknown[] })?.items ?? []) as { title?: string | null; read: boolean; archived?: boolean }[];
+  return items.filter(i => !i.read && !i.archived && (i.title ?? "").startsWith(DM_PREFIX)).length;
+}
+
 /** Everyone else in the workspace, with the latest message and unread count of your chat with them.
  *  With a search term, each person also gets the newest message that contains it (`hit`). */
 export async function people(wsPick?: string | null, search?: string | null) {
   const q = (search ?? "").trim().toLowerCase();
   const ws = await workspace(wsPick);
   const [dir, mine, list, unread] = await Promise.all([loadDirectory(ws.id), me(), chats(ws.id), unreadByIssue(ws.id)]);
-  const out: DmPerson[] = [];
-  for (const m of dir.members.filter(m => m.user_id !== mine.id)) {
+  const others = dir.members.filter(m => m.user_id !== mine.id);
+  const out = await Promise.all(others.map(async m => {
     const pair = pairOf(mine.id, m.user_id);
     const issue = list.find(i => same((i.metadata ?? {})[DM_KEY], pair))
       ?? list.find(i => !(i.metadata ?? {})[DM_KEY] && (i.title === `${DM_PREFIX} · ${mine.name} & ${m.name}` || i.title === `${DM_PREFIX} · ${m.name} & ${mine.name}`));
     let last: DmPerson["last"] = null;
     let hit: DmPerson["hit"] = null;
     if (issue) {
-      const cs = await comments(ws.id, issue.id);
+      const cs = await comments(ws.id, issue.id).catch(() => [] as Comment[]);
       const c = cs[cs.length - 1];
       if (c) last = { text: plainText(strip(c.content)).slice(0, 90), when: when(c.created_at), mine: c.author_id === mine.id };
       if (q) {
@@ -78,8 +86,8 @@ export async function people(wsPick?: string | null, search?: string | null) {
         }
       }
     }
-    out.push({ userId: m.user_id, name: m.name, email: m.email, dmId: issue?.id ?? null, last, unread: issue ? unread.get(issue.id) ?? 0 : 0, ...(q ? { hit } : {}) });
-  }
+    return { userId: m.user_id, name: m.name, email: m.email, dmId: issue?.id ?? null, last, unread: issue ? unread.get(issue.id) ?? 0 : 0, ...(q ? { hit } : {}) } as DmPerson;
+  }));
   return { me: mine, people: out.sort((a, b) => b.unread - a.unread || Number(!!b.last) - Number(!!a.last) || a.name.localeCompare(b.name)) };
 }
 
