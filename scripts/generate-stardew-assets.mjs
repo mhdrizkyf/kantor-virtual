@@ -896,18 +896,17 @@ function generateFarmhouseBackground(laneCanvas) {
   c.rect(40 * S + 28, 14 * S + 30, 14, 6, hex("#f0c64b"));
   c.rect(42 * S + 6, 14 * S + 30, 14, 6, hex("#f0c64b"));
 
-  // Doorway floor thresholds connecting rooms smoothly
+  // Doorway floor thresholds connecting rooms smoothly (Bathroom has single north entrance at x=8..9, y=11; y=16 is solid wall!)
   paintHoneyOakFloor(c, 10, 8, 1, 2, "honey");
   paintHoneyOakFloor(c, 10, 17, 1, 2, "honey");
   paintHoneyOakFloor(c, 8, 11, 2, 1, "honey");
-  paintHoneyOakFloor(c, 8, 16, 2, 1, "cedar");
   paintHoneyOakFloor(c, 38, 13, 1, 2, "cedar");
   paintHoneyOakFloor(c, 22, 24, 2, 1, "honey");
 
   // Subtle ambient occlusion under north wall & left/right partitions for crisp 3D depth!
   c.rect(2 * S, 3 * S, 44 * S, 8, SHADOW_SOFT);
   c.rect(2 * S, 12 * S, 6 * S, 6, SHADOW_SOFT);
-  c.rect(2 * S, 17 * S, 6 * S, 6, SHADOW_SOFT);
+  c.rect(2 * S, 17 * S, 8 * S, 6, SHADOW_SOFT);
 
   // STEP F: Farmhouse Walls (exact OFFICE_PLAN.walls!)
   // Render walls with real LPC inside.png warm cottage plaster + cedar timber roof-cap!
@@ -1137,41 +1136,47 @@ function generateFarmhouseBackground(laneCanvas) {
       c.rect(px + sw - 2, py + 2, 4, sh, hex("#78b4c4", 190)); // sleek glass partition
 
       // B) Right half of bath prop (x=4..5, y=13..14): Modern Ceramic Flush Toilet (WC)!
-      const tx = px + 78, ty = py + 4;
-      c.rect(tx + 2, ty + 6, 36, 48, SHADOW_SOFT);
+      const tx = px + 74, ty = py + 6;
+      c.rect(tx + 2, ty + 6, 34, 46, SHADOW_SOFT);
       // Clean porcelain cistern tank against wall
-      c.borderedRoundRect(tx + 4, ty, 30, 14, 3, hex("#f7f9fa"), INK, 2);
-      c.rect(tx + 14, ty + 4, 10, 4, hex("#3c434a")); // matte-black dual-flush plate!
+      c.borderedRoundRect(tx + 4, ty, 28, 13, 3, hex("#f7f9fa"), INK, 2);
+      c.rect(tx + 13, ty + 4, 10, 4, hex("#3c434a")); // matte-black dual-flush plate!
       // Contoured ceramic oval bowl & soft-close seat
-      c.ellipse(tx + 19, ty + 30, 14, 18, INK);
-      c.ellipse(tx + 19, ty + 30, 12, 16, hex("#ffffff"));
-      c.ellipse(tx + 19, ty + 31, 8, 11, hex("#dce5e8"));
-      c.ellipse(tx + 19, ty + 31, 6, 8, hex("#bfe0eb")); // clean water inside bowl
+      c.ellipse(tx + 18, ty + 29, 13, 17, INK);
+      c.ellipse(tx + 18, ty + 29, 11, 15, hex("#ffffff"));
+      c.ellipse(tx + 18, ty + 30, 7.5, 10, hex("#dce5e8"));
+      c.ellipse(tx + 18, ty + 30, 5.5, 7.5, hex("#bfe0eb")); // clean water inside bowl
       // Wall-mounted matte-black toilet roll holder beside WC
-      c.box(tx + 38, ty + 14, 8, 12, hex("#fafaf7"), INK, 1);
+      c.box(tx + 35, ty + 14, 7, 11, hex("#fafaf7"), INK, 1);
 
-      // C) Modern Floating Oak Vanity with Dual Vessel Sinks & Backlit LED Mirror (x=6..8, y=12)!
-      const vx = px + pw + 8, vy = py - 28, vw = 90, vh = 32;
-      c.rect(vx + 2, vy + 6, vw, vh, SHADOW);
-      // Backlit modern vanity mirror along wall above vanity
-      c.box(vx + 6, vy - 10, vw - 12, 10, hex("#cfe8f0"), hex("#3a424a"), 1);
-      c.rect(vx + 8, vy - 2, vw - 16, 2, hex("#fff5d1")); // warm LED backlight strip!
+      // C) Modern Floating Oak Vanity + Backlit LED Mirror mounted cleanly against SOLID North Wall (x=5.6..7.7, y=12)
+      // Strictly LEFT of x=8 (256px) so the single Bathroom entrance doorway (x=8..9, y=11) is 100% unobstructed!
+      const vx = 5 * S + 20, vy = 12 * S + 2, vw = 68, vh = 28; // right edge = 248px (< 256px doorway!)
+      c.rect(vx + 2, vy + 5, vw, vh, SHADOW);
+      // Backlit modern vanity mirror flush on solid wall above vanity
+      c.box(vx + 6, vy - 11, vw - 12, 10, hex("#cfe8f0"), hex("#3a424a"), 1);
+      c.rect(vx + 8, vy - 3, vw - 16, 2, hex("#fff5d1")); // warm LED backlight strip!
       // Oak vanity cabinet + crisp white marble countertop
       c.box(vx, vy, vw, vh, hex("#c29463"), INK, 2);
-      c.box(vx + 2, vy + 2, vw - 4, vh - 8, hex("#f6f5f0"), hex("#a8a49c"), 1);
-      // Twin ceramic vessel basins + matte-black minimalist faucets
-      for (const sx of [vx + 24, vx + 66]) {
-        c.circle(sx, vy + 14, 10, hex("#4b525a"));
-        c.circle(sx, vy + 14, 8, hex("#ffffff"));
-        c.circle(sx, vy + 14, 5, hex("#d6e4e8"));
-        c.rect(sx - 2, vy + 3, 4, 7, hex("#2b3036")); // matte-black faucet
-      }
-      // Neatly folded white spa towels & soap bottle between sinks
-      c.box(vx + 40, vy + 8, 10, 10, hex("#ffffff"), hex("#9ca4ac"), 1);
-      c.box(vx + 43, vy + 20, 4, 6, hex("#5e9478"), INK, 1);
-      // Soft woven sage bath mat on floor in front of vanity
-      c.borderedRoundRect(vx + 14, vy + 42, 62, 22, 4, hex("#7aa188"), hex("#4c6e58"), 2);
-      c.rect(vx + 20, vy + 47, 50, 12, hex("#93b89f"));
+      c.box(vx + 2, vy + 2, vw - 4, vh - 7, hex("#f6f5f0"), hex("#a8a49c"), 1);
+      // Sleek ceramic vessel basin + matte-black minimalist faucet + soap & folded towel
+      const sinkX = vx + 26;
+      c.circle(sinkX, vy + 13, 9, hex("#4b525a"));
+      c.circle(sinkX, vy + 13, 7, hex("#ffffff"));
+      c.circle(sinkX, vy + 13, 4.5, hex("#d6e4e8"));
+      c.rect(sinkX - 2, vy + 3, 4, 6, hex("#2b3036")); // matte-black faucet
+      c.box(vx + 43, vy + 6, 5, 7, hex("#5e9478"), INK, 1); // hand soap dispenser
+      c.box(vx + 51, vy + 7, 11, 12, hex("#ffffff"), hex("#9ca4ac"), 1); // folded spa towel
+      c.rect(vx + 53, vy + 11, 7, 2, hex("#dce2e6"));
+      // Soft woven sage bath mat directly in front of vanity (clear of doorway path!)
+      c.borderedRoundRect(vx + 8, vy + 36, 52, 20, 4, hex("#7aa188"), hex("#4c6e58"), 2);
+      c.rect(vx + 13, vy + 41, 42, 10, hex("#93b89f"));
+      // Boutique corner snake plant tucked neatly against closed south-east bathroom corner (x=9, y=15)
+      c.circle(9 * S + 16, 15 * S + 18, 8, hex("#f2efe9"));
+      c.ring(9 * S + 16, 15 * S + 18, 8, 6.5, hex("#68635a"));
+      c.rect(9 * S + 12, 15 * S + 6, 3, 12, hex("#448f4c"));
+      c.rect(9 * S + 16, 15 * S + 4, 3, 14, hex("#5cb062"));
+      c.rect(9 * S + 20, 15 * S + 8, 3, 10, hex("#3c7d44"));
     } else if (p.k === "bed") {
       // IMAGE 3: Modern Executive Studio Daybed / Lounge Sofa-Bed (x=2..3, y=19..22 — ZERO dark shadow box!)
       c.rect(px + 6, py + 12, pw - 8, ph - 16, SHADOW_SOFT);
