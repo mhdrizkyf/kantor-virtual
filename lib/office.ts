@@ -2,6 +2,7 @@
 import type { Snapshot, Issue, Run, Agent } from "./multica";
 import { friendlyTitle } from "./titles";
 import { quotaStates, fmtTime } from "./quota";
+import { readCodexQuota, type CodexQuota } from "./codex-quota";
 import { readCharacters } from "./characters";
 import { assignUniqueFaces, defaultFace } from "./character-presets";
 import { readSquads } from "./squads";
@@ -28,6 +29,7 @@ export type Office = {
   alerts: string[];
   seen: Record<string, string>;
   runtimes: { id: string; name: string; owner: string | null; provider: string; online: boolean; lastSeen: string; quotaReset: string | null; quotaOut: boolean }[];
+  codexQuota?: CodexQuota;
   rooms: Room[]; idleDesks: Desk[];
   attention: { overdue: TaskView[]; human: TaskView[]; review: TaskView[]; failed: RunView[] };
   openTasks: TaskView[];
@@ -239,6 +241,19 @@ export function buildOffice(s: Snapshot): Office {
     tasks: sortTasks(agentIssues.filter(i => i.assignee_id === a.id).map(view)),
   };
 
+  const runtimesList = s.runtimes.map(r => {
+    const q = quota.get(r.id);
+    // Beberapa laptop bisa punya mesin yang sama (mis. Claude milik Ara dan milik Dan): tampilkan nama pemiliknya.
+    const ownerName = s.members.find(m => m.user_id === r.owner_id || m.id === r.owner_id)?.name.split(/\s+/)[0] ?? null;
+    const shared = s.runtimes.filter(x => x.provider === r.provider).length > 1;
+    return {
+      id: r.id, owner: shared ? ownerName : null, name: r.provider === "claude" ? "Claude" : r.provider === "codex" ? "GPT (Codex)" : r.name, provider: r.provider, online: r.status === "online", lastSeen: relTime(r.last_seen_at, tz),
+      quotaOut: !!q, quotaReset: q?.resetAt ? fmtTime(new Date(q.resetAt)) : null,
+    };
+  }).sort((a, b) => String(a.owner).localeCompare(String(b.owner)) || a.provider.localeCompare(b.provider));
+
+  const codexQuota = readCodexQuota({ runtimes: runtimesList, timeZone: tz });
+
   return {
     workspace: s.workspace.name, workspaceId: s.workspace.id, workspaceSlug: s.workspace.slug, timeZone: tz,
     workCalendar: readWorkCalendar(s.workspace.id),
@@ -249,14 +264,8 @@ export function buildOffice(s: Snapshot): Office {
     changedBy: s.kantor.changedBy ?? null,
     alerts: loginAlerts(s),
     seen: s.seen ?? {},
-    runtimes: s.runtimes.map(r => {
-      const q = quota.get(r.id);
-      // Beberapa laptop bisa punya mesin yang sama (mis. Claude milik Ara dan milik Dan): tampilkan nama pemiliknya.
-      const ownerName = s.members.find(m => m.user_id === r.owner_id || m.id === r.owner_id)?.name.split(/\s+/)[0] ?? null;
-      const shared = s.runtimes.filter(x => x.provider === r.provider).length > 1;
-      return { id: r.id, owner: shared ? ownerName : null, name: r.provider === "claude" ? "Claude" : r.provider === "codex" ? "GPT (Codex)" : r.name, provider: r.provider, online: r.status === "online", lastSeen: relTime(r.last_seen_at, tz),
-        quotaOut: !!q, quotaReset: q?.resetAt ? fmtTime(new Date(q.resetAt)) : null };
-    }).sort((a, b) => String(a.owner).localeCompare(String(b.owner)) || a.provider.localeCompare(b.provider)),
+    runtimes: runtimesList,
+    codexQuota,
     rooms, idleDesks,
     attention: {
       // Setiap task hanya muncul di satu bagian, supaya daftar tidak dobel.

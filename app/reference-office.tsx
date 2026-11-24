@@ -33,7 +33,7 @@ function load() {
     const art = new Image(); art.src = '/art/office-reference.png'; await art.decode();
     (window as unknown as { MDOffice: Vendor }).MDOffice.campusArt = art;
     // Optional Phase 03 Retina workstation & Stardew Valley scene adapters.
-    for (const extra of ['/retina-workstation.js', '/office-harvest.js?v=4']) {
+    for (const extra of ['/retina-workstation.js', '/office-harvest.js?v=5']) {
       await new Promise<void>(resolve => {
         const script = document.createElement('script');
         script.src = extra;
@@ -174,6 +174,7 @@ export default function ReferenceOffice({
   const [dragUI, setDragUI] = useState<{ agentId: string; name: string; zone: DropZone; x: number; y: number } | null>(null);
   const [transientBubbles, setTransientBubbles] = useState<Record<string, SpeechBubbleItem & { expiresAt: number }>>({});
   const [reviewArrived, setReviewArrived] = useState<Record<string, boolean>>({});
+  const [hoveredActorId, setHoveredActorId] = useState<string | null>(null);
   const dragRef = useRef<{ agentId: string; desk: Desk; startX: number; startY: number; active: boolean; zone: DropZone } | null>(null);
   const justDraggedRef = useRef(0);
 
@@ -734,11 +735,15 @@ export default function ReferenceOffice({
           if (a.hidden) continue;
 
           // Live pixel bubbles driven by real Multica desk state
-          const desired = a.busy ? 'dots' : bubbleKindForState(d.state);
-          if (desired && (!a.bubble || a.bubble.until < s.t)) {
-            if (desired === 'dots') s.bubble(d.agentId, 'dots', 1.2);
-            else if (desired === 'ask' || desired === 'drop') s.bubble(d.agentId, desired, 2.5);
-            else if (a.state === 'seat' && Math.floor(s.t) % 7 === (a.desk % 7)) s.bubble(d.agentId, desired, 2);
+          // Suppress redundant '...' pixel bubble while the crisp "WORKING" badge is shown!
+          if (a.busy || d.state === 'working') {
+            if (a.bubble && a.bubble.kind === 'dots') a.bubble = null;
+          } else {
+            const desired = bubbleKindForState(d.state);
+            if (desired && desired !== 'dots' && (!a.bubble || a.bubble.until < s.t)) {
+              if (desired === 'ask' || desired === 'drop') s.bubble(d.agentId, desired, 2.5);
+              else if (a.state === 'seat' && Math.floor(s.t) % 7 === (a.desk % 7)) s.bubble(d.agentId, desired, 2);
+            }
           }
         }
 
@@ -917,11 +922,13 @@ export default function ReferenceOffice({
                 if (el) speechElsRef.current.set(item.actorId, el);
                 else speechElsRef.current.delete(item.actorId);
               }}
-              className={`actor-speech tone-${item.tone}${item.clickable ? ' is-clickable' : ''}`}
+              className={`actor-speech tone-${item.tone}${item.clickable ? ' is-clickable' : ''}${hoveredActorId === item.actorId ? ' is-expanded' : ''}`}
               onClick={e => {
                 e.stopPropagation();
                 if (item.clickable) handleBubbleClick(item);
               }}
+              onMouseEnter={() => setHoveredActorId(item.actorId)}
+              onMouseLeave={() => setHoveredActorId(cur => (cur === item.actorId ? null : cur))}
               tabIndex={item.clickable ? 0 : -1}
               aria-label={`${item.badge}: ${item.text}`}
             >
@@ -952,6 +959,8 @@ export default function ReferenceOffice({
                   if (e.button !== 0) return;
                   beginDrag(d, e.clientX, e.clientY);
                 }}
+                onMouseEnter={() => setHoveredActorId(d.agentId)}
+                onMouseLeave={() => setHoveredActorId(cur => (cur === d.agentId ? null : cur))}
                 onClick={() => {
                   if (Date.now() - justDraggedRef.current < 260) return;
                   onDesk(d);
