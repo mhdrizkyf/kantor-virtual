@@ -472,7 +472,17 @@ export default function OfficeView({ office, buildings, attention, people, seen,
   }, [office.runtimes]);
   useEffect(() => {
     const f = (event: Event) => { const id = (event as CustomEvent<{ agentId: string }>).detail?.agentId; if (id && uniqueDesks.some(d => d.agentId === id)) openAgentDrawer(id, "tasks"); };
-    addEventListener("kantor:desk", f); return () => removeEventListener("kantor:desk", f);
+    const openChat = (event: Event) => {
+      const id = (event as CustomEvent<{ agentId: string }>).detail?.agentId;
+      const target = id ? uniqueDesks.find(d => d.agentId === id) : null;
+      if (target) { setChatPrompt(""); setChatWith(target); }
+    };
+    addEventListener("kantor:desk", f);
+    addEventListener("kantor:chat", openChat);
+    return () => {
+      removeEventListener("kantor:desk", f);
+      removeEventListener("kantor:chat", openChat);
+    };
   }, [uniqueDesks, openAgentDrawer]);
 
   // Agents walk over to hand work off.
