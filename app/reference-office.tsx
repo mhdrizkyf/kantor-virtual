@@ -33,7 +33,7 @@ function load() {
     const art = new Image(); art.src = '/art/office-reference.png'; await art.decode();
     (window as unknown as { MDOffice: Vendor }).MDOffice.campusArt = art;
     // Optional Phase 03 Retina workstation & Stardew Valley scene adapters.
-    for (const extra of ['/retina-workstation.js', '/office-harvest.js?v=12']) {
+    for (const extra of ['/retina-workstation.js', '/office-harvest.js?v=13']) {
       await new Promise<void>(resolve => {
         const script = document.createElement('script');
         script.src = extra;

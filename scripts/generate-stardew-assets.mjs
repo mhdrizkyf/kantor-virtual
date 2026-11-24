@@ -996,11 +996,11 @@ function generateFarmhouseBackground(laneCanvas) {
     c.blit(SHEETS.house, 224, 0, 32, 32, tx * S, 24 * S + 2, { dw: 32, dh: 28, grade: GRADE.stardewWindow });
   }
 
-  // Cozy Stardew Farmhouse Framed Wall Art (landscape, Junimo sprout, and warm sconces on North wall!)
+  // Cozy Stardew Farmhouse Framed Wall Art symmetrically placed above the North workstation pods!
   for (const [tx, bg, acc] of [
-    [15, hex("#7dc2e8"), hex("#55a846")], // Pelican Valley hill painting
-    [24, hex("#f7e7ba"), hex("#54b350")], // Cute little emerald Junimo portrait!
-    [30, hex("#f2b66d"), hex("#c94b3b")], // Sunset barn painting (moved cleanly clear of Coffee Bar!)
+    [15, hex("#7dc2e8"), hex("#55a846")], // Pelican Valley hill painting (above Pod NW)
+    [28, hex("#f7e7ba"), hex("#54b350")], // Cute emerald Junimo portrait (above Pod NE left)
+    [34, hex("#f2b66d"), hex("#c94b3b")], // Sunset barn painting (above Pod NE right)
   ]) {
     const px = tx * S + 4, py = 2 * S + 10;
     c.box(px, py, 24, 16, bg, hex("#6b3c1c"), 2);
@@ -1116,12 +1116,12 @@ function generateFarmhouseBackground(laneCanvas) {
   c.circle(9 * S + 21, 23 * S + 11, 7, hex("#438f4c"));
   c.circle(9 * S + 16, 23 * S + 6, 6, hex("#62b360"));
 
-  // 2) Structured Studio Workstation Pod Woven Area Rugs — 4 UNIFORM 6-desk pods (3x2 each)!
+  // 2) Perfectly Symmetrical 2x2 Studio Workstation Pod Woven Area Rugs — 4 UNIFORM 6-desk pods aligned horizontally & vertically!
   for (const pod of [
     { x: 11 * S + 24, y: 3 * S + 26, w: 8 * S + 16, h: 4 * S + 16 }, // Pod NW (6 desks: x=12,15,18 y=5..6)
+    { x: 26 * S + 24, y: 3 * S + 26, w: 8 * S + 16, h: 4 * S + 16 }, // Pod NE (6 desks: x=27,30,33 y=5..6)
     { x: 11 * S + 24, y: 10 * S + 26, w: 8 * S + 16, h: 4 * S + 16 }, // Pod Mid-West (6 desks: x=12,15,18 y=12..13)
-    { x: 26 * S + 24, y: 7 * S + 26, w: 8 * S + 16, h: 4 * S + 16 }, // Pod NE (6 desks: x=27,30,33 y=9..10)
-    { x: 26 * S + 24, y: 15 * S + 26, w: 8 * S + 16, h: 4 * S + 16 }, // Pod SE (6 desks: x=27,30,33 y=17..18)
+    { x: 26 * S + 24, y: 10 * S + 26, w: 8 * S + 16, h: 4 * S + 16 }, // Pod Mid-East (6 desks: x=27,30,33 y=12..13)
   ]) {
     c.rect(pod.x + 2, pod.y + 3, pod.w, pod.h, SHADOW_SOFT);
     c.borderedRoundRect(pod.x, pod.y, pod.w, pod.h, 6, hex("#c8b698", 215), hex("#78654d", 220), 2);
@@ -1614,83 +1614,112 @@ function generateFarmhouseBackground(laneCanvas) {
       c.circle(ix + 82, iy + 22, 3.5, hex("#dceef7"));
       c.ring(ix + 82, iy + 22, 3.5, 2, hex("#7d9bb0"));
     } else if (p.k === "server") {
-      // IMAGE 6: Sleek Unified Modern Walnut & Matte-Charcoal AI Engine Tower Cabinet (x=27..28, y=3..6 — clean separation from wall clock!)
-      const sx = px + 4, sy = py + 10, sw = pw - 10, sh = ph - 16; // 54x112 crisp unified rack cabinet
-      c.rect(sx + 4, sy + 8, sw, sh, SHADOW);
-      // Outer warm walnut architectural enclosure
+      // Sleek Unified Modern Walnut & Matte-Charcoal AI Compute Tower Cabinet tucked cleanly in NE corner (x=36..37, y=3..5)!
+      const sx = px + 6, sy = py + 4, sw = pw - 10, sh = ph - 8; // 54x88 crisp unified rack cabinet
+      c.rect(sx + 4, sy + 6, sw, sh, SHADOW);
       c.borderedRoundRect(sx, sy, sw, sh, 4, hex("#6b442a"), INK, 2);
-      // Top beveled walnut lid with cooling vent slots
-      c.box(sx + 2, sy + 2, sw - 4, 14, hex("#8f5d3c"), hex("#472a17"), 1);
+      c.box(sx + 2, sy + 2, sw - 4, 12, hex("#8f5d3c"), hex("#472a17"), 1);
       for (let vx = sx + 8; vx < sx + sw - 10; vx += 8) {
-        c.rect(vx, sy + 6, 4, 5, hex("#362013"));
+        c.rect(vx, sy + 5, 4, 4, hex("#362013"));
       }
-      // Recessed matte-charcoal tempered glass equipment bay
-      c.box(sx + 6, sy + 18, sw - 12, sh - 26, hex("#232830"), hex("#12151a"), 2);
-      // 4 Clean Horizontal Codex / AI Compute Blades with crisp status LEDs & airflow mesh
-      for (let bi = 0; bi < 4; bi++) {
-        const by = sy + 24 + bi * 20;
+      c.box(sx + 6, sy + 16, sw - 12, sh - 22, hex("#232830"), hex("#12151a"), 2);
+      // 3 Crisp Horizontal Codex / AI Compute Blades with glowing emerald & cyan status LEDs
+      for (let bi = 0; bi < 3; bi++) {
+        const by = sy + 21 + bi * 20;
         c.box(sx + 10, by, sw - 20, 15, hex("#323944"), hex("#181c22"), 1);
-        c.rect(sx + 13, by + 3, 14, 3, hex("#4b5563")); // intake louver
+        c.rect(sx + 13, by + 3, 14, 3, hex("#4b5563"));
         c.rect(sx + 13, by + 8, 14, 3, hex("#4b5563"));
-        // Crisp glowing emerald & cyan LED indicators
         c.rect(sx + sw - 22, by + 5, 4, 4, hex("#5be882"));
         c.rect(sx + sw - 16, by + 5, 4, 4, bi === 1 ? hex("#fbd35c") : hex("#6ad6f2"));
       }
-      // Subtle diagonal glass door reflection + brass handle
-      c.line(sx + 10, sy + 24, sx + 22, sy + 42, 2, hex("#ffffff", 45));
-      c.rect(sx + sw - 9, sy + 52, 2, 16, hex("#d9b15f"));
+      c.line(sx + 10, sy + 20, sx + 22, sy + 36, 2, hex("#ffffff", 45));
+      c.rect(sx + sw - 9, sy + 42, 2, 14, hex("#d9b15f"));
     } else if (p.k === "coffee") {
-      // IMAGE 4: Dedicated Modern Studio Espresso & Coffee Machine Bar (x=34..36, y=3..4 -> flush against North Wall!)
-      // A) Wall-Mounted Café Chalkboard Menu & Floating Mug Shelf on North Wall Plaster Face (y=2, Y=74..94)
-      c.box(px + 6, 2 * S + 11, 36, 19, hex("#293036"), hex("#7d4f2b"), 2); // framed cafe chalkboard
-      c.rect(px + 10, 2 * S + 15, 16, 2, hex("#f5efe2")); // "COFFEE" chalk header
-      c.rect(px + 10, 2 * S + 20, 22, 1, hex("#b7c4cc"));
-      c.rect(px + 10, 2 * S + 24, 18, 1, hex("#b7c4cc"));
-      c.rect(px + 32, 2 * S + 17, 5, 6, hex("#f2c879")); // tiny chalk cup doodle
-      c.box(px + 48, 2 * S + 22, 42, 6, hex("#c29362"), INK, 1); // floating oak mug shelf
-      for (const [mx, col] of [[52, "#f7f4ec"], [62, "#6c9e79"], [72, "#e08d55"], [81, "#f7f4ec"]]) {
-        c.box(px + mx, 2 * S + 14, 7, 8, hex(col), INK, 1);
+      // SOUTH-EAST STUDIO ESPRESSO BAR & CAFÉ NOOK (x=27..36, y=18..23 — mirrors Breakout Lounge across the grand foyer!)
+      // 1) Warm Woven Sage-Oatmeal Café Area Rug aligned pixel-for-pixel with the Breakout Lounge rug (y=18.75..23.5)!
+      const crX = 27 * S + 16, crY = 18 * S + 20, crW = 9 * S + 16, crH = 5 * S - 6;
+      c.rect(crX + 2, crY + 3, crW, crH, SHADOW_SOFT);
+      c.borderedRoundRect(crX, crY, crW, crH, 6, hex("#ced7cc", 215), hex("#657a68", 220), 2);
+      c.box(crX + 6, crY + 6, crW - 12, crH - 12, hex("#e3e9e0", 205), hex("#a1b5a2", 200), 1);
+
+      // 2) Hero Commercial Espresso & Coffee Machine Bar Credenza (centered along north edge of café nook: x=30..34, y=18..19)
+      const bx = px + 8, by = py + 4, bw = pw - 16, bh = 48; // 144x48px walnut & marble bar!
+      c.rect(bx + 3, by + 6, bw, bh, SHADOW);
+      c.borderedRoundRect(bx, by + 2, bw, bh, 4, hex("#7d4e2d"), INK, 2); // fluted walnut bar body
+      for (let fx = bx + 8; fx < bx + bw - 16; fx += 26) {
+        c.box(fx, by + 30, 22, 16, hex("#683e22"), hex("#472915"), 1);
+        c.rect(fx + 7, by + 33, 8, 2, hex("#e3b95d"));
+      }
+      // Crisp Carrara marble countertop slab
+      c.box(bx, by, bw, 28, hex("#f7f5f0"), INK, 2);
+      c.rect(bx + 2, by + 2, bw - 4, 4, hex("#ffffff"));
+
+      // Commercial Dual-Group Espresso Machine (left-center of bar!)
+      const ex = bx + 14;
+      c.box(ex, by - 2, 40, 26, hex("#262b33"), INK, 2);
+      c.rect(ex + 3, by, 34, 7, hex("#cfd6de")); // brushed chrome cup-warmer tray
+      c.rect(ex + 6, by + 1, 6, 5, hex("#faf7f0"));
+      c.rect(ex + 14, by + 1, 6, 5, hex("#faf7f0"));
+      c.rect(ex + 4, by + 9, 32, 8, hex("#9aa5b1")); // dual grouphead face
+      c.rect(ex + 8, by + 11, 8, 4, hex("#2b313a"));
+      c.rect(ex + 23, by + 11, 8, 4, hex("#2b313a"));
+      c.rect(ex + 10, by + 15, 4, 3, hex("#d49e52")); // brass portafilters!
+      c.rect(ex + 25, by + 15, 4, 3, hex("#d49e52"));
+      c.rect(ex + 3, by + 18, 34, 5, hex("#cfd6de"));
+      c.rect(ex + 9, by + 18, 6, 4, hex("#ffffff")); // fresh espresso cups
+      c.rect(ex + 24, by + 18, 6, 4, hex("#ffffff"));
+      c.rect(ex + 34, by + 11, 2, 9, hex("#dce3eb")); // steam wand
+
+      // Conical Burr Grinder + Roasted Bean Hopper
+      c.box(ex + 46, by + 4, 14, 20, hex("#3a414d"), INK, 2);
+      c.circle(ex + 53, by + 3, 5.5, hex("#59351c"));
+      c.circle(ex + 53, by + 3, 3, hex("#85522d"));
+
+      // Syrups + Glass Pastry Dome (Croissants!) + Ceramic Mug Tray
+      c.box(ex + 66, by + 4, 5, 8, hex("#b86b35"), INK, 1);
+      c.box(ex + 73, by + 4, 5, 8, hex("#5f9473"), INK, 1);
+      c.circle(ex + 93, by + 14, 9.5, hex("#dcebf0")); // glass pastry cloche
+      c.ring(ex + 93, by + 14, 9.5, 8, hex("#7d949e"));
+      c.circle(ex + 91, by + 14, 3.5, hex("#d9944a")); // croissants
+      c.circle(ex + 96, by + 16, 3, hex("#c97e38"));
+      for (const [mx, col] of [[108, "#f7f4ec"], [117, "#6c9e79"], [108, "#e08d55"]]) {
+        c.box(ex + mx, by + (col === "#e08d55" ? 15 : 5), 7, 7, hex(col), INK, 1);
       }
 
-      // B) Modern Fluted-Walnut & White-Quartz Espresso Bar Credenza flush against North Wall (y=3, Y=96..148)
-      c.rect(px + 4, py + 6, pw - 6, 52, SHADOW);
-      c.box(px + 2, py + 2, pw - 4, 48, hex("#7d4e2d"), INK, 2); // warm walnut bar body
-      // Vertical fluted walnut slats + brushed brass handles along front face
-      for (let bx = px + 6; bx < px + pw - 8; bx += 22) {
-        c.box(bx, py + 28, 18, 19, hex("#683e22"), hex("#472915"), 1);
-        c.rect(bx + 5, py + 31, 8, 2, hex("#e3b95d"));
+      // Flanking Warm Terracotta Café Plant (left) & A-Frame Chalkboard Menu (right) framing the bar!
+      c.circle(28 * S + 16, 19 * S + 12, 9, hex("#c46d45"));
+      c.circle(28 * S + 13, 19 * S + 7, 5.5, hex("#479144"));
+      c.circle(28 * S + 20, 19 * S + 8, 5.5, hex("#5cb058"));
+      c.borderedRoundRect(35 * S + 16, 18 * S + 22, 22, 26, 3, hex("#293036"), hex("#7d4f2b"), 2); // cafe menu board
+      c.rect(35 * S + 20, 18 * S + 27, 14, 2, hex("#f5efe2"));
+      c.rect(35 * S + 20, 18 * S + 32, 12, 1, hex("#b7c4cc"));
+      c.rect(35 * S + 20, 18 * S + 36, 14, 1, hex("#b7c4cc"));
+      c.rect(35 * S + 24, 18 * S + 40, 6, 4, hex("#f2c879"));
+
+      // 3) Two Airy Minimalist Round Oak Café Bistro Tables (south half of café rug: y=22, well south of y=20 standing spot!)
+      for (const [tx, hasPlate] of [[29 * S + 28, false], [34 * S + 20, true]]) {
+        const ty = 22 * S + 4;
+        // Pair of slim sage café chairs (left & right of bistro table)
+        c.borderedRoundRect(tx - 28, ty - 9, 14, 18, 4, hex("#5e8767"), INK, 2);
+        c.rect(tx - 28, ty - 6, 4, 12, hex("#6b4428"));
+        c.borderedRoundRect(tx + 14, ty - 9, 14, 18, 4, hex("#5e8767"), INK, 2);
+        c.rect(tx + 24, ty - 6, 4, 12, hex("#6b4428"));
+        // Round light-oak café table
+        c.circle(tx + 1, ty + 3, 16, SHADOW_SOFT);
+        c.circle(tx, ty, 16, INK);
+        c.circle(tx, ty, 14, hex("#cfa06b"));
+        c.circle(tx, ty - 1, 11, hex("#dfa96e"));
+        // Minimal tabletop touches: espresso cup + tiny bud vase or pastry plate
+        c.circle(tx - 5, ty - 2, 3.5, hex("#faf7f0"));
+        c.circle(tx - 5, ty - 2, 1.8, hex("#5a351c"));
+        if (hasPlate) {
+          c.circle(tx + 5, ty + 2, 4, hex("#faf7f0"));
+          c.circle(tx + 5, ty + 2, 2, hex("#d9944a"));
+        } else {
+          c.circle(tx + 5, ty + 2, 3.5, hex("#68ad64"));
+          c.rect(tx + 4, ty, 2, 2, hex("#ffe066"));
+        }
       }
-      // Crisp white Carrara marble bar countertop
-      c.box(px + 2, py, pw - 4, 28, hex("#f7f5f0"), INK, 2);
-      c.rect(px + 4, py + 2, pw - 8, 4, hex("#ffffff"));
-
-      // C) Hero Commercial Dual-Group Espresso Machine (px+8..px+46, py-2..py+25)
-      c.box(px + 8, py - 2, 38, 26, hex("#262b33"), INK, 2); // matte-charcoal & steel body
-      c.rect(px + 11, py, 32, 7, hex("#cfd6de")); // brushed chrome cup-warmer tray
-      c.rect(px + 14, py + 1, 6, 5, hex("#faf7f0")); // stacked porcelain demitasse cup 1
-      c.rect(px + 22, py + 1, 6, 5, hex("#faf7f0")); // stacked porcelain demitasse cup 2
-      c.rect(px + 12, py + 9, 30, 8, hex("#9aa5b1")); // stainless dual grouphead face
-      c.rect(px + 16, py + 11, 8, 4, hex("#2b313a")); // grouphead 1
-      c.rect(px + 30, py + 11, 8, 4, hex("#2b313a")); // grouphead 2
-      c.rect(px + 18, py + 15, 4, 3, hex("#d49e52")); // brass portafilter handle 1
-      c.rect(px + 32, py + 15, 4, 3, hex("#d49e52")); // brass portafilter handle 2
-      c.rect(px + 11, py + 18, 32, 5, hex("#cfd6de")); // stainless drip grate
-      c.rect(px + 17, py + 18, 6, 4, hex("#ffffff")); // fresh espresso cup 1
-      c.rect(px + 31, py + 18, 6, 4, hex("#ffffff")); // fresh espresso cup 2
-      c.rect(px + 40, py + 11, 2, 9, hex("#dce3eb")); // chrome steam wand!
-
-      // D) Conical Burr Coffee Grinder + Bean Hopper (px+50..px+64)
-      c.box(px + 50, py + 4, 14, 20, hex("#3a414d"), INK, 2);
-      c.circle(px + 57, py + 3, 5.5, hex("#59351c")); // roasted coffee bean hopper!
-      c.circle(px + 57, py + 3, 3, hex("#85522d"));
-
-      // E) Glass Pastry Dome (Croissants!) + Syrup Bottles & Mug Stack (px+68..px+90)
-      c.circle(px + 78, py + 15, 9, hex("#dcebf0")); // glass pastry cloche dome
-      c.ring(px + 78, py + 15, 9, 7.5, hex("#7d949e"));
-      c.circle(px + 76, py + 15, 3.5, hex("#d9944a")); // flaky croissant!
-      c.circle(px + 81, py + 17, 3, hex("#c97e38"));
-      c.box(px + 68, py + 2, 4, 7, hex("#b86b35"), INK, 1); // caramel syrup bottle
-      c.box(px + 74, py + 2, 4, 7, hex("#5f9473"), INK, 1); // vanilla/matcha syrup
     } else if (p.k === "shelf") {
       // IMAGE 4: Modern Garage Steel Mechanic Workbench & Tool Pegboard (x=40..44, y=4..6)!
       c.rect(px + 4, py + 24, pw - 8, ph - 18, SHADOW);
