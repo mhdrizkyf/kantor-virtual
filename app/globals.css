@@ -2426,7 +2426,7 @@ header.top {
   align-items: center;
   gap: 10px;
   flex: none;
-  width: calc(100% - 148px);
+  width: calc(100% - 196px);
   min-height: 58px;
   background: var(--panel);
   border: 1px solid var(--line-strong);
@@ -2798,7 +2798,7 @@ header.top {
 }
 
 .office-shell .stapler-root {
-  bottom: 18px;
+  bottom: 20px;
   right: 18px;
   z-index: 17;
 }
@@ -7086,7 +7086,7 @@ main.pagewide > * {
     font-size: 10px;
   }
   .office-composer {
-    width: calc(100% - 62px);
+    width: calc(100% - 72px);
     padding: 7px 8px;
     gap: 6px;
   }

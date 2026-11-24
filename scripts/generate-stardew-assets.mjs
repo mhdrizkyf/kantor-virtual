@@ -1117,22 +1117,7 @@ function generateFarmhouseBackground(laneCanvas) {
   c.circle(9 * S + 21, 23 * S + 11, 7, hex("#438f4c"));
   c.circle(9 * S + 16, 23 * S + 6, 6, hex("#62b360"));
 
-  // 2) Perfectly Symmetrical 2x2 Studio Workstation Pod Woven Area Rugs — 4 UNIFORM 6-desk pods aligned horizontally & vertically!
-  for (const pod of [
-    { x: 11 * S + 24, y: 3 * S + 26, w: 8 * S + 16, h: 4 * S + 16 }, // Pod NW (6 desks: x=12,15,18 y=5..6)
-    { x: 26 * S + 24, y: 3 * S + 26, w: 8 * S + 16, h: 4 * S + 16 }, // Pod NE (6 desks: x=27,30,33 y=5..6)
-    { x: 11 * S + 24, y: 10 * S + 26, w: 8 * S + 16, h: 4 * S + 16 }, // Pod Mid-West (6 desks: x=12,15,18 y=12..13)
-    { x: 26 * S + 24, y: 10 * S + 26, w: 8 * S + 16, h: 4 * S + 16 }, // Pod Mid-East (6 desks: x=27,30,33 y=12..13)
-  ]) {
-    c.rect(pod.x + 2, pod.y + 3, pod.w, pod.h, SHADOW_SOFT);
-    c.borderedRoundRect(pod.x, pod.y, pod.w, pod.h, 6, hex("#c8b698", 215), hex("#78654d", 220), 2);
-    c.box(pod.x + 6, pod.y + 6, pod.w - 12, pod.h - 12, hex("#d6c7ad", 210), hex("#a69578", 200), 1);
-    for (let wy = pod.y + 14; wy < pod.y + pod.h - 10; wy += 12) {
-      for (let wx = pod.x + 14; wx < pod.x + pod.w - 10; wx += 14) {
-        c.rect(wx, wy, 2, 2, hex("#b3a184", 150));
-      }
-    }
-  }
+  // 2) Workstation desk pods (4 uniform 3x2 pods) sit directly on clean warm timber floorboards (no under-desk area rugs)
 
   // 3) Dedicated Executive Boardroom Carpet & North Presentation Wall (x=39..45, y=3..12)!
   const brX = 39 * S + 22, brY = 4 * S + 18, brW = 5 * S + 20, brH = 7 * S - 6;
