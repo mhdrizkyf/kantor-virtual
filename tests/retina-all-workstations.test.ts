@@ -36,7 +36,7 @@ test('All 23 workstations receive the same Retina rendering contract',()=>{
   scene.agents=plan.desks.map((_d,i)=>agentAt(i));
   assert.equal(adapter.install(scene,pack),true);
   assert.equal(scene.retinaWorkstations.mode,'all');
-  assert.equal(scene.retinaWorkstations.seatCount,23);
+  assert.equal(scene.retinaWorkstations.seatCount,plan.desks.length);
   assert.deepEqual([scene.cv.width,scene.cv.height],[1536,896]);
   assert.deepEqual([scene.W,scene.H],[768,448]);
   for(let i=0;i<plan.desks.length;i++) {
@@ -126,7 +126,7 @@ test('Optional single seat mode remains available for diagnosis',()=>{
 
 test('Invalid seat or missing required manifest entry fails closed',()=>{
   const {adapter,scene,pack}=setup();
-  assert.equal(adapter.install(scene,pack,{seatIndex:23}),false);
+  assert.equal(adapter.install(scene,pack,{seatIndex:plan.desks.length}),false);
   assert.equal(scene.cv.width,768);
   const bad=structuredClone(pack.manifest);delete bad.composition.relativeToDeskLogicalPx.north;
   assert.equal(adapter.install(scene,{...pack,manifest:bad}),false);
