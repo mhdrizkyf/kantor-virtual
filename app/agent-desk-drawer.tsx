@@ -102,6 +102,7 @@ export default function AgentDeskDrawer({
   const [engineId, setEngineId] = useState(desk.runtimeId ?? "");
   const [savingEngine, setSavingEngine] = useState(false);
   const [face, setFace] = useState(desk.face ?? "raya");
+  const [avatarOpen, setAvatarOpen] = useState(false);
   const [savingFace, setSavingFace] = useState(false);
   const [setupErr, setSetupErr] = useState<string | null>(null);
 
@@ -301,10 +302,18 @@ export default function AgentDeskDrawer({
     <div className="drawer desk-drawer" role="dialog" aria-modal="true" aria-label={desk.name}>
       <div className="dhead">
         <span className={`st-${desk.state}`}>
-          <span className="avatar">
+          <button
+            type="button"
+            className="avatar avatar-edit-btn"
+            title="Change avatar"
+            aria-label={`Change ${desk.name}'s avatar`}
+            aria-expanded={avatarOpen}
+            onClick={() => setAvatarOpen(v => !v)}
+          >
             <CharacterFace face={face} size={44} shape="circle" />
             <span className="status-dot" />
-          </span>
+            <span className="avatar-edit-badge" aria-hidden="true">✎</span>
+          </button>
         </span>
         <div className="meta">
           <h2>{desk.name}</h2>
@@ -313,10 +322,29 @@ export default function AgentDeskDrawer({
             <span> · {desk.runtime}</span>
           </div>
         </div>
+        <button
+          type="button"
+          className={`btn sm${avatarOpen ? " primary" : ""}`}
+          aria-expanded={avatarOpen}
+          onClick={() => setAvatarOpen(v => !v)}
+        >
+          {avatarOpen ? "Done" : "Avatar"}
+        </button>
         <button type="button" className="x" onClick={onClose} aria-label="Close">
           <Px name="close" size="1em" />
         </button>
       </div>
+
+      {avatarOpen && (
+        <div className="avatar-quick-tray in-drawer">
+          <div className="desk-sect-head">
+            <span className="sect">Choose avatar for {desk.name}</span>
+            {savingFace && <span className="spinner sm" />}
+          </div>
+          {setupErr && <div className="note bad">{setupErr}</div>}
+          <CharacterPicker value={face} onChange={next => void saveFace(next)} />
+        </div>
+      )}
 
       {/* Quick Interactive Actions Strip */}
       <div className="desk-actions-bar" aria-label="Quick agent actions">

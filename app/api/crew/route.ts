@@ -6,7 +6,7 @@ import { AGENT_WHATSAPP, WA_MARKER } from "@/lib/whatsapp";
 import { FILES_MARKER } from "@/lib/knowledge";
 import { AGENT_TAIGA, TAIGA_MARKER } from "@/lib/taiga";
 import { AGENT_SHOTS, SHOTS_MARKER } from "@/lib/screenshots";
-import { saveCharacter } from "@/lib/characters";
+import { saveCharacter, memberCharacterKey } from "@/lib/characters";
 import { faceById } from "@/lib/character-presets";
 
 export const dynamic = "force-dynamic";
@@ -80,17 +80,24 @@ export async function GET(req: Request) {
   }
 }
 
-/** Switch an agent to another AI engine, or edit its profile ({ profile: { name, bio, instructions, emoji } }). */
+/** Switch an agent to another AI engine, update an agent/human avatar, or edit an agent profile. */
 export async function PATCH(req: Request) {
-  const b = (await req.json()) as { ws?: string; agentId: string; face?: string; runtimeId?: string; profile?: { name?: string; bio?: string; instructions?: string; emoji?: string | null; face?: string } };
+  const b = (await req.json()) as { ws?: string; agentId?: string; memberId?: string; face?: string; runtimeId?: string; profile?: { name?: string; bio?: string; instructions?: string; emoji?: string | null; face?: string } };
   try {
     const ws = await workspace(b.ws ?? null);
     const dir = await loadDirectory(ws.id);
-    if (!dir.agents.some(a => a.id === b.agentId)) return NextResponse.json({ error: "Agent not found." }, { status: 404 });
+    if (b.memberId) {
+      const member = dir.members.find(m => m.user_id === b.memberId || m.id === b.memberId);
+      if (!member) return NextResponse.json({ error: "Member not found." }, { status: 404 });
+      if (!b.face || !faceById(b.face)) return NextResponse.json({ error: "Unknown character." }, { status: 400 });
+      await saveCharacter(ws.id, memberCharacterKey(member.user_id), b.face);
+      return NextResponse.json({ ok: true, face: b.face, message: "Avatar saved on this computer." });
+    }
+    if (!b.agentId || !dir.agents.some(a => a.id === b.agentId)) return NextResponse.json({ error: "Agent not found." }, { status: 404 });
     if (b.face) {
       if (!faceById(b.face)) return NextResponse.json({ error: "Unknown character." }, { status: 400 });
       await saveCharacter(ws.id, b.agentId, b.face);
-      return NextResponse.json({ ok: true, message: "Character saved on this computer." });
+      return NextResponse.json({ ok: true, face: b.face, message: "Character saved on this computer." });
     }
     if (b.profile) {
       const p = b.profile;

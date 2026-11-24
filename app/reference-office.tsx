@@ -94,7 +94,7 @@ export default function ReferenceOffice({
   onDone,
 }: {
   desks: Desk[];
-  humans: { id: string; name: string }[];
+  humans: { id: string; name: string; face?: string | null }[];
   ownerId: string | null;
   officeOpen: boolean;
   lunch: boolean;
@@ -667,7 +667,10 @@ export default function ReferenceOffice({
       });
       const allFaceIds = ['yusuf', 'reno', 'mira', 'danu', 'lia', 'tari', 'raya', 'niko', 'sari', 'bima', 'ardi', 'nala'];
       const humanPool = [...allFaceIds.filter(id => !usedAgentFaces.has(id)), ...allFaceIds.filter(id => usedAgentFaces.has(id))];
-      visibleHumans.forEach((h, i) => { const actor = s.get(`person:${h.id}`); if (actor) actor.retinaFaceId = humanPool[i % humanPool.length]; });
+      visibleHumans.forEach((h, i) => {
+        const actor = s.get(`person:${h.id}`);
+        if (actor) actor.retinaFaceId = h.face || humanPool[i % humanPool.length];
+      });
       const params = new URLSearchParams(window.location.search);
       const retinaEnabled = params.get('retina') !== '0';
       const debugSeat = params.get('retinaSeat');
@@ -830,6 +833,31 @@ export default function ReferenceOffice({
     // Rebuild only when seats or appearances change, not on polling updates.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [identity, humanIdentity]);
+
+  // Instant zero-rebuild floor sprite swap whenever any human member or agent changes avatar!
+  const faceSignature = shown.map(d => `${d.agentId}:${d.face ?? ''}`).join('|')
+    + '||' + visibleHumans.map(h => `${h.id}:${h.face ?? ''}`).join('|');
+  useEffect(() => {
+    const s = scene.current;
+    if (!s) return;
+    let changed = false;
+    shown.forEach(d => {
+      const actor = s.get(d.agentId);
+      if (actor && d.face && actor.retinaFaceId !== d.face) {
+        actor.retinaFaceId = d.face;
+        changed = true;
+      }
+    });
+    visibleHumans.forEach(h => {
+      const actor = s.get(`person:${h.id}`);
+      if (actor && h.face && actor.retinaFaceId !== h.face) {
+        actor.retinaFaceId = h.face;
+        changed = true;
+      }
+    });
+    if (changed && typeof s.draw === 'function') s.draw();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [faceSignature, sceneReady]);
 
   // Live Harvest Moon / Studio Campus theme & time-of-day lighting switcher (zero scene rebuild)
   useEffect(() => {

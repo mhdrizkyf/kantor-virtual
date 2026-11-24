@@ -8056,3 +8056,65 @@ main.pagewide > * {
   line-height: 1.35;
   color: var(--ink-muted);
 }
+
+/* ==========================================================================
+   Interactive Avatar Picker Trigger & Inline Tray (Humans & Agents)
+   ========================================================================== */
+
+.avatar-edit-btn {
+  position: relative;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  transition: transform 140ms ease-out;
+}
+
+.avatar-edit-btn:hover {
+  transform: scale(1.05);
+}
+
+.avatar-edit-btn:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.avatar-edit-badge {
+  position: absolute;
+  right: -2px;
+  top: -2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  line-height: 18px;
+  text-align: center;
+  border: 1.5px solid var(--panel);
+  box-shadow: var(--shadow-sm);
+  opacity: 0.92;
+  transition: transform 140ms ease-out, opacity 140ms ease-out;
+}
+
+.avatar-edit-btn:hover .avatar-edit-badge {
+  transform: scale(1.12);
+  opacity: 1;
+}
+
+.avatar-quick-tray {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--sunk);
+  border: 1px solid var(--line);
+}
+
+.avatar-quick-tray.in-drawer {
+  margin: 0 18px 10px;
+}
+
+.mate-avatar-tray {
+  margin: 4px 0 6px;
+}

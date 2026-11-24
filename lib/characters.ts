@@ -6,6 +6,7 @@ import { withProcessLock } from "./process-lock";
 
 const FILE = join(process.cwd(), "data", "characters.json");
 type Store = Record<string, Record<string, string>>;
+export const memberCharacterKey = (memberId: string) => `member:${memberId}`;
 export function readCharacters(ws: string): Record<string, string> {
   try { return (JSON.parse(readFileSync(FILE, "utf8")) as Store)[ws] ?? {}; }
   catch (e) { if ((e as NodeJS.ErrnoException).code === "ENOENT") return {}; throw e; }

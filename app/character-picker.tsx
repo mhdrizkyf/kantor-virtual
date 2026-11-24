@@ -18,7 +18,7 @@ export default function CharacterPicker({ value, onChange }: { value: string; on
         </span>
         <button type="button" className="btn sm" onClick={next}>Shuffle</button>
       </div>
-      <div className="character-grid" role="group" aria-label="Choose agent character">
+      <div className="character-grid" role="group" aria-label="Choose character avatar">
         {FACES.map(f => (
           <button
             type="button"

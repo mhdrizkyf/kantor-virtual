@@ -10,6 +10,7 @@ import OfficeSwitch from "./office-switch";
 import ChatPanel, { MANAGER, isManager } from "./chat-panel";
 import { Px, PxText, type PxName } from "./pixel-icon";
 import CharacterFace from "./character-face";
+import CharacterPicker from "./character-picker";
 import { useHandoverDetector, type Handover } from "./handover";
 import NewProject from "./new-project";
 import { useVisiblePoll } from "./visible-poll";
@@ -91,6 +92,41 @@ export default function OfficeView({ office, buildings, attention, people, seen,
   const setOpenTask = (id: string | null, ws: string = office.workspaceId) => setOpenTaskRaw(id ? { id, ws } : null);
   const [chatWith, setChatWith] = useState<Desk | null>(null);
   const [openHuman, setOpenHuman] = useState<string | null>(null);
+  const [memberFacePatches, setMemberFacePatches] = useState<Record<string, string>>({});
+  const [humanAvatarOpen, setHumanAvatarOpen] = useState(false);
+  const [savingHumanFace, setSavingHumanFace] = useState(false);
+  const [humanFaceErr, setHumanFaceErr] = useState<string | null>(null);
+  const patchedMembers = useMemo(
+    () => office.members.map(m => (memberFacePatches[m.id] ? { ...m, face: memberFacePatches[m.id] } : m)),
+    [office.members, memberFacePatches]
+  );
+  const activeHumanMember = useMemo(
+    () => (openHuman ? patchedMembers.find(m => m.name === openHuman) ?? null : null),
+    [openHuman, patchedMembers]
+  );
+  async function saveHumanFace(member: { id: string; name: string; face: string | null }, nextFace: string) {
+    const prev = member.face;
+    setMemberFacePatches(cur => ({ ...cur, [member.id]: nextFace }));
+    setSavingHumanFace(true);
+    setHumanFaceErr(null);
+    try {
+      const res = await fetch("/api/crew", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ws: office.workspaceId, memberId: member.id, face: nextFace }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || "Could not save avatar.");
+      setToast(`${member.name}'s avatar updated.`);
+      refresh();
+    } catch (e) {
+      if (prev) setMemberFacePatches(cur => ({ ...cur, [member.id]: prev }));
+      else setMemberFacePatches(cur => { const next = { ...cur }; delete next[member.id]; return next; });
+      setHumanFaceErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSavingHumanFace(false);
+    }
+  }
   const [draft, setDraft] = useState("");
   const [person, setPerson] = useState<string>("All");
   const [toast, setToast] = useState<string | null>(null);
@@ -169,15 +205,12 @@ export default function OfficeView({ office, buildings, attention, people, seen,
 
   useVisiblePoll(refresh, REFRESH_MS);
   const allDesks = useMemo(() => [...office.rooms.flatMap(r => r.desks), ...office.idleDesks], [office.rooms, office.idleDesks]);
-  const uniqueDesks = useMemo(() => [...new Map(allDesks.map(d => [d.agentId, d])).values()], [allDesks]);
-  useEffect(() => { setDeskPatches({}); }, [office]);
+  const uniqueDesks = useMemo(() => [...new Map(allDesks.map(d => [d.agentId, d])).values()].map(d => (deskPatches[d.agentId] ? { ...d, ...deskPatches[d.agentId] } : d)), [allDesks, deskPatches]);
+  useEffect(() => { setDeskPatches({}); setMemberFacePatches({}); }, [office]);
   const openDesk = useMemo(() => {
     if (!openDeskId) return null;
-    const base = uniqueDesks.find(d => d.agentId === openDeskId);
-    if (!base) return null;
-    const patch = deskPatches[openDeskId];
-    return patch ? { ...base, ...patch } : base;
-  }, [openDeskId, uniqueDesks, deskPatches]);
+    return uniqueDesks.find(d => d.agentId === openDeskId) ?? null;
+  }, [openDeskId, uniqueDesks]);
   const openAgentDrawer = useCallback((agentId: string, tab: DeskDrawerTab = "tasks", nextDraft = "") => {
     setOpenHuman(null);
     setDeskTab(tab);
@@ -632,8 +665,8 @@ export default function OfficeView({ office, buildings, attention, people, seen,
 
           <ReferenceOffice
             desks={roomId.startsWith("squad:") ? visibleRooms.flatMap(r => r.desks) : uniqueDesks}
-            humans={office.members}
-            ownerId={office.members.find(m => m.id === meId)?.id ?? office.members[0]?.id ?? null}
+            humans={patchedMembers}
+            ownerId={patchedMembers.find(m => m.id === meId)?.id ?? patchedMembers[0]?.id ?? null}
             officeOpen={office.switchOpen}
             lunch={lunchHour}
             previewWorking={previewStep === 1}
@@ -644,7 +677,7 @@ export default function OfficeView({ office, buildings, attention, people, seen,
             floorTheme={floorTheme}
             harvestPhase={harvestPhase}
             onDesk={d => openAgentDrawer(d.agentId, "tasks")}
-            onHuman={name => { setOpenHuman(name); setOpenDeskId(null); }}
+            onHuman={name => { setOpenHuman(name); setHumanAvatarOpen(false); setHumanFaceErr(null); setOpenDeskId(null); }}
             onMeeting={focusId => openStandup(focusId)}
             onPropClick={handlePropClick}
             onDropAgent={handleDropAgent}
@@ -873,11 +906,47 @@ export default function OfficeView({ office, buildings, attention, people, seen,
       {openHuman && !openTask && !chatWith && (
         <div className="drawer" role="dialog" aria-modal="true" aria-label={`${openHuman}'s desk`}>
           <div className="dhead">
-            <span className="avatar">{openHuman.slice(0, 1).toUpperCase()}</span>
-            <div className="meta"><h2>{openHuman}&apos;s desk</h2><div className="role">{office.workspace}</div></div>
+            <button
+              type="button"
+              className="avatar avatar-edit-btn"
+              title="Change avatar"
+              aria-label={`Change ${openHuman}'s avatar`}
+              aria-expanded={humanAvatarOpen}
+              onClick={() => setHumanAvatarOpen(v => !v)}
+            >
+              <CharacterFace face={activeHumanMember?.face ?? null} size={44} shape="circle" />
+              <span className="avatar-edit-badge" aria-hidden="true">✎</span>
+            </button>
+            <div className="meta">
+              <h2>{openHuman}&apos;s desk</h2>
+              <div className="role">{office.workspace}{activeHumanMember?.id === (patchedMembers.find(m => m.id === meId)?.id ?? patchedMembers[0]?.id) ? " · Founder / Owner" : " · Human member"}</div>
+            </div>
+            {activeHumanMember && (
+              <button
+                type="button"
+                className={`btn sm${humanAvatarOpen ? " primary" : ""}`}
+                aria-expanded={humanAvatarOpen}
+                onClick={() => setHumanAvatarOpen(v => !v)}
+              >
+                {humanAvatarOpen ? "Done" : "Avatar"}
+              </button>
+            )}
             <button className="x" onClick={closeAll} aria-label="Close"><Px name="close" size="1em" /></button>
           </div>
           <div className="dbody">
+            {humanAvatarOpen && activeHumanMember && (
+              <div className="avatar-quick-tray">
+                <div className="desk-sect-head">
+                  <span className="sect">Choose avatar for {activeHumanMember.name}</span>
+                  {savingHumanFace && <span className="spinner sm" />}
+                </div>
+                {humanFaceErr && <div className="note bad">{humanFaceErr}</div>}
+                <CharacterPicker
+                  value={activeHumanMember.face ?? "yusuf"}
+                  onChange={next => void saveHumanFace(activeHumanMember, next)}
+                />
+              </div>
+            )}
             <div>
               <div className="sect"><Px name="eyes" /> To review ({a.review.length})</div>
               <div className="tasks">{a.review.length ? a.review.map(t => <TaskRow key={t.id} t={t} showWho onOpen={id => setOpenTask(id, t.ws)} />) : <p className="desc">Nothing waiting for review ☕</p>}</div>
@@ -905,7 +974,7 @@ export default function OfficeView({ office, buildings, attention, people, seen,
         </button>
       )}
       {newProject && <NewProject ws={office.workspaceId}
-        people={[...office.members.map(m => ({ kind: "member" as const, id: m.id, name: m.name, emoji: null, face: null })), ...[...new Map(allDesks.map(d => [d.agentId, d])).values()].map(d => ({ kind: "agent" as const, id: d.agentId, name: d.name, emoji: d.emoji, face: d.face }))]}
+        people={[...patchedMembers.map(m => ({ kind: "member" as const, id: m.id, name: m.name, emoji: null, face: m.face })), ...[...new Map(allDesks.map(d => [d.agentId, d])).values()].map(d => ({ kind: "agent" as const, id: d.agentId, name: d.name, emoji: d.emoji, face: d.face }))]}
         onDone={id => { setNewProject(false); if (id) { setCreatedProjectId(id); setToast("Project created and synced with Multica."); refresh(); } }} />}
       {standupOpen && (
         <StandupModal
