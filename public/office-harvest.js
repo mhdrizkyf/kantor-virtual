@@ -12,7 +12,7 @@
   if (!O) return;
 
   var ASSET_BASE = '/art/stardew-v1/';
-  var ASSET_VER = '?v=12';
+  var ASSET_VER = '?v=13';
   var ASSETS = {
     bg: { uri: ASSET_BASE + 'farmhouse-bg@2x.png', w: 768, h: 448 },
     meadow: { uri: ASSET_BASE + 'meadow-tile@2x.png', w: 96, h: 96 },
@@ -232,7 +232,7 @@
       '101101111001001', '111100111001111', '111100111101111', '111001001001001',
       '111101111101111', '111101111001111',
     ];
-    var x = 29 * T + 5;
+    var x = 22 * T + 2;
     var y = 2 * T + 3;
     g.fillStyle = '#2c1d18';
     g.fillRect(x, y, 27, 11);
@@ -292,12 +292,12 @@
       // Warm orange firelight cast onto Persian rug
       drawWarmGlow(g, fx + 10, fy + 6, 28, 'rgba(255, 162, 68, ' + (0.24 * flicker).toFixed(2) + ')');
 
-      // 3. Softly rising steam wisps (Modern Kitchen induction kettle, Kitchen pantry brewer, & Dedicated Coffee Machine Bar!)
+      // 3. Softly rising steam wisps (Modern Kitchen induction kettle, Kitchen pantry brewer, & SE Studio Espresso Bar!)
       var steamSpots = [
         [4 * T + 5, 3 * T + 5],
         [9 * T + 8, 4 * T + 10],
-        [34 * T + 13, 3 * T + 6],
-        [35 * T + 3, 3 * T + 6],
+        [31 * T + 4, 18 * T + 6],
+        [31 * T + 12, 18 * T + 6],
       ];
       for (var s = 0; s < steamSpots.length; s++) {
         var sp = steamSpots[s];
@@ -360,7 +360,7 @@
     var critters = [
       { id: 'hen-north', kind: 'chicken', asset: 'chickenWhite', x: 13 * T, y: 0.9 * T, minX: 9.2 * T, maxX: 19.5 * T, minY: 0.45 * T, maxY: 1.25 * T, dir: 1, speed: 12, mode: 'walk', timer: 2.2, emote: '', emoteT: 0, jumpT: 0, seed: 1.1 },
       { id: 'hen-south', kind: 'chicken', asset: 'chickenBrown', x: 32 * T, y: 25.15 * T, minX: 27 * T, maxX: 35.4 * T, minY: 24.9 * T, maxY: 25.45 * T, dir: -1, speed: 11, mode: 'peck', timer: 1.8, emote: '', emoteT: 0, jumpT: 0, seed: 2.7 },
-      { id: 'cat-indoor', kind: 'cat', asset: 'catGinger', x: 21.5 * T, y: 22.4 * T, minX: 18.2 * T, maxX: 26.2 * T, minY: 20.6 * T, maxY: 23.1 * T, dir: 1, speed: 14, mode: 'nap', timer: 5.5, emote: '', emoteT: 0, jumpT: 0, seed: 3.4 },
+      { id: 'cat-indoor', kind: 'cat', asset: 'catGinger', x: 23.4 * T, y: 21.8 * T, minX: 21.4 * T, maxX: 26.0 * T, minY: 20.6 * T, maxY: 22.8 * T, dir: 1, speed: 14, mode: 'nap', timer: 5.5, emote: '', emoteT: 0, jumpT: 0, seed: 3.4 },
       { id: 'cat-porch', kind: 'cat', asset: 'catTuxedo', x: 15.2 * T, y: 25.1 * T, minX: 9.5 * T, maxX: 19.2 * T, minY: 24.85 * T, maxY: 25.4 * T, dir: 1, speed: 13, mode: 'walk', timer: 3.2, emote: '', emoteT: 0, jumpT: 0, seed: 4.8 },
       { id: 'rabbit-ne', kind: 'rabbit', asset: 'rabbitWhite', x: 31 * T, y: 0.95 * T, minX: 27 * T, maxX: 35.8 * T, minY: 0.45 * T, maxY: 1.25 * T, dir: -1, speed: 18, mode: 'walk', timer: 1.9, emote: '', emoteT: 0, jumpT: 0, seed: 5.3 },
       { id: 'rabbit-sw', kind: 'rabbit', asset: 'rabbitCinnamon', x: 6.2 * T, y: 25.1 * T, minX: 1.8 * T, maxX: 9.0 * T, minY: 24.85 * T, maxY: 25.45 * T, dir: 1, speed: 17, mode: 'idle', timer: 1.6, emote: '', emoteT: 0, jumpT: 0, seed: 6.2 },
