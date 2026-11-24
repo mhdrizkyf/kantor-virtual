@@ -1055,63 +1055,64 @@ function generateFarmhouseBackground(laneCanvas) {
   c.rect(25 * S + 17, 25 * S + 4, 3, 6, hex("#d9443e")); // red mail flag!
 
   // STEP G: Paint EVERY Interior Prop in OFFICE_PLAN!
-  // 1) FOUNDER / CEO EXECUTIVE SUITE (x=2..9, y=17..23) — Authoritative Executive Suite (ZERO bedroom feel!)
-  // A) Deep Midnight-Navy & Champagne-Gold Executive Carpet centered under CEO Desk (x=6, y=19) & VIP Guest Chairs!
-  const erX = 4 * S + 8, erY = 18 * S + 8, erW = 5 * S - 6, erH = 4 * S + 14;
+  // 1) FOUNDER / CEO EXECUTIVE SUITE (x=2..9, y=17..23) — Airy, Uncluttered & Pixel-Centered on CEO Desk (ceoCx = 228)!
+  const ceoCx = 6 * S + 36; // Exact visual center X of deskCeo (x=6, width 72px -> 192..264, center = 228)!
+  // A) Deep Midnight-Navy & Champagne-Gold Executive Carpet DEAD-CENTERED under CEO Desk & VIP Guest Chairs!
+  const erW = 148, erH = 146;
+  const erX = ceoCx - Math.floor(erW / 2), erY = 18 * S + 10; // 154..302 x 586..732
   c.rect(erX + 2, erY + 3, erW, erH, SHADOW);
   c.box(erX, erY, erW, erH, hex("#1f2d3d"), hex("#121a24"), 2);
   c.box(erX + 5, erY + 5, erW - 10, erH - 10, hex("#27384c"), hex("#d4af62"), 2);
   c.box(erX + 11, erY + 11, erW - 22, erH - 22, hex("#2d4057"), hex("#475f7a"), 1);
-  // Subtle woven executive diamond weave highlights
   for (let ry = erY + 18; ry < erY + erH - 18; ry += 16) {
     for (let rx = erX + 18; rx < erX + erW - 18; rx += 20) {
       c.rect(rx, ry, 2, 2, hex("#4c6785", 130));
     }
   }
 
-  // B) Commanding North Backdrop Wall: NW Executive Bookcase + Wide Walnut Credenza + Gold-Framed Art Triptych!
-  // Tall Executive Walnut Bookshelf in NW corner (x=2..3, y=17)
-  c.blit(SHEETS.cabinets, 32, 0, 32, 64, 2 * S + 2, 16 * S + 12, { dw: 30, dh: 54, grade: GRADE.stardewWalnut });
-  c.blit(SHEETS.cabinets, 64, 0, 32, 64, 3 * S, 16 * S + 12, { dw: 30, dh: 54, grade: GRADE.stardewWalnut });
-  // Wide Mid-Century Espresso-Walnut Executive Credenza behind CEO chair (x=4..8, y=17)
-  const crX = 4 * S + 8, crY = 17 * S + 2, crW = 4 * S + 14, crH = 24;
+  // B) Commanding North Backdrop Wall (NO cramped NW bookcase!) — Credenza & Triptych DEAD-CENTERED on ceoCx!
+  const crW = 132, crH = 22;
+  const crX = ceoCx - Math.floor(crW / 2), crY = 17 * S + 2; // 162..294 — aligned straight behind Founder!
   c.rect(crX + 2, crY + 4, crW, crH, SHADOW);
   c.box(crX, crY, crW, crH, hex("#4f311e"), INK, 2);
-  c.rect(crX + 2, crY + 2, crW - 4, 7, hex("#754b30")); // polished dark walnut top
-  for (let dx = crX + 8; dx < crX + crW - 16; dx += 32) {
-    c.box(dx, crY + 11, 26, 10, hex("#3e2516"), hex("#26160d"), 1);
-    c.rect(dx + 9, crY + 14, 8, 2, hex("#e5bc62")); // brushed brass pulls
+  c.rect(crX + 2, crY + 2, crW - 4, 6, hex("#754b30"));
+  for (let i = 0; i < 4; i++) {
+    const dx = crX + 6 + i * 31;
+    c.box(dx, crY + 10, 27, 9, hex("#3e2516"), hex("#26160d"), 1);
+    c.rect(dx + 9, crY + 13, 9, 2, hex("#e5bc62")); // brushed brass pulls
   }
-  // Golden Founder Award Trophy, strategy books & brass banker's lamp on credenza!
-  c.rect(crX + 14, crY - 7, 8, 7, hex("#f0c44d")); // golden trophy cup!
-  c.rect(crX + 16, crY - 1, 4, 3, hex("#b38424"));
-  c.box(crX + 30, crY - 4, 16, 7, hex("#2c5e63"), INK, 1); // hardcover strategy books
-  c.box(crX + crW - 30, crY - 6, 14, 9, hex("#3d825a"), INK, 1); // classic emerald banker's lamp shade!
-  c.rect(crX + crW - 26, crY + 3, 6, 2, hex("#f7de8a")); // warm brass glow
-  // Executive 3-Panel Gold-Framed Modern Art Triptych mounted on solid North Wall (y=16) right behind CEO!
-  for (const [ax, bg, fg] of [
-    [4 * S + 22, "#243647", "#d9a95b"],
-    [5 * S + 26, "#1f2e3d", "#6aa899"],
-    [6 * S + 30, "#243647", "#d97a54"],
+  // Golden Founder Award Trophy, strategy books & classic emerald banker's lamp on credenza!
+  c.rect(crX + 12, crY - 7, 8, 7, hex("#f0c44d"));
+  c.rect(crX + 14, crY - 1, 4, 3, hex("#b38424"));
+  c.box(crX + 26, crY - 4, 16, 6, hex("#2c5e63"), INK, 1);
+  c.box(crX + crW - 26, crY - 6, 14, 8, hex("#3d825a"), INK, 1); // emerald banker's lamp
+  c.rect(crX + crW - 22, crY + 2, 6, 2, hex("#f7de8a"));
+
+  // Executive 3-Panel Gold-Framed Modern Art Triptych DEAD-CENTERED on ceoCx (y=16)!
+  for (const [offset, bg, fg] of [
+    [-50, "#243647", "#d9a95b"],
+    [-14, "#1f2e3d", "#6aa899"],
+    [22, "#243647", "#d97a54"],
   ]) {
-    c.box(ax, 16 * S + 6, 26, 18, hex(bg), hex("#d4af62"), 2);
-    c.rect(ax + 5, 16 * S + 11, 16, 4, hex(fg));
-    c.circle(ax + 13, 16 * S + 17, 3, hex("#f5e8c8"));
+    const ax = ceoCx + offset;
+    c.box(ax, 16 * S + 6, 28, 18, hex(bg), hex("#d4af62"), 2);
+    c.rect(ax + 5, 16 * S + 11, 18, 4, hex(fg));
+    c.circle(ax + 14, 16 * S + 17, 3, hex("#f5e8c8"));
   }
 
-  // C) Two Sleek Cognac-Leather VIP Guest Chairs facing the CEO Desk (positioned south of review spots y=21.3)
-  for (const gx of [5 * S + 14, 7 * S + 4]) {
-    const gy = 21 * S + 10;
+  // C) Two Sleek Cognac-Leather VIP Guest Chairs SYMMETRICALLY aligned with the CEO Desk on ceoCx!
+  for (const gx of [ceoCx - 38, ceoCx + 10]) {
+    const gy = 21 * S + 14;
     c.rect(gx + 2, gy + 5, 28, 22, SHADOW);
-    c.borderedRoundRect(gx, gy, 28, 22, 5, hex("#9c562c"), INK, 2); // cognac leather seat
-    c.rect(gx + 4, gy + 3, 20, 9, hex("#bd7140")); // sunlit cushion
-    c.box(gx, gy + 15, 28, 7, hex("#783e1c"), INK, 2); // leather backrest facing north!
-    c.rect(gx + 3, gy + 17, 22, 2, hex("#d4935c")); // brass trim highlight
+    c.borderedRoundRect(gx, gy, 28, 22, 5, hex("#9c562c"), INK, 2);
+    c.rect(gx + 4, gy + 3, 20, 9, hex("#bd7140"));
+    c.box(gx, gy + 15, 28, 7, hex("#783e1c"), INK, 2);
+    c.rect(gx + 3, gy + 17, 22, 2, hex("#d4935c"));
   }
 
   // D) Tall Executive Potted Fiddle-Leaf Fig in Matte-Black & Brass Planter (SE corner x=9, y=23)
   c.circle(9 * S + 16, 23 * S + 18, 10, hex("#262b33"));
-  c.ring(9 * S + 16, 23 * S + 18, 10, 8, hex("#d4af62")); // brass rim!
+  c.ring(9 * S + 16, 23 * S + 18, 10, 8, hex("#d4af62"));
   c.circle(9 * S + 11, 23 * S + 10, 7, hex("#2f6e3a"));
   c.circle(9 * S + 21, 23 * S + 11, 7, hex("#438f4c"));
   c.circle(9 * S + 16, 23 * S + 6, 6, hex("#62b360"));
@@ -1393,37 +1394,36 @@ function generateFarmhouseBackground(laneCanvas) {
       c.rect(9 * S + 18, 15 * S + 3, 3, 15, hex("#5cb062"));
       c.rect(9 * S + 22, 15 * S + 7, 3, 11, hex("#3c7d44"));
     } else if (p.k === "bed") {
-      // FOUNDER / CEO VIP COGNAC-LEATHER CHESTERFIELD SOFA & MARBLE COFFEE CORNER (x=2..3, y=19..22 — ZERO BED!)
-      // 1) Sleek Dark-Marble Round Side Table + Warm Brass Executive Floor Lamp at NW of sofa (x=2, y=18.4)
-      c.circle(px + 20, py - 10, 12, INK);
-      c.circle(px + 20, py - 10, 10, hex("#2b323b")); // black Nero Marquina marble
-      c.line(px + 14, py - 14, px + 24, py - 6, 1, hex("#7d8794", 130)); // subtle marble vein
-      c.circle(px + 20, py - 10, 5, hex("#e8be5a")); // warm brass floor lamp dome
-      c.circle(px + 20, py - 10, 2, hex("#fffbe0"));
-      // 2) Plush Cognac-Leather Chesterfield Sofa facing EAST into the CEO suite!
-      const sx = px + 4, sy = py + 8, sw = 38, sh = ph - 16;
+      // FOUNDER / CEO AIRY WEST VIP LOUNGE CORNER (x=2..3.8, y=17.5..22.5 — clean, spacious, zero bookcase clutter!)
+      // 1) Warm Sculptural Brass Executive Floor Lamp in the open NW corner (x=2.5, y=17.6)
+      c.circle(px + 22, 17 * S + 22, 10, SHADOW_SOFT);
+      c.circle(px + 20, 17 * S + 20, 9, hex("#262b33")); // matte-black base
+      c.circle(px + 20, 17 * S + 20, 7, hex("#d4aa52")); // warm brass lamp dome
+      c.circle(px + 20, 17 * S + 20, 3.5, hex("#fff4c4"));
+
+      // 2) Refined 2-Seater Cognac-Leather Executive Sofa flush cleanly against West Wall (centered vertically on Navy Rug!)
+      const sx = px + 4, sy = py + 10, sw = 34, sh = 92; // 68..102 x 618..710
       c.rect(sx + 3, sy + 5, sw, sh, SHADOW);
       c.borderedRoundRect(sx, sy, sw, sh, 5, hex("#9c562c"), INK, 2);
-      // Tufted leather backrest along west wall + rolled armrests north & south
-      c.box(sx, sy, 13, sh, hex("#783e1c"), INK, 2);
-      c.box(sx, sy, sw - 2, 12, hex("#824420"), INK, 2);
-      c.box(sx, sy + sh - 12, sw - 2, 12, hex("#824420"), INK, 2);
-      // 3 Plump stitched cognac leather seat cushions
-      for (let ci = 0; ci < 3; ci++) {
-        const cy = sy + 13 + ci * 28;
-        c.box(sx + 13, cy, sw - 15, 26, hex("#ab6235"), hex("#633115"), 1);
-        c.rect(sx + 16, cy + 3, sw - 22, 6, hex("#c97d49")); // rich leather sheen!
-        c.rect(sx + 6, cy + 12, 2, 2, hex("#d9b15f")); // Chesterfield brass tuft button
+      c.box(sx, sy, 11, sh, hex("#783e1c"), INK, 2); // tufted backrest along West wall
+      c.box(sx, sy, sw - 2, 10, hex("#824420"), INK, 2); // top armrest
+      c.box(sx, sy + sh - 10, sw - 2, 10, hex("#824420"), INK, 2); // bottom armrest
+      for (let ci = 0; ci < 2; ci++) {
+        const cy = sy + 11 + ci * 36;
+        c.box(sx + 11, cy, sw - 13, 34, hex("#ab6235"), hex("#633115"), 1);
+        c.rect(sx + 14, cy + 4, sw - 19, 7, hex("#c97d49"));
+        c.rect(sx + 5, cy + 16, 2, 2, hex("#d9b15f")); // Chesterfield brass tuft
       }
-      // 3) Low Smoked-Glass & Walnut VIP Coffee Table right beside the sofa with espresso & pitch deck!
-      const tx = px + 46, ty = py + 32, tw = 22, th = 62;
+
+      // 3) Slim Smoked-Glass & Walnut Coffee Table cleanly spaced between Sofa & Navy Rug (22px clear aisle!)
+      const tx = px + 46, ty = py + 28, tw = 20, th = 56; // 110..130 (24px clear left of Navy Rug at 154!)
       c.rect(tx + 2, ty + 4, tw, th, SHADOW_SOFT);
       c.borderedRoundRect(tx, ty, tw, th, 4, hex("#4f311e"), INK, 2);
-      c.rect(tx + 3, ty + 3, tw - 6, th - 6, hex("#303e4d")); // smoked glass tabletop
-      c.line(tx + 5, ty + 8, tx + 15, ty + 20, 2, hex("#8cb4d6", 80));
-      c.box(tx + 5, ty + 24, 12, 15, hex("#f7f2e8"), hex("#5e4a38"), 1); // investor pitch deck
-      c.circle(tx + 11, ty + 48, 4, hex("#ffffff")); // espresso cup
-      c.circle(tx + 11, ty + 48, 2, hex("#4a2915"));
+      c.rect(tx + 3, ty + 3, tw - 6, th - 6, hex("#303e4d"));
+      c.line(tx + 5, ty + 8, tx + 14, ty + 18, 2, hex("#8cb4d6", 80));
+      c.box(tx + 5, ty + 20, 10, 14, hex("#f7f2e8"), hex("#5e4a38"), 1); // investor pitch deck
+      c.circle(tx + 10, ty + 43, 3.5, hex("#ffffff")); // espresso cup
+      c.circle(tx + 10, ty + 43, 1.8, hex("#4a2915"));
     } else if (p.k === "lounge") {
       // IMAGE 5: Harmonious Cozy Studio Breakout Lounge (x=11..20, y=18..23 -> 352..672 x 576..768)
       // Every seating piece sits cleanly INSIDE the woven terracotta lounge rug, hearth flush on West wall, zero overhang!
@@ -1635,88 +1635,120 @@ function generateFarmhouseBackground(laneCanvas) {
       c.line(sx + 10, sy + 20, sx + 22, sy + 36, 2, hex("#ffffff", 45));
       c.rect(sx + sw - 9, sy + 42, 2, 14, hex("#d9b15f"));
     } else if (p.k === "coffee") {
-      // SOUTH-EAST STUDIO ESPRESSO BAR & CAFÉ NOOK (x=27..36, y=18..23 — mirrors Breakout Lounge across the grand foyer!)
-      // 1) Warm Woven Sage-Oatmeal Café Area Rug aligned pixel-for-pixel with the Breakout Lounge rug (y=18.75..23.5)!
-      const crX = 27 * S + 16, crY = 18 * S + 20, crW = 9 * S + 16, crH = 5 * S - 6;
+      // IMAGE 1: Boutique Specialty Espresso Bar & Café Corner (x=27..36, y=18..23 — mirrors Breakout Lounge across foyer!)
+      // 1) Warm Woven Sage-Oatmeal Café Area Rug with subtle woven dots aligned with Breakout Lounge rug!
+      const crX = 27 * S + 16, crY = 18 * S + 20, crW = 9 * S + 16, crH = 5 * S - 6; // 880..1184 x 596..750
+      const cafeCx = crX + Math.floor(crW / 2); // exact horizontal center = 1032!
       c.rect(crX + 2, crY + 3, crW, crH, SHADOW_SOFT);
-      c.borderedRoundRect(crX, crY, crW, crH, 6, hex("#ced7cc", 215), hex("#657a68", 220), 2);
-      c.box(crX + 6, crY + 6, crW - 12, crH - 12, hex("#e3e9e0", 205), hex("#a1b5a2", 200), 1);
-
-      // 2) Hero Commercial Espresso & Coffee Machine Bar Credenza (centered along north edge of café nook: x=30..34, y=18..19)
-      const bx = px + 8, by = py + 4, bw = pw - 16, bh = 48; // 144x48px walnut & marble bar!
-      c.rect(bx + 3, by + 6, bw, bh, SHADOW);
-      c.borderedRoundRect(bx, by + 2, bw, bh, 4, hex("#7d4e2d"), INK, 2); // fluted walnut bar body
-      for (let fx = bx + 8; fx < bx + bw - 16; fx += 26) {
-        c.box(fx, by + 30, 22, 16, hex("#683e22"), hex("#472915"), 1);
-        c.rect(fx + 7, by + 33, 8, 2, hex("#e3b95d"));
+      c.borderedRoundRect(crX, crY, crW, crH, 6, hex("#ced7cc", 220), hex("#657a68", 225), 2);
+      c.box(crX + 6, crY + 6, crW - 12, crH - 12, hex("#e3e9e0", 215), hex("#a1b5a2", 205), 1);
+      for (let wy = crY + 18; wy < crY + crH - 14; wy += 16) {
+        for (let wx = crX + 18; wx < crX + crW - 14; wx += 18) {
+          c.rect(wx, wy, 2, 2, hex("#b8c7b6", 140));
+        }
       }
-      // Crisp Carrara marble countertop slab
-      c.box(bx, by, bw, 28, hex("#f7f5f0"), INK, 2);
+
+      // 2) Hero Specialty Coffee Machine Bar Counter centered on cafeCx (160x46px) with fluted walnut & Carrara marble!
+      const bw = 160, bh = 46;
+      const bx = cafeCx - Math.floor(bw / 2), by = py + 4; // 952..1112 x 580..626
+      c.rect(bx + 3, by + 6, bw, bh, SHADOW);
+      c.borderedRoundRect(bx, by + 2, bw, bh, 4, hex("#7d4e2d"), INK, 2);
+      for (let fx = bx + 8; fx < bx + bw - 18; fx += 29) {
+        c.box(fx, by + 29, 25, 15, hex("#683e22"), hex("#472915"), 1);
+        c.rect(fx + 8, by + 32, 9, 2, hex("#e3b95d"));
+      }
+      // Crisp white Carrara marble countertop slab with subtle front oak bar lip
+      c.box(bx, by, bw, 27, hex("#f7f5f0"), INK, 2);
       c.rect(bx + 2, by + 2, bw - 4, 4, hex("#ffffff"));
 
       // Commercial Dual-Group Espresso Machine (left-center of bar!)
       const ex = bx + 14;
-      c.box(ex, by - 2, 40, 26, hex("#262b33"), INK, 2);
-      c.rect(ex + 3, by, 34, 7, hex("#cfd6de")); // brushed chrome cup-warmer tray
+      c.box(ex, by - 2, 42, 25, hex("#262b33"), INK, 2);
+      c.rect(ex + 3, by, 36, 7, hex("#cfd6de"));
       c.rect(ex + 6, by + 1, 6, 5, hex("#faf7f0"));
       c.rect(ex + 14, by + 1, 6, 5, hex("#faf7f0"));
-      c.rect(ex + 4, by + 9, 32, 8, hex("#9aa5b1")); // dual grouphead face
+      c.rect(ex + 4, by + 9, 34, 8, hex("#9aa5b1"));
       c.rect(ex + 8, by + 11, 8, 4, hex("#2b313a"));
-      c.rect(ex + 23, by + 11, 8, 4, hex("#2b313a"));
+      c.rect(ex + 24, by + 11, 8, 4, hex("#2b313a"));
       c.rect(ex + 10, by + 15, 4, 3, hex("#d49e52")); // brass portafilters!
-      c.rect(ex + 25, by + 15, 4, 3, hex("#d49e52"));
-      c.rect(ex + 3, by + 18, 34, 5, hex("#cfd6de"));
-      c.rect(ex + 9, by + 18, 6, 4, hex("#ffffff")); // fresh espresso cups
-      c.rect(ex + 24, by + 18, 6, 4, hex("#ffffff"));
-      c.rect(ex + 34, by + 11, 2, 9, hex("#dce3eb")); // steam wand
+      c.rect(ex + 26, by + 15, 4, 3, hex("#d49e52"));
+      c.rect(ex + 3, by + 17, 36, 5, hex("#cfd6de"));
+      c.rect(ex + 9, by + 17, 6, 4, hex("#ffffff"));
+      c.rect(ex + 25, by + 17, 6, 4, hex("#ffffff"));
+      c.rect(ex + 36, by + 11, 2, 8, hex("#dce3eb"));
 
       // Conical Burr Grinder + Roasted Bean Hopper
-      c.box(ex + 46, by + 4, 14, 20, hex("#3a414d"), INK, 2);
-      c.circle(ex + 53, by + 3, 5.5, hex("#59351c"));
-      c.circle(ex + 53, by + 3, 3, hex("#85522d"));
+      c.box(ex + 48, by + 3, 14, 20, hex("#3a414d"), INK, 2);
+      c.circle(ex + 55, by + 2, 5.5, hex("#59351c"));
+      c.circle(ex + 55, by + 2, 3, hex("#85522d"));
 
-      // Syrups + Glass Pastry Dome (Croissants!) + Ceramic Mug Tray
-      c.box(ex + 66, by + 4, 5, 8, hex("#b86b35"), INK, 1);
-      c.box(ex + 73, by + 4, 5, 8, hex("#5f9473"), INK, 1);
-      c.circle(ex + 93, by + 14, 9.5, hex("#dcebf0")); // glass pastry cloche
-      c.ring(ex + 93, by + 14, 9.5, 8, hex("#7d949e"));
-      c.circle(ex + 91, by + 14, 3.5, hex("#d9944a")); // croissants
-      c.circle(ex + 96, by + 16, 3, hex("#c97e38"));
-      for (const [mx, col] of [[108, "#f7f4ec"], [117, "#6c9e79"], [108, "#e08d55"]]) {
-        c.box(ex + mx, by + (col === "#e08d55" ? 15 : 5), 7, 7, hex(col), INK, 1);
+      // Syrups + Glass Pastry Dome (Croissants!) + Ceramic Cup Stack
+      c.box(ex + 68, by + 4, 5, 8, hex("#b86b35"), INK, 1);
+      c.box(ex + 75, by + 4, 5, 8, hex("#5f9473"), INK, 1);
+      c.circle(ex + 97, by + 14, 9.5, hex("#dcebf0"));
+      c.ring(ex + 97, by + 14, 9.5, 8, hex("#7d949e"));
+      c.circle(ex + 95, by + 14, 3.5, hex("#d9944a"));
+      c.circle(ex + 100, by + 16, 3, hex("#c97e38"));
+      for (const [mx, my, col] of [[113, 5, "#f7f4ec"], [123, 5, "#6c9e79"], [113, 14, "#e08d55"], [123, 14, "#f7f4ec"]]) {
+        c.box(ex + mx, by + my, 7, 7, hex(col), INK, 1);
       }
 
-      // Flanking Warm Terracotta Café Plant (left) & A-Frame Chalkboard Menu (right) framing the bar!
-      c.circle(28 * S + 16, 19 * S + 12, 9, hex("#c46d45"));
-      c.circle(28 * S + 13, 19 * S + 7, 5.5, hex("#479144"));
-      c.circle(28 * S + 20, 19 * S + 8, 5.5, hex("#5cb058"));
-      c.borderedRoundRect(35 * S + 16, 18 * S + 22, 22, 26, 3, hex("#293036"), hex("#7d4f2b"), 2); // cafe menu board
-      c.rect(35 * S + 20, 18 * S + 27, 14, 2, hex("#f5efe2"));
-      c.rect(35 * S + 20, 18 * S + 32, 12, 1, hex("#b7c4cc"));
-      c.rect(35 * S + 20, 18 * S + 36, 14, 1, hex("#b7c4cc"));
-      c.rect(35 * S + 24, 18 * S + 40, 6, 4, hex("#f2c879"));
+      // 3) THREE SLEEK MODERN BAR STOOLS (Cognac Leather & Walnut + Brass Footrest Ring!) tucked along Espresso Bar!
+      for (const sx of [cafeCx - 48, cafeCx, cafeCx + 48]) {
+        const sy = by + bh + 14; // cleanly tucked in front of bar counter!
+        c.circle(sx + 1, sy + 3, 11, SHADOW_SOFT);
+        c.ring(sx, sy, 11, 9, hex("#d4af62")); // brushed brass circular footrest ring!
+        c.circle(sx, sy, 9.5, INK);
+        c.circle(sx, sy, 8, hex("#9c562c")); // stitched cognac leather stool cushion
+        c.circle(sx, sy - 1, 5.5, hex("#c27744")); // sunlit leather highlight
+        // Slim curved walnut low-back lip facing north toward bar
+        c.borderedRoundRect(sx - 8, sy + 6, 16, 5, 2, hex("#5e371c"), INK, 1);
+        c.rect(sx - 6, sy + 7, 12, 2, hex("#8c5832"));
+      }
 
-      // 3) Two Airy Minimalist Round Oak Café Bistro Tables (south half of café rug: y=22, well south of y=20 standing spot!)
-      for (const [tx, hasPlate] of [[29 * S + 28, false], [34 * S + 20, true]]) {
+      // 4) Flanking Symmetrical Café Accents: A-Frame Chalkboard Menu (West) & Terracotta Olive Plant (East)!
+      c.rect(crX + 20, crY + 18, 22, 26, SHADOW_SOFT);
+      c.borderedRoundRect(crX + 18, crY + 14, 22, 26, 3, hex("#293036"), hex("#7d4f2b"), 2); // cafe menu chalkboard
+      c.rect(crX + 22, crY + 19, 14, 2, hex("#f5efe2"));
+      c.rect(crX + 22, crY + 24, 12, 1, hex("#b7c4cc"));
+      c.rect(crX + 22, crY + 28, 14, 1, hex("#b7c4cc"));
+      c.rect(crX + 26, crY + 32, 6, 4, hex("#f2c879"));
+
+      c.circle(crX + crW - 28, crY + 28, 10, hex("#c46d45")); // lush potted café olive plant
+      c.ring(crX + crW - 28, crY + 28, 10, 8, hex("#7d3d22"));
+      c.circle(crX + crW - 32, crY + 23, 6, hex("#479144"));
+      c.circle(crX + crW - 24, crY + 24, 6, hex("#5cb058"));
+      c.circle(crX + crW - 28, crY + 19, 5, hex("#78c26b"));
+
+      // 5) Two Refined Round Marble-and-Brass Café Bistro Tables + 4 Sculpted Curved Café Chairs (south row y=22)!
+      for (const [tx, hasPlate] of [[cafeCx - 76, false], [cafeCx + 76, true]]) {
         const ty = 22 * S + 4;
-        // Pair of slim sage café chairs (left & right of bistro table)
-        c.borderedRoundRect(tx - 28, ty - 9, 14, 18, 4, hex("#5e8767"), INK, 2);
-        c.rect(tx - 28, ty - 6, 4, 12, hex("#6b4428"));
-        c.borderedRoundRect(tx + 14, ty - 9, 14, 18, 4, hex("#5e8767"), INK, 2);
-        c.rect(tx + 24, ty - 6, 4, 12, hex("#6b4428"));
-        // Round light-oak café table
-        c.circle(tx + 1, ty + 3, 16, SHADOW_SOFT);
-        c.circle(tx, ty, 16, INK);
-        c.circle(tx, ty, 14, hex("#cfa06b"));
-        c.circle(tx, ty - 1, 11, hex("#dfa96e"));
-        // Minimal tabletop touches: espresso cup + tiny bud vase or pastry plate
-        c.circle(tx - 5, ty - 2, 3.5, hex("#faf7f0"));
-        c.circle(tx - 5, ty - 2, 1.8, hex("#5a351c"));
+        // Pair of sculpted walnut-and-sage curved café chairs (left & right)
+        c.rect(tx - 33, ty - 8, 16, 20, SHADOW_SOFT);
+        c.borderedRoundRect(tx - 34, ty - 10, 16, 20, 6, hex("#5e8767"), INK, 2); // rounded sage seat
+        c.borderedRoundRect(tx - 35, ty - 9, 6, 18, 3, hex("#6b4428"), INK, 1); // curved walnut backrest
+        c.rect(tx - 33, ty - 7, 2, 14, hex("#9c6b43"));
+
+        c.rect(tx + 19, ty - 8, 16, 20, SHADOW_SOFT);
+        c.borderedRoundRect(tx + 18, ty - 10, 16, 20, 6, hex("#5e8767"), INK, 2);
+        c.borderedRoundRect(tx + 29, ty - 9, 6, 18, 3, hex("#6b4428"), INK, 1);
+        c.rect(tx + 31, ty - 7, 2, 14, hex("#9c6b43"));
+
+        // Crisp Carrara Marble Round Café Table with Warm Brass Rim!
+        c.circle(tx + 1, ty + 3, 17, SHADOW_SOFT);
+        c.circle(tx, ty, 17, INK);
+        c.circle(tx, ty, 15.5, hex("#d4af62")); // brushed brass table rim!
+        c.circle(tx, ty, 13.5, hex("#f7f4ee")); // crisp white marble tabletop
+        c.line(tx - 8, ty - 5, tx + 6, ty + 7, 1, hex("#dcd6cc", 140)); // delicate marble vein
+        // Latte art cup + croissant plate or tiny bud vase
+        c.circle(tx - 5, ty - 2, 4, hex("#ffffff"));
+        c.circle(tx - 5, ty - 2, 2.2, hex("#6e4324"));
+        c.rect(tx - 6, ty - 3, 2, 1, hex("#f5efe2")); // latte art heart!
         if (hasPlate) {
-          c.circle(tx + 5, ty + 2, 4, hex("#faf7f0"));
-          c.circle(tx + 5, ty + 2, 2, hex("#d9944a"));
+          c.circle(tx + 5, ty + 2, 4.5, hex("#ffffff"));
+          c.circle(tx + 5, ty + 2, 2.5, hex("#d9944a"));
         } else {
-          c.circle(tx + 5, ty + 2, 3.5, hex("#68ad64"));
+          c.circle(tx + 5, ty + 2, 3.5, hex("#5ca856"));
           c.rect(tx + 4, ty, 2, 2, hex("#ffe066"));
         }
       }

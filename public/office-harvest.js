@@ -12,7 +12,7 @@
   if (!O) return;
 
   var ASSET_BASE = '/art/stardew-v1/';
-  var ASSET_VER = '?v=13';
+  var ASSET_VER = '?v=14';
   var ASSETS = {
     bg: { uri: ASSET_BASE + 'farmhouse-bg@2x.png', w: 768, h: 448 },
     meadow: { uri: ASSET_BASE + 'meadow-tile@2x.png', w: 96, h: 96 },
@@ -599,8 +599,8 @@
         // Warm hearth firelight, lounge TV glow & Founder/CEO executive brass lamps!
         drawWarmGlow(g, 12.2 * T, 21 * T, 56, 'rgba(255, 160, 66, ' + (0.42 * glowStrength).toFixed(2) + ')');
         drawWarmGlow(g, 15.8 * T, 19.3 * T, 34, 'rgba(120, 200, 255, ' + (0.28 * glowStrength).toFixed(2) + ')');
-        drawWarmGlow(g, 2.6 * T, 18.6 * T, 34, 'rgba(255, 206, 112, ' + (0.44 * glowStrength).toFixed(2) + ')');
-        drawWarmGlow(g, 7.6 * T, 17.2 * T, 30, 'rgba(255, 216, 128, ' + (0.38 * glowStrength).toFixed(2) + ')');
+        drawWarmGlow(g, 2.6 * T, 17.6 * T, 34, 'rgba(255, 206, 112, ' + (0.44 * glowStrength).toFixed(2) + ')');
+        drawWarmGlow(g, 8.6 * T, 17.2 * T, 30, 'rgba(255, 216, 128, ' + (0.38 * glowStrength).toFixed(2) + ')');
 
         // Porch entrance carriage lanterns flanking the farmhouse front door
         drawWarmGlow(g, 21.5 * T, 24.4 * T, 26, 'rgba(255, 206, 108, ' + (0.62 * glowStrength).toFixed(2) + ')');
