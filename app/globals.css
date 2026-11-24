@@ -7881,7 +7881,7 @@ main.pagewide > * {
 }
 
 .reference-office.harvest-office {
-  background: #5b9342;
+  background: #509a3b;
 }
 
 .reference-office.harvest-office.harvest-sunset {
@@ -7893,7 +7893,8 @@ main.pagewide > * {
 }
 
 .reference-office.harvest-office .reference-stage {
-  box-shadow: 0 18px 46px rgba(34, 22, 16, 0.28);
+  box-shadow: none;
+  background: transparent;
 }
 
 .reference-office.harvest-office .hs-seat > span {
