@@ -45,7 +45,7 @@ test("all Stardew Valley 2x Retina PNG assets exist with exact expected dimensio
 
 test("resolveHarvestPhase maps office timezone, open/closed switch, and manual overrides", () => {
   assert.equal(parseFloorTheme(null), "harvest");
-  assert.equal(parseFloorTheme("campus"), "campus");
+  assert.equal(parseFloorTheme("campus"), "harvest");
   assert.equal(parseHarvestLighting("sunset"), "sunset");
   assert.equal(parseHarvestLighting("invalid"), "auto");
 
@@ -59,7 +59,7 @@ test("resolveHarvestPhase maps office timezone, open/closed switch, and manual o
   // Manual overrides ignore clock & office closed state
   assert.equal(resolveHarvestPhase("sunset", "Asia/Jakarta", false, new Date("2026-11-24T05:00:00Z")), "sunset");
   assert.equal(floorPropLabel("harvest", "board").title, "Help Wanted Board");
-  assert.equal(floorPropLabel("campus", "board").title, "Task Board");
+  assert.equal(floorPropLabel("harvest", "coffee").title, "Coffee Machine Bar");
 });
 
 test("public/office-harvest.js installs cleanly, switches phases live, and uninstalls reversibly", () => {
