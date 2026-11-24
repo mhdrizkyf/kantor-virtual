@@ -21,8 +21,19 @@ import StandupModal from "./standup-modal";
 import OrchestratorModal, { type LaunchedWorkflow } from "./orchestrator-modal";
 import WorkflowHubModal from "./workflow-hub-modal";
 import { LiveActivityFeed, QuickApprovalBar } from "./office-hud";
-import { formatClockNow, type ActivityEvent, type DropZone, type FloorPropKind, type GoalStepDraft } from "@/lib/munder-workflows";
-import { isLunchHour } from "@/lib/office-time";
+import {
+  formatClockNow,
+  HANDOVER_STYLE_KEY,
+  resolveHandoverDelivery,
+  REVIEW_STYLE_KEY,
+  type ActivityEvent,
+  type DropZone,
+  type FloorPropKind,
+  type GoalStepDraft,
+  type HandoverStyle,
+  type ReviewStyle,
+} from "@/lib/munder-workflows";
+import { getOfficeClockStatus, type OfficeClockStatus } from "@/lib/office-time";
 import { DEFAULT_SCHEDULE, type OfficeSchedule } from "@/lib/office-schedule";
 import {
   HARVEST_LIGHTING_STORAGE_KEY,
@@ -259,6 +270,8 @@ export default function OfficeView({ office, buildings, attention, people, seen,
   const [flowNotice, setFlowNotice] = useState("");
   const [harvestLighting, setHarvestLightingState] = useState<HarvestLightingMode>("auto");
   const [harvestPhase, setHarvestPhase] = useState<HarvestPhase>("day");
+  const [handoverStyle, setHandoverStyleState] = useState<HandoverStyle>("auto");
+  const [reviewStyle, setReviewStyleState] = useState<ReviewStyle>("auto");
   useEffect(() => {
     setSchedule(office.schedule ?? DEFAULT_SCHEDULE);
     setAutoHealStuck(!!office.autoHealStuck);
@@ -266,6 +279,10 @@ export default function OfficeView({ office, buildings, attention, people, seen,
   useEffect(() => {
     try {
       setHarvestLightingState(parseHarvestLighting(localStorage.getItem(HARVEST_LIGHTING_STORAGE_KEY)));
+      const hs = localStorage.getItem(HANDOVER_STYLE_KEY);
+      if (hs === "auto" || hs === "walk" || hs === "bubble") setHandoverStyleState(hs);
+      const rs = localStorage.getItem(REVIEW_STYLE_KEY);
+      if (rs === "auto" || rs === "walk" || rs === "bubble") setReviewStyleState(rs);
     } catch {
       // Ignore storage access failures in private browsing.
     }
@@ -273,6 +290,14 @@ export default function OfficeView({ office, buildings, attention, people, seen,
   const setHarvestLighting = useCallback((next: HarvestLightingMode) => {
     setHarvestLightingState(next);
     try { localStorage.setItem(HARVEST_LIGHTING_STORAGE_KEY, next); } catch { /* ignore */ }
+  }, []);
+  const setHandoverStyle = useCallback((next: HandoverStyle) => {
+    setHandoverStyleState(next);
+    try { localStorage.setItem(HANDOVER_STYLE_KEY, next); } catch { /* ignore */ }
+  }, []);
+  const setReviewStyle = useCallback((next: ReviewStyle) => {
+    setReviewStyleState(next);
+    try { localStorage.setItem(REVIEW_STYLE_KEY, next); } catch { /* ignore */ }
   }, []);
   const wsSlug = buildings.find(b => b.id === office.workspaceId)?.slug ?? office.workspaceId;
   const logEvent = useCallback((ev: Omit<ActivityEvent, "id" | "at">, persist = true) => {
@@ -326,11 +351,12 @@ export default function OfficeView({ office, buildings, attention, people, seen,
     }
   }
   const activeWork = office.rooms.some(r => r.desks.some(d => d.state === "working")) || office.idleDesks.some(d => d.state === "working");
-  const [lunchHour, setLunchHour] = useState(false);
+  const [clockStatus, setClockStatus] = useState<OfficeClockStatus>(() => getOfficeClockStatus(office.timeZone, new Date(), office.workCalendar));
+  const lunchHour = office.switchOpen && clockStatus.isLunch;
   useEffect(() => {
     const update = () => {
       const now = new Date();
-      setLunchHour(office.switchOpen && isLunchHour(office.timeZone, now, { ...office.workCalendar, activeWork }));
+      setClockStatus(getOfficeClockStatus(office.timeZone, now, office.workCalendar));
       setHarvestPhase(resolveHarvestPhase(harvestLighting, office.timeZone, office.switchOpen, now));
     };
     let timer: ReturnType<typeof setTimeout>;
@@ -338,7 +364,7 @@ export default function OfficeView({ office, buildings, attention, people, seen,
     tick();
     document.addEventListener("visibilitychange", update);
     return () => { clearTimeout(timer); document.removeEventListener("visibilitychange", update); };
-  }, [office.timeZone, office.switchOpen, office.workCalendar, activeWork, harvestLighting]);
+  }, [office.timeZone, office.switchOpen, office.workCalendar, harvestLighting]);
   // Mark "I'm online" every 2 minutes while this tab is open and visible.
   useEffect(() => {
     const beat = () => { if (document.visibilityState === "visible") fetch("/api/presence", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ws: office.workspaceId }) }).catch(() => {}); };
@@ -474,9 +500,9 @@ export default function OfficeView({ office, buildings, attention, people, seen,
     return office.members.find(m => m.id === raw || m.name === raw)?.name ?? raw;
   };
   const startWalks = useCallback((hs: (Handover & { kind?: OfficeWalk["kind"] })[]) => {
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     if (!hs.length) return;
     setRoomId("all");
+    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
     const resolved = hs.map(h => ({
       ...h,
       from: resolveActorKey(h.from),
@@ -484,10 +510,36 @@ export default function OfficeView({ office, buildings, attention, people, seen,
       face: uniqueDesks.find(d => d.agentId === h.from)?.face ?? null,
       key: h.from + ":" + Date.now() + Math.random(),
     }));
-    setWalks(cur => [...cur, ...resolved.filter(h => !cur.some(c => c.from === h.from))]);
+
+    const walkList: typeof resolved = [];
+    const bubbleList: typeof resolved = [];
+    resolved.forEach((h, idx) => {
+      const delivery = reduced ? "bubble" : resolveHandoverDelivery(handoverStyle, idx);
+      if (delivery === "bubble") bubbleList.push(h);
+      else walkList.push(h);
+    });
+
+    if (walkList.length) {
+      setWalks(cur => [...cur, ...walkList.filter(h => !cur.some(c => c.from === h.from))]);
+    }
+    bubbleList.forEach((h, idx) => {
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent("kantor:dialog", {
+          detail: {
+            fromId: h.from,
+            toId: h.to,
+            fromName: h.fromName,
+            toName: h.toName,
+            title: h.title,
+            kind: h.kind ?? "handoff",
+          },
+        }));
+      }, idx * 500);
+    });
+
     setFlowNotice(resolved.map(h => `${h.fromName} → ${h.toName}: ${h.title}`).join(" · "));
     resolved.forEach(h => logEvent({ kind: "handoff", title: `${h.fromName} → ${h.toName}`, detail: h.title, agentId: h.to.startsWith("person:") ? undefined : h.to }));
-  }, [uniqueDesks, logEvent, resolveActorKey]);
+  }, [uniqueDesks, logEvent, resolveActorKey, handoverStyle]);
   useHandoverDetector(office, reviewer, nameOf, startWalks);
   const handoverRef = useRef({ startWalks, nameOf });
   handoverRef.current = { startWalks, nameOf };
@@ -506,9 +558,22 @@ export default function OfficeView({ office, buildings, attention, people, seen,
       if (!detail) return;
       if (detail.action === "approve" || detail.action === "done") {
         setFlowNotice(`Approved: ${detail.title}`);
-        if (detail.agentId) {
+        const agent = uniqueDesks.find(d => d.agentId === detail.agentId);
+        if (agent && ownerActorId) {
+          window.dispatchEvent(new CustomEvent("kantor:dialog", {
+            detail: { fromId: ownerActorId, toId: agent.agentId, fromName: ownerName ?? "You", toName: agent.name, title: detail.title, kind: "approve" },
+          }));
+          const cheer = uniqueDesks.find(d => d.agentId !== agent.agentId && d.squad === agent.squad && !["off", "closed"].includes(d.state));
+          if (cheer) {
+            setTimeout(() => {
+              window.dispatchEvent(new CustomEvent("kantor:speech", {
+                detail: { actorId: cheer.agentId, tone: "approved", badge: "Apresiasi", text: `Keren ${agent.name.split(/\s+/)[0]}! 👏`, pixelKind: "heart", ms: 2600 },
+              }));
+            }, 1900);
+          }
+        } else if (detail.agentId) {
           window.dispatchEvent(new CustomEvent("kantor:speech", {
-            detail: { actorId: detail.agentId, tone: "approved", badge: "Approved", text: "Approved! Back to desk ✓", pixelKind: "heart", ms: 3400 },
+            detail: { actorId: detail.agentId, tone: "approved", badge: "Selesai", text: "Siap, terima kasih! 🙌", pixelKind: "heart", ms: 3400 },
           }));
         }
       } else if (detail.action === "assigned" || detail.action === "queued") {
@@ -521,11 +586,12 @@ export default function OfficeView({ office, buildings, attention, people, seen,
         setFlowNotice(`Feedback sent: ${detail.title}`);
         const agent = uniqueDesks.find(d => d.agentId === detail.agentId);
         if (agent) {
-          window.dispatchEvent(new CustomEvent("kantor:speech", {
-            detail: { actorId: agent.agentId, tone: "revise", badge: "Revising", text: "Got it — revising now ✎", pixelKind: "mail", ms: 3200 },
-          }));
           if (ownerActorId) {
             startWalks([{ from: ownerActorId, to: agent.agentId, title: detail.title, fromName: ownerName ?? "You", toName: agent.name, kind: "revise" }]);
+          } else {
+            window.dispatchEvent(new CustomEvent("kantor:speech", {
+              detail: { actorId: agent.agentId, tone: "revise", badge: "Revisi", text: "Oke, langsung saya perbaiki! ✎", pixelKind: "mail", ms: 3200 },
+            }));
           }
         }
       }
@@ -543,9 +609,15 @@ export default function OfficeView({ office, buildings, attention, people, seen,
         startWalks([{ from: fromId, to: first.agentId, title: "Q4 Launch Brief", fromName: fromLabel, toName: first.name, kind: "assign" }]);
       }
     } else if (previewStep === 3 && first) {
-      window.dispatchEvent(new CustomEvent("kantor:speech", {
-        detail: { actorId: first.agentId, tone: "approved", badge: "Approved", text: "Approved! Back to desk ✓", pixelKind: "heart", ms: 3400 },
-      }));
+      if (ownerActorId) {
+        window.dispatchEvent(new CustomEvent("kantor:dialog", {
+          detail: { fromId: ownerActorId, toId: first.agentId, fromName: ownerName ?? "Owner", toName: first.name, title: "Q4 Launch Brief", kind: "approve" },
+        }));
+      } else {
+        window.dispatchEvent(new CustomEvent("kantor:speech", {
+          detail: { actorId: first.agentId, tone: "approved", badge: "Selesai", text: "Siap, terima kasih! 🙌", pixelKind: "heart", ms: 3400 },
+        }));
+      }
     }
     const durations = [4200, 3200, 7500, 3200];
     const timer = setTimeout(() => setPreviewStep(step => step === 3 ? null : step === null ? null : step + 1), durations[previewStep] ?? 3200);
@@ -557,7 +629,7 @@ export default function OfficeView({ office, buildings, attention, people, seen,
     for (const t of a.review) {
       const desk = uniqueDesks.find(d => d.name === t.assignee);
       if (desk && !out[desk.agentId]) {
-        out[desk.agentId] = { id: t.id, ws: t.ws, title: t.title };
+        out[desk.agentId] = { id: t.id, ws: t.ws, title: t.title, questionCount: t.questionCount };
       }
     }
     return out;
@@ -656,15 +728,19 @@ export default function OfficeView({ office, buildings, attention, people, seen,
     const j = await r.json();
     if (!r.ok || j.error) throw new Error(j.error || "Could not approve task.");
     const agent = uniqueDesks.find(d => d.name === t.assignee);
-    if (agent) {
+    if (agent && ownerActorId) {
+      window.dispatchEvent(new CustomEvent("kantor:dialog", {
+        detail: { fromId: ownerActorId, toId: agent.agentId, fromName: ownerName ?? "You", toName: agent.name, title: t.title, kind: "approve" },
+      }));
+    } else if (agent) {
       window.dispatchEvent(new CustomEvent("kantor:speech", {
-        detail: { actorId: agent.agentId, tone: "approved", badge: "Approved", text: "Approved! Back to desk ✓", pixelKind: "heart", ms: 3400 },
+        detail: { actorId: agent.agentId, tone: "approved", badge: "Selesai", text: "Siap, terima kasih! 🙌", pixelKind: "heart", ms: 3400 },
       }));
     }
     logEvent({ kind: "approve", title: `Approved: ${t.title}`, detail: t.assignee ?? undefined, agentId: agent?.agentId, issueId: t.id, ws: t.ws }, false);
     setToast(`Approved "${t.title}"`);
     refresh();
-  }, [uniqueDesks, logEvent, refresh]);
+  }, [uniqueDesks, ownerActorId, ownerName, logEvent, refresh]);
 
   const handleQuickRevise = useCallback(async (t: TaskView, feedback: string) => {
     const r = await fetch(`/api/task/${t.id}`, {
@@ -676,11 +752,12 @@ export default function OfficeView({ office, buildings, attention, people, seen,
     if (!r.ok || j.error) throw new Error(j.error || "Could not send revision.");
     const agent = uniqueDesks.find(d => d.name === t.assignee);
     if (agent) {
-      window.dispatchEvent(new CustomEvent("kantor:speech", {
-        detail: { actorId: agent.agentId, tone: "revise", badge: "Revising", text: "Got it — revising now ✎", pixelKind: "mail", ms: 3200 },
-      }));
       if (ownerActorId) {
         startWalks([{ from: ownerActorId, to: agent.agentId, title: t.title, fromName: ownerName ?? "You", toName: agent.name, kind: "revise" }]);
+      } else {
+        window.dispatchEvent(new CustomEvent("kantor:speech", {
+          detail: { actorId: agent.agentId, tone: "revise", badge: "Revisi", text: "Oke, langsung saya perbaiki! ✎", pixelKind: "mail", ms: 3200 },
+        }));
       }
     }
     logEvent({ kind: "revise", title: `Revision sent: ${t.title}`, detail: feedback, agentId: agent?.agentId, issueId: t.id, ws: t.ws }, false);
@@ -729,7 +806,12 @@ export default function OfficeView({ office, buildings, attention, people, seen,
       <header className="top office-top">
         <div className="wrap hbar">
           <button type="button" className="office-nav-button" onClick={() => { setControlsOpen(false); setAttentionOpen(false); window.dispatchEvent(new Event("kantor:nav-toggle")); }} aria-label="Toggle navigation" title="Navigation">☰</button>
-          <div className="brand"><h1>{office.workspace}</h1><span className={`office-live ${office.switchOpen ? "is-open" : "is-closed"}`}><i />{office.switchOpen ? "Office open" : "Office closed"}</span></div>
+          <div className="brand">
+            <h1>{office.workspace}</h1>
+            <span className={`office-live ${office.switchOpen && clockStatus.inWorkHours ? "is-open" : "is-closed"}`} title={clockStatus.label}>
+              <i />{!office.switchOpen ? "Office closed" : clockStatus.shortLabel}
+            </span>
+          </div>
           {(() => {
             const cq = office.codexQuota;
             const pct5h = cq ? cq.remaining5h : (office.open ? 100 : 0);
@@ -794,6 +876,32 @@ export default function OfficeView({ office, buildings, attention, people, seen,
               </div>
             </details>
             <div className="office-controls-theme">
+              <div className="world-light-head">
+                <span className="hlabel">Handover style</span>
+                <small className="clock">{handoverStyle === "auto" ? "Walk + Bubble" : handoverStyle === "walk" ? "Walk to desk" : "2-way bubble"}</small>
+              </div>
+              <div className="world-light-seg" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }} role="group" aria-label="Handover interaction style">
+                {(["auto", "walk", "bubble"] as const).map(st => (
+                  <button key={st} type="button" className="theme-seg-btn" aria-pressed={handoverStyle === st} onClick={() => setHandoverStyle(st)}>
+                    {st === "auto" ? "Auto" : st === "walk" ? "Walk" : "Bubble"}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="office-controls-theme">
+              <div className="world-light-head">
+                <span className="hlabel">Human review style</span>
+                <small className="clock">{reviewStyle === "auto" ? "Room + Bubble" : reviewStyle === "walk" ? "Visit owner" : "Desk bubble"}</small>
+              </div>
+              <div className="world-light-seg" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }} role="group" aria-label="Human review interaction style">
+                {(["auto", "walk", "bubble"] as const).map(st => (
+                  <button key={st} type="button" className="theme-seg-btn" aria-pressed={reviewStyle === st} onClick={() => setReviewStyle(st)}>
+                    {st === "auto" ? "Auto" : st === "walk" ? "Visit" : "Bubble"}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="office-controls-theme">
               <span className="hlabel">Appearance</span>
               <ThemeToggle variant="segmented" />
             </div>
@@ -855,7 +963,10 @@ export default function OfficeView({ office, buildings, attention, people, seen,
             humans={patchedMembers}
             ownerId={ownerIdStable}
             officeOpen={office.switchOpen}
+            officePhase={clockStatus.phase}
+            phaseLabel={clockStatus.label}
             lunch={lunchHour}
+            reviewStyle={reviewStyle}
             previewWorking={previewStep === 1}
             previewReviewId={previewStep === 2 ? (uniqueDesks[0]?.agentId ?? null) : null}
             huddleIds={huddleIds}

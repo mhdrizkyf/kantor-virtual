@@ -418,3 +418,272 @@ export function formatClockNow(): string {
   const now = new Date();
   return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 }
+
+// ============================================================================
+// Natural Human Micro-Activities & 2-Way Interactive Workflow Dialogs
+// ============================================================================
+
+export type HandoverStyle = "auto" | "walk" | "bubble";
+export type ReviewStyle = "auto" | "walk" | "bubble";
+
+export const HANDOVER_STYLE_KEY = "kantor-handover-style";
+export const REVIEW_STYLE_KEY = "kantor-review-style";
+
+export type NaturalActivitySpot = {
+  id: string;
+  x: number;
+  y: number;
+  face: "up" | "down";
+  kind: "coffee" | "pantry" | "washroom" | "lounge" | "board" | "reading";
+  badge: string;
+  bubbleKind: BubbleKind;
+  lines: string[];
+  lunchFriendly?: boolean;
+};
+
+export const NATURAL_ACTIVITIES: NaturalActivitySpot[] = [
+  {
+    id: "coffee-bar",
+    x: 35,
+    y: 5,
+    face: "up",
+    kind: "coffee",
+    badge: "Coffee Bar",
+    bubbleKind: "coffee",
+    lines: ["Ambil kopi dulu ☕", "Refill espresso biar fokus ☕", "Ngopi sebentar dulu~"],
+    lunchFriendly: true,
+  },
+  {
+    id: "pantry",
+    x: 7,
+    y: 7,
+    face: "up",
+    kind: "pantry",
+    badge: "Pantry",
+    bubbleKind: "coffee",
+    lines: ["Ambil air minum dulu 💧", "Cari camilan di pantry 🍪", "Makan siang di pantry 🍱"],
+    lunchFriendly: true,
+  },
+  {
+    id: "lounge-main",
+    x: 17,
+    y: 21,
+    face: "up",
+    kind: "lounge",
+    badge: "Lounge",
+    bubbleKind: "sun",
+    lines: ["Peregangan sebentar 🧘", "Istirahatkan mata 2 menit 🌿", "Rehat sebentar di lounge 🛋️"],
+    lunchFriendly: true,
+  },
+  {
+    id: "lounge-side",
+    x: 14,
+    y: 21,
+    face: "up",
+    kind: "lounge",
+    badge: "Lounge",
+    bubbleKind: "sun",
+    lines: ["Santai sejenak ☕", "Istirahat sampai 13:15 🍱", "Refresh pikiran dulu ✨"],
+    lunchFriendly: true,
+  },
+  {
+    id: "washroom",
+    x: 6,
+    y: 14,
+    face: "down",
+    kind: "washroom",
+    badge: "Washroom",
+    bubbleKind: "drop",
+    lines: ["Ke washroom sebentar 🚻", "Cuci muka biar segar 💧"],
+    lunchFriendly: false,
+  },
+  {
+    id: "board-check",
+    x: 21,
+    y: 8,
+    face: "up",
+    kind: "board",
+    badge: "Task Board",
+    bubbleKind: "idea",
+    lines: ["Cek papan prioritas 📋", "Lihat antrean sprint 📌", "Review backlog sebentar 📝"],
+    lunchFriendly: false,
+  },
+  {
+    id: "reading",
+    x: 31,
+    y: 11,
+    face: "down",
+    kind: "reading",
+    badge: "Notes",
+    bubbleKind: "idea",
+    lines: ["Baca catatan & referensi 📚", "Catat ide untuk sprint 💡", "Cek dokumentasi tim 📖"],
+    lunchFriendly: false,
+  },
+];
+
+export const PEER_CHAT_SCRIPTS: [string, string][] = [
+  ["Hei {other}, progress aman?", "Aman! Lagi standby nih 👍"],
+  ["Abis ini ngopi yuk {other} ☕", "Gas, tunggu sebentar ya!"],
+  ["Ada ide buat sprint nanti 💡", "Menarik, bahas di standup!"],
+  ["Cek board tadi, antrean rapi 📋", "Mantap, siap lanjut kalau ada task!"],
+  ["Gimana hari ini {other}?", "Lancar! Fokus & santai ✨"],
+];
+
+export const LUNCH_LINES = [
+  "Makan siang dulu 🍱",
+  "Istirahat sampai 13:15 ☕",
+  "Rehat makan siang di pantry 🍜",
+  "Santai dulu di lounge 🛋️",
+];
+
+export const MORNING_GREETINGS = [
+  "Pagi! Siap kerja hari ini ☀️",
+  "Selamat pagi! Kopi dulu ☕",
+  "Baru sampai kantor, semangat! 💪",
+];
+
+export const GOODBYE_LINES = [
+  "Jam 17:30, pulang dulu ya! 👋",
+  "Selesai hari ini, sampai besok! 🌆",
+  "Pamit pulang dulu ya tim 👋",
+];
+
+export type TwoWayDialog = {
+  senderBadge: string;
+  senderText: string;
+  senderTone: SpeechBubbleTone;
+  senderPixel: BubbleKind;
+  replyBadge: string;
+  replyText: string;
+  replyTone: SpeechBubbleTone;
+  replyPixel: BubbleKind;
+};
+
+/** Generate natural 2-way Indonesian conversation bubbles for every workflow transition. */
+export function buildTwoWayDialog(input: {
+  kind: "handoff" | "assign" | "revise" | "review" | "approve";
+  fromName: string;
+  toName: string;
+  title: string;
+}): TwoWayDialog {
+  const short = compactLabel(input.title, 28);
+  switch (input.kind) {
+    case "assign":
+      return {
+        senderBadge: "Delegasi",
+        senderText: `Task untuk ${input.toName}: ${short}`,
+        senderTone: "handover",
+        senderPixel: "mail",
+        replyBadge: "Diterima",
+        replyText: "Oke, task diterima! Siap kerjakan 🚀",
+        replyTone: "approved",
+        replyPixel: "check",
+      };
+    case "revise":
+      return {
+        senderBadge: "Revisi",
+        senderText: `${input.toName}, ada revisi: ${short}`,
+        senderTone: "revise",
+        senderPixel: "mail",
+        replyBadge: "Revisi OK",
+        replyText: "Oke, langsung saya perbaiki! ✎",
+        replyTone: "revise",
+        replyPixel: "dots",
+      };
+    case "review":
+      return {
+        senderBadge: "Review",
+        senderText: `Mohon review ${input.toName}: ${short}`,
+        senderTone: "review",
+        senderPixel: "ask",
+        replyBadge: "Dicek",
+        replyText: "Oke, saya cek dulu ya 👀",
+        replyTone: "handover",
+        replyPixel: "check",
+      };
+    case "approve":
+      return {
+        senderBadge: "Approved",
+        senderText: `Mantap ${input.toName}, approved! ✅`,
+        senderTone: "approved",
+        senderPixel: "check",
+        replyBadge: "Selesai",
+        replyText: "Siap, terima kasih! 🙌",
+        replyTone: "approved",
+        replyPixel: "heart",
+      };
+    case "handoff":
+    default:
+      return {
+        senderBadge: "Handover",
+        senderText: `Task dihandover ke ${input.toName}: ${short}`,
+        senderTone: "handover",
+        senderPixel: "mail",
+        replyBadge: "Diterima",
+        replyText: "Oke, task diterima! 👍",
+        replyTone: "approved",
+        replyPixel: "check",
+      };
+  }
+}
+
+/** Pick whether a handover uses physical walk (Alt 1) or remote 2-way bubble dialog (Alt 2). */
+export function resolveHandoverDelivery(
+  style: HandoverStyle,
+  indexInBatch: number
+): "walk" | "bubble" {
+  if (style === "walk") return "walk";
+  if (style === "bubble") return "bubble";
+  // Auto: first handoff walks with 2-way dialog; simultaneous extra handoffs use crisp 2-way bubbles.
+  return indexInBatch === 0 ? "walk" : "bubble";
+}
+
+/** Partition agents awaiting human review into Alt 1 (walk to Owner's room) vs Alt 2 (interactive desk bubble). */
+export function partitionReviewDelivery(
+  reviewAgentIds: string[],
+  reviewMeta: Record<string, { questionCount?: number } | undefined>,
+  style: ReviewStyle
+): { walkToOwner: string[]; deskBubbleOnly: string[] } {
+  if (style === "bubble") {
+    return { walkToOwner: [], deskBubbleOnly: [...reviewAgentIds] };
+  }
+  if (style === "walk") {
+    return { walkToOwner: reviewAgentIds.slice(0, 6), deskBubbleOnly: reviewAgentIds.slice(6) };
+  }
+  // Auto: agents waiting on an urgent question stay at desk with a direct question bubble;
+  // up to 3 completed reviews walk into the Owner's room, overflow uses desk review bubbles.
+  const walkToOwner: string[] = [];
+  const deskBubbleOnly: string[] = [];
+  for (const id of reviewAgentIds) {
+    const hasQ = (reviewMeta[id]?.questionCount ?? 0) > 0;
+    if (hasQ || walkToOwner.length >= 3) {
+      deskBubbleOnly.push(id);
+    } else {
+      walkToOwner.push(id);
+    }
+  }
+  return { walkToOwner, deskBubbleOnly };
+}
+
+/** Pick a natural activity spot for an idle agent, avoiding occupied targets and respecting walkability. */
+export function pickNaturalActivity(
+  opts: {
+    lunch: boolean;
+    seed: number;
+    occupiedKeys?: Set<string>;
+    isWalkable?: (x: number, y: number) => boolean;
+  }
+): { spot: NaturalActivitySpot; line: string } | null {
+  const pool = NATURAL_ACTIVITIES.filter(a => {
+    if (opts.lunch && !a.lunchFriendly) return false;
+    if (opts.occupiedKeys?.has(`${a.x},${a.y}`)) return false;
+    if (opts.isWalkable && !opts.isWalkable(a.x, a.y)) return false;
+    return true;
+  });
+  if (!pool.length) return null;
+  const idx = Math.abs(Math.floor(opts.seed)) % pool.length;
+  const spot = pool[idx];
+  const lines = opts.lunch ? LUNCH_LINES : spot.lines;
+  const line = lines[Math.abs(Math.floor(opts.seed * 7)) % lines.length];
+  return { spot, line };
+}

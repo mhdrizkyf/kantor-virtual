@@ -296,7 +296,7 @@
   };
   Scene.prototype.seatFeetY = function (d) { return d.seat === 'n' ? d.y * T + 4 : d.y * T + 30; };
   Scene.prototype.get = function (id) { for (var i = 0; i < this.agents.length; i++) if (this.agents[i].id === id) return this.agents[i]; return null; };
-  Scene.prototype.leave = function (id) { var a = this.get(id); if (!a) return; a.state = 'walk'; a.path = this.path(a.x, a.y, this.L.door.x, this.L.wall - 1); a.then = 'gone'; };
+  Scene.prototype.leave = function (id) { var a = this.get(id); if (!a) return; var ex = this.L.entry ? this.L.entry.x : this.L.door.x, ey = this.L.entry ? this.L.entry.y : this.L.wall - 1; a.state = 'walk'; a.path = this.path(a.x, a.y, ex, ey); a.then = 'gone'; };
   Scene.prototype.come = function (id) { var a = this.get(id); if (!a || !a.hidden) return; a.hidden = false; a.x = this.L.entry ? this.L.entry.x : this.L.door.x; a.y = this.L.entry ? this.L.entry.y : this.L.wall - 1; a.fx = a.x * T + 8; a.fy = a.y * T + 14; var d = this.L.desks[a.desk], st = this.seatTile(d); a.state = 'walk'; a.path = this.path(a.x, a.y, st[0], st[1]); a.then = 'seat'; };
   Scene.prototype.grab = function (id) { var a = this.get(id); if (!a || a.hidden) return null; a.state = 'held'; a.path = null; a.target = null; a.bubble = null; return a; };
   Scene.prototype.hold = function (id, x, y) { var a = this.get(id); if (a && a.state === 'held') { a.fx = x; a.fy = y; } };

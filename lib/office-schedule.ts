@@ -1,10 +1,10 @@
 // Automatic Office Open/Close schedule evaluator (pure logic, safe to test deterministically).
-import type { WorkCalendar } from "./office-time";
+import { holidayNameOf, type WorkCalendar } from "./office-time";
 
 export type OfficeSchedule = {
   enabled: boolean;
-  openTime: string;   // "08:30" (24h HH:MM)
-  closeTime: string;  // "18:00" (24h HH:MM)
+  openTime: string;   // "08:00" (24h HH:MM)
+  closeTime: string;  // "17:30" (24h HH:MM)
   days: number[];     // 0=Sun..6=Sat, default [1,2,3,4,5]
   stopRunningOnClose?: boolean;
   lastAutoOpenDate?: string;
@@ -13,8 +13,8 @@ export type OfficeSchedule = {
 
 export const DEFAULT_SCHEDULE: OfficeSchedule = {
   enabled: false,
-  openTime: "08:30",
-  closeTime: "18:00",
+  openTime: "08:00",
+  closeTime: "17:30",
   days: [1, 2, 3, 4, 5],
   stopRunningOnClose: false,
 };
@@ -80,7 +80,7 @@ export function evaluateOfficeSchedule(
   const weekday = WEEKDAY_MAP[parts.weekday] ?? 1;
   const nowMins = Number(parts.hour) * 60 + Number(parts.minute);
 
-  const isHoliday = !!ctx.calendar?.holidays?.includes(date);
+  const isHoliday = holidayNameOf(date, ctx.calendar) !== null;
   const isExtraWork = !!ctx.calendar?.extraWorkDates?.includes(date);
   const isWorkDay = isExtraWork || (!isHoliday && schedule.days.includes(weekday));
 
