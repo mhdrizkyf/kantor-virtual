@@ -905,14 +905,18 @@ function generateFarmhouseBackground(laneCanvas) {
       }
     }
   }
-  // 5) Modern Studio Garage (x=39..45, y=3..23) — Smooth Polished Concrete + Painted Parking Bay!
+  // 5) Executive Boardroom Floor (x=39..45, y=3..12) — Warm Honey-Oak Parquet + Plush Boardroom Carpet!
+  paintHoneyOakFloor(c, 39, 3, 7, 10, "honey");
+  // Subtle dark oak border inlay framing the Executive Boardroom perimeter
+  c.box(39 * S + 4, 3 * S + 4, 7 * S - 8, 10 * S - 8, hex("#000000", 0), hex("#9e6b3d", 140), 2);
+
+  // 6) Compact Modern Studio Garage (x=39..45, y=14..23) — Smooth Polished Concrete + Painted Parking Bay!
   const garRng = rng(731);
-  for (let ty = 3; ty <= 23; ty++) {
+  for (let ty = 14; ty <= 23; ty++) {
     for (let tx = 39; tx <= 45; tx++) {
       const x = tx * S, y = ty * S;
       const shade = garRng() > 0.5 ? hex("#9aa0a6") : hex("#949ba1");
       c.rect(x, y, S, S, shade);
-      // subtle concrete expansion joint every 2 tiles
       if (tx % 2 === 0) c.rect(x, y, 1, S, hex("#7d848b"));
       if (ty % 2 === 0) c.rect(x, y, S, 1, hex("#7d848b"));
       for (let sp = 0; sp < 4; sp++) {
@@ -920,26 +924,28 @@ function generateFarmhouseBackground(laneCanvas) {
       }
     }
   }
-  // Crisp painted yellow-amber parking bay guide lines framing the modern car slot (x=39.6..44.2, y=14.6..22.6)
-  c.rect(39 * S + 18, 14 * S + 18, 4, 8 * S + 6, hex("#e8be4a", 210));
-  c.rect(44 * S + 8, 14 * S + 18, 4, 8 * S + 6, hex("#e8be4a", 210));
-  c.rect(39 * S + 18, 14 * S + 18, 5 * S - 6, 4, hex("#e8be4a", 210));
+  // Crisp painted yellow-amber parking bay guide lines framing the modern car slot (x=39.6..44.2, y=15.5..22.8)
+  c.rect(39 * S + 18, 15 * S + 18, 4, 7 * S + 10, hex("#e8be4a", 210));
+  c.rect(44 * S + 8, 15 * S + 18, 4, 7 * S + 10, hex("#e8be4a", 210));
+  c.rect(39 * S + 18, 15 * S + 18, 5 * S - 6, 4, hex("#e8be4a", 210));
   // Rubber wheel-stop curb at front of parking bay
-  c.borderedRoundRect(40 * S + 16, 14 * S + 28, 3 * S, 10, 3, hex("#3c4149"), INK, 1);
-  c.rect(40 * S + 28, 14 * S + 30, 14, 6, hex("#f0c64b"));
-  c.rect(42 * S + 6, 14 * S + 30, 14, 6, hex("#f0c64b"));
+  c.borderedRoundRect(40 * S + 16, 15 * S + 26, 3 * S, 9, 3, hex("#3c4149"), INK, 1);
+  c.rect(40 * S + 28, 15 * S + 28, 14, 5, hex("#f0c64b"));
+  c.rect(42 * S + 6, 15 * S + 28, 14, 5, hex("#f0c64b"));
 
-  // Doorway floor thresholds connecting rooms smoothly (Bathroom has single north entrance at x=8..9, y=11; y=16 is solid wall!)
+  // Doorway floor thresholds connecting rooms smoothly (Boardroom doorway at x=38, y=7..8; Garage doorway at x=38, y=15..16!)
   paintHoneyOakFloor(c, 10, 8, 1, 2, "honey");
   paintHoneyOakFloor(c, 10, 17, 1, 2, "honey");
   paintHoneyOakFloor(c, 8, 11, 2, 1, "honey");
-  paintHoneyOakFloor(c, 38, 13, 1, 2, "cedar");
+  paintHoneyOakFloor(c, 38, 7, 1, 2, "honey");
+  paintHoneyOakFloor(c, 38, 15, 1, 2, "cedar");
   paintHoneyOakFloor(c, 22, 24, 2, 1, "honey");
 
   // Subtle ambient occlusion under north wall & left/right partitions for crisp 3D depth!
   c.rect(2 * S, 3 * S, 44 * S, 8, SHADOW_SOFT);
   c.rect(2 * S, 12 * S, 6 * S, 6, SHADOW_SOFT);
   c.rect(2 * S, 17 * S, 8 * S, 6, SHADOW_SOFT);
+  c.rect(39 * S, 14 * S, 7 * S, 6, SHADOW_SOFT);
 
   // STEP F: Farmhouse Walls (exact OFFICE_PLAN.walls!)
   // Render walls with real LPC inside.png warm cottage plaster + cedar timber roof-cap!
@@ -1107,11 +1113,55 @@ function generateFarmhouseBackground(laneCanvas) {
   c.circle(9 * S + 21, 23 * S + 11, 7, hex("#438f4c"));
   c.circle(9 * S + 16, 23 * S + 6, 6, hex("#62b360"));
 
-  // 2) Modern Conference Rug beneath relocated Meeting Table (x=30..33, y=12..13)!
-  const mrX = 29 * S + 14, mrY = 11 * S + 6, mrW = 5 * S + 4, mrH = 3 * S + 20;
-  c.rect(mrX + 2, mrY + 3, mrW, mrH, SHADOW_SOFT);
-  c.box(mrX, mrY, mrW, mrH, hex("#d6ddd4"), hex("#6f8574"), 2);
-  c.box(mrX + 6, mrY + 6, mrW - 12, mrH - 12, hex("#e8eee5"), hex("#a4b8a6"), 2);
+  // 2) Structured Studio Workstation Pod Woven Area Rugs — warmly framing all 4 symmetrical desk pods!
+  for (const pod of [
+    { x: 11 * S + 24, y: 3 * S + 26, w: 8 * S + 16, h: 4 * S + 16 }, // Pod NW (6 desks: x=12,15,18 y=5..6)
+    { x: 12 * S + 24, y: 10 * S + 26, w: 5 * S + 16, h: 4 * S + 16 }, // Pod Mid-West (4 desks: x=13,16 y=12..13)
+    { x: 26 * S + 24, y: 7 * S + 26, w: 8 * S + 16, h: 4 * S + 16 }, // Pod NE (6 desks: x=27,30,33 y=9..10)
+    { x: 26 * S + 24, y: 15 * S + 26, w: 8 * S + 16, h: 4 * S + 16 }, // Pod SE (6 desks: x=27,30,33 y=17..18)
+  ]) {
+    c.rect(pod.x + 2, pod.y + 3, pod.w, pod.h, SHADOW_SOFT);
+    c.borderedRoundRect(pod.x, pod.y, pod.w, pod.h, 6, hex("#c8b698", 215), hex("#78654d", 220), 2);
+    c.box(pod.x + 6, pod.y + 6, pod.w - 12, pod.h - 12, hex("#d6c7ad", 210), hex("#a69578", 200), 1);
+    for (let wy = pod.y + 14; wy < pod.y + pod.h - 10; wy += 12) {
+      for (let wx = pod.x + 14; wx < pod.x + pod.w - 10; wx += 14) {
+        c.rect(wx, wy, 2, 2, hex("#b3a184", 150));
+      }
+    }
+  }
+
+  // 3) Dedicated Executive Boardroom Carpet & North Presentation Wall (x=39..45, y=3..12)!
+  const brX = 39 * S + 22, brY = 4 * S + 18, brW = 5 * S + 20, brH = 7 * S - 6;
+  c.rect(brX + 2, brY + 3, brW, brH, SHADOW_SOFT);
+  c.box(brX, brY, brW, brH, hex("#d4ddd5"), hex("#5e7865"), 2);
+  c.box(brX + 6, brY + 6, brW - 12, brH - 12, hex("#e7eee8"), hex("#9cb2a0"), 2);
+  // 75" Wall-Mounted Conference Presentation Screen & Floating Walnut AV Credenza on North Boardroom Wall (x=40.6..44.4, y=2..3)!
+  const scrX = 40 * S + 24, scrW = 3 * S + 16;
+  // Floating walnut AV credenza flush against North Wall (y=3)
+  c.rect(scrX + 2, 3 * S + 5, scrW, 20, SHADOW_SOFT);
+  c.box(scrX, 3 * S + 1, scrW, 20, hex("#6b442a"), INK, 2);
+  c.rect(scrX + 3, 3 * S + 3, scrW - 6, 4, hex("#96633f"));
+  c.box(scrX + Math.floor(scrW / 2) - 18, 3 * S + 9, 36, 6, hex("#232830"), INK, 1); // conference video-bar / speaker!
+  c.rect(scrX + Math.floor(scrW / 2) - 2, 3 * S + 11, 4, 2, hex("#5be882"));
+  // Huge Wall-Mounted 75" Presentation Display cleanly centered inside North Wall plaster (y=2, between windows x=40 & x=44!)
+  c.box(scrX + 8, 2 * S + 10, scrW - 16, 22, hex("#1d232b"), INK, 2);
+  c.rect(scrX + 11, 2 * S + 13, scrW - 22, 16, hex("#f4f8fc")); // bright crisp presentation slide
+  // Live sprint bar chart & roadmap diagram on boardroom display!
+  c.rect(scrX + 15, 2 * S + 16, 26, 3, hex("#32475c"));
+  c.rect(scrX + 15, 2 * S + 22, 10, 5, hex("#58a86b"));
+  c.rect(scrX + 27, 2 * S + 20, 10, 7, hex("#4a90d9"));
+  c.rect(scrX + 39, 2 * S + 18, 10, 9, hex("#e89a48"));
+  c.circle(scrX + scrW - 24, 2 * S + 21, 5, hex("#68a88b")); // KPI pie chart
+  c.rect(scrX + scrW - 24, 2 * S + 16, 5, 5, hex("#e8c058"));
+  // South Boardroom Refreshment Sideboard flush against South divider wall (y=12, x=40..43)
+  const sbX = 40 * S + 10, sbY = 12 * S + 6, sbW = 4 * S - 20, sbH = 22;
+  c.rect(sbX + 2, sbY + 4, sbW, sbH, SHADOW_SOFT);
+  c.box(sbX, sbY, sbW, sbH, hex("#7a4d2e"), INK, 2);
+  c.rect(sbX + 3, sbY + 2, sbW - 6, 5, hex("#a87046"));
+  c.circle(sbX + 20, sbY + 11, 5, hex("#dcebf0")); // glass water pitcher
+  c.circle(sbX + 20, sbY + 11, 3, hex("#8bc4e8"));
+  for (const gx of [34, 44, 54]) c.circle(sbX + gx, sbY + 12, 3, hex("#f5f9fc")); // water glasses
+  c.box(sbX + sbW - 34, sbY + 6, 22, 10, hex("#f5efe2"), hex("#6b4c32"), 1); // agenda handouts & markers!
 
   for (const p of PLAN.props) {
     const px = p.x * S, py = p.y * S, pw = p.w * S, ph = p.h * S;
@@ -1448,56 +1498,66 @@ function generateFarmhouseBackground(laneCanvas) {
       paintStardewSofa(c, px + 248, py + 52, 38, 72, "west");
       c.borderedRoundRect(px + 258, py + 66, 12, 14, 3, hex("#f2e7d3"), hex("#8c7352"), 1); // cozy accent pillow
     } else if (p.k === "meeting") {
-      // IMAGE 3: Proper Modern Studio Conference Table & 6 Sculpted Ergonomic Chairs (x=30..33, y=12..13)!
-      c.rect(px + 4, py + 10, pw - 8, ph - 8, SHADOW);
-      // 6 Modern Scandinavian Walnut-and-Sage Ergonomic Meeting Chairs (3 north, 3 south)
-      for (const ox of [16, 52, 88]) {
-        // North chairs facing south
-        c.rect(px + ox + 2, py - 10, 24, 18, SHADOW_SOFT);
-        c.borderedRoundRect(px + ox, py - 12, 24, 18, 5, hex("#5e8767"), INK, 2); // sage upholstered seat
-        c.rect(px + ox + 3, py - 12, 18, 6, hex("#6b4428")); // curved walnut backrest!
-        c.rect(px + ox + 4, py - 11, 16, 2, hex("#9c6b43"));
-        // South chairs facing north
-        c.rect(px + ox + 2, py + ph - 8, 24, 18, SHADOW_SOFT);
-        c.borderedRoundRect(px + ox, py + ph - 10, 24, 18, 5, hex("#5e8767"), INK, 2);
-        c.rect(px + ox + 3, py + ph + 2, 18, 6, hex("#6b4428")); // curved walnut backrest!
-        c.rect(px + ox + 4, py + ph + 3, 16, 2, hex("#9c6b43"));
+      // DEDICATED EXECUTIVE BOARDROOM CONFERENCE TABLE & 8 ERGONOMIC CHAIRS (x=41..43, y=6..9 -> 96x128px)!
+      c.rect(px + 8, py + 8, pw - 12, ph - 10, SHADOW);
+      // 6 Side Ergonomic Walnut-and-Sage Chairs (3 West facing East, 3 East facing West)
+      for (const oy of [14, 52, 90]) {
+        // West chairs (facing East)
+        c.rect(px - 10, py + oy + 2, 18, 24, SHADOW_SOFT);
+        c.borderedRoundRect(px - 12, py + oy, 18, 24, 5, hex("#5e8767"), INK, 2);
+        c.rect(px - 12, py + oy + 3, 6, 18, hex("#6b4428")); // curved walnut backrest
+        c.rect(px - 11, py + oy + 4, 2, 16, hex("#9c6b43"));
+        // East chairs (facing West)
+        c.rect(px + pw - 6, py + oy + 2, 18, 24, SHADOW_SOFT);
+        c.borderedRoundRect(px + pw - 6, py + oy, 18, 24, 5, hex("#5e8767"), INK, 2);
+        c.rect(px + pw + 6, py + oy + 3, 6, 18, hex("#6b4428"));
+        c.rect(px + pw + 7, py + oy + 4, 2, 16, hex("#9c6b43"));
       }
-      // Sleek Chamfered Warm-Walnut Conference Table with subtle woodgrain & central power/HDMI hub!
-      c.borderedRoundRect(px + 2, py + 6, pw - 4, ph - 14, 8, hex("#a87243"), INK, 2);
-      c.rect(px + 8, py + 8, pw - 16, 4, hex("#cca06e")); // warm sunlit top bevel
-      for (let gy = py + 18; gy < py + ph - 12; gy += 12) {
-        c.rect(px + 6, gy, pw - 12, 1, hex("#8a582e", 140)); // fine woodgrain planking
+      // 2 Head-of-Table Executive Chairs (North & South heads!)
+      const headX = px + Math.floor(pw / 2) - 13;
+      c.borderedRoundRect(headX, py - 12, 26, 18, 5, hex("#4b7355"), INK, 2);
+      c.rect(headX + 3, py - 12, 20, 6, hex("#59351e"));
+      c.borderedRoundRect(headX, py + ph - 6, 26, 18, 5, hex("#4b7355"), INK, 2);
+      c.rect(headX + 3, py + ph + 6, 20, 6, hex("#59351e"));
+
+      // Grand Boat-Shaped Warm-Walnut Executive Boardroom Table with vertical grain & center AV spine!
+      c.borderedRoundRect(px + 6, py + 4, pw - 12, ph - 8, 12, hex("#a87243"), INK, 2);
+      c.rect(px + 14, py + 6, pw - 28, 4, hex("#cca06e"));
+      for (let gx = px + 22; gx < px + pw - 18; gx += 16) {
+        c.rect(gx, py + 8, 1, ph - 16, hex("#8a582e", 130));
       }
-      // Centered recessed matte-black power & HDMI cable grommet trough
-      const hubX = px + Math.floor(pw / 2) - 22, hubY = py + 26;
-      c.box(hubX, hubY, 44, 10, hex("#2b313a"), hex("#14171c"), 1);
-      c.rect(hubX + 6, hubY + 3, 6, 4, hex("#65707d")); // power socket
-      c.rect(hubX + 18, hubY + 3, 8, 4, hex("#65707d")); // HDMI hub
-      c.rect(hubX + 32, hubY + 3, 6, 4, hex("#65707d"));
-      // Realistic Open Silver Laptops, Strategy Notebook, Succulent Centerpiece & Coffee Mugs on Coasters!
-      // Laptop 1 (north-left seat)
-      c.box(px + 14, py + 11, 18, 12, hex("#303845"), INK, 1);
-      c.rect(px + 16, py + 13, 14, 8, hex("#8bc4f2")); // crisp glowing screen
-      c.rect(px + 14, py + 22, 18, 3, hex("#cfd6de")); // silver keyboard deck
-      // Laptop 2 (south-right seat)
-      c.box(px + pw - 34, py + 34, 18, 12, hex("#303845"), INK, 1);
-      c.rect(px + pw - 32, py + 36, 14, 8, hex("#93d1b2")); // analytics screen
-      c.rect(px + pw - 34, py + 31, 18, 3, hex("#cfd6de"));
-      // Open Spiral Notebook + Pen (south-left)
-      c.box(px + 18, py + 34, 16, 12, hex("#faf4e6"), hex("#6b4a2e"), 1);
-      c.rect(px + 21, py + 37, 10, 2, hex("#a89882"));
-      c.rect(px + 21, py + 41, 8, 2, hex("#a89882"));
-      c.rect(px + 35, py + 36, 2, 9, hex("#343c47")); // pen
-      // Minimalist succulent + coffee mugs on cork coasters
-      c.circle(px + pw - 22, py + 17, 5, hex("#f2efe9"));
-      c.circle(px + pw - 22, py + 17, 3.5, hex("#58a856")); // cute tabletop succulent
-      c.circle(px + 44, py + 16, 4, hex("#c29362")); // cork coaster
-      c.circle(px + 44, py + 16, 3, hex("#faf7f0")); // mug
-      c.circle(px + 44, py + 16, 1.5, hex("#5a351c"));
-      c.circle(px + pw - 44, py + 40, 4, hex("#c29362"));
-      c.circle(px + pw - 44, py + 40, 3, hex("#faf7f0"));
-      c.circle(px + pw - 44, py + 40, 1.5, hex("#5a351c"));
+      // Central recessed matte-black power, microphone & HDMI conference hub spine
+      const hubX = px + Math.floor(pw / 2) - 6, hubY = py + 34;
+      c.box(hubX, hubY, 12, 60, hex("#2b313a"), hex("#14171c"), 1);
+      c.rect(hubX + 3, hubY + 8, 6, 8, hex("#65707d"));
+      c.circle(hubX + 6, hubY + 30, 4, hex("#4c5663")); // conference speakerphone puck!
+      c.circle(hubX + 6, hubY + 30, 1.5, hex("#68e38a")); // green call LED
+      c.rect(hubX + 3, hubY + 44, 6, 8, hex("#65707d"));
+
+      // Realistic Boardroom Props: 3 Open Silver Laptops, Strategy Notebook, Center Succulent & Coffee Mugs!
+      // West-side laptop (facing East)
+      c.box(px + 12, py + 18, 14, 18, hex("#303845"), INK, 1);
+      c.rect(px + 14, py + 20, 10, 14, hex("#8bc4f2"));
+      c.rect(px + 25, py + 18, 3, 18, hex("#cfd6de"));
+      // East-side laptop (facing West)
+      c.box(px + pw - 26, py + 54, 14, 18, hex("#303845"), INK, 1);
+      c.rect(px + pw - 24, py + 56, 10, 14, hex("#93d1b2"));
+      c.rect(px + pw - 28, py + 54, 3, 18, hex("#cfd6de"));
+      // South-head executive laptop (facing North toward 75" screen!)
+      c.box(px + Math.floor(pw / 2) - 10, py + ph - 24, 20, 13, hex("#303845"), INK, 1);
+      c.rect(px + Math.floor(pw / 2) - 8, py + ph - 22, 16, 9, hex("#f7d58b"));
+      // Open notebook & pen (west-south)
+      c.box(px + 14, py + 84, 14, 16, hex("#faf4e6"), hex("#6b4a2e"), 1);
+      c.rect(px + 17, py + 88, 8, 2, hex("#a89882"));
+      c.rect(px + 17, py + 93, 6, 2, hex("#a89882"));
+      // Center-north ceramic succulent & coffee mugs on coasters
+      c.circle(px + Math.floor(pw / 2), py + 20, 6, hex("#f2efe9"));
+      c.circle(px + Math.floor(pw / 2), py + 20, 4, hex("#58a856"));
+      for (const [mx, my] of [[px + 18, py + 54], [px + pw - 18, py + 28], [px + pw - 18, py + 94]]) {
+        c.circle(mx, my, 4, hex("#c29362"));
+        c.circle(mx, my, 3, hex("#faf7f0"));
+        c.circle(mx, my, 1.5, hex("#5a351c"));
+      }
     } else if (p.k === "board") {
       // Iconic Stardew Valley Pelican Town "Help Wanted" Bulletin Board!
       paintHelpWantedBoard(c, px, py, pw, ph);
@@ -1599,144 +1659,110 @@ function generateFarmhouseBackground(laneCanvas) {
         }
       }
     } else if (p.k === "storage") {
-      // IMAGE 4: Modern Garage Heavy-Duty Racks, Stacked Totes, Spare Alloy Tire & Wall EV Charger (x=44..45, y=8..16)!
-      // Top steel rack with labeled modern storage bins
-      for (const oy of [6, 72]) {
-        c.rect(px + 8, py + oy + 6, 48, 54, SHADOW);
-        c.box(px + 6, py + oy, 50, 56, hex("#3d444e"), INK, 2);
-        c.box(px + 10, py + oy + 6, 42, 20, hex("#597896"), hex("#2c3e50"), 1);
-        c.rect(px + 22, py + oy + 12, 18, 5, hex("#f5efe2")); // white label
-        c.box(px + 10, py + oy + 30, 42, 20, hex("#d99a3b"), hex("#7a5116"), 1);
-        c.rect(px + 22, py + oy + 36, 18, 5, hex("#f5efe2"));
-      }
-      // Stacked Spare Rubber Tire with Metallic Alloy Rim!
-      c.circle(px + 32, py + 162, 20, INK);
-      c.circle(px + 32, py + 162, 18, hex("#2b2f36"));
-      c.circle(px + 32, py + 162, 10, hex("#b8c2cc"));
-      c.circle(px + 32, py + 162, 4, hex("#4a525c"));
+      // Compact Modern Garage East Wall: Slim Storage Locker + EV Wallbox Charger beside Car Bay (x=45, y=15..21)!
+      // Compact steel wall tool locker at top
+      c.rect(px + 4, py + 8, 24, 52, SHADOW);
+      c.box(px + 2, py + 4, 26, 54, hex("#3d444e"), INK, 2);
+      c.box(px + 5, py + 9, 20, 18, hex("#597896"), hex("#2c3e50"), 1);
+      c.rect(px + 10, py + 16, 10, 4, hex("#f5efe2"));
+      c.box(px + 5, py + 32, 20, 20, hex("#d99a3b"), hex("#7a5116"), 1);
+      c.rect(px + 10, py + 40, 10, 4, hex("#f5efe2"));
       // Modern EV Wallbox Charger beside Car Bay (glowing emerald LED ring + coiled cable!)
-      c.rect(px + 12, py + 206, 38, 48, SHADOW);
-      c.borderedRoundRect(px + 10, py + 200, 38, 50, 6, hex("#eef2f5"), INK, 2);
-      c.box(px + 16, py + 208, 26, 20, hex("#282e36"), hex("#5e6873"), 1);
-      c.ring(px + 29, py + 218, 6, 4, hex("#4ce37d")); // glowing emerald EV ready ring!
-      c.line(px + 10, py + 236, px - 6, py + 252, 3, hex("#262b31")); // coiled EV cable
+      c.rect(px + 4, py + 104, 24, 44, SHADOW);
+      c.borderedRoundRect(px + 2, py + 100, 26, 46, 5, hex("#eef2f5"), INK, 2);
+      c.box(px + 6, py + 107, 18, 18, hex("#282e36"), hex("#5e6873"), 1);
+      c.ring(px + 15, py + 116, 5, 3, hex("#4ce37d")); // glowing emerald EV ready ring!
+      c.line(px + 2, py + 132, px - 10, py + 146, 3, hex("#262b31")); // coiled EV cable
     } else if (p.k === "bike") {
-      // IMAGE 4: REAL Detailed Pixel-Art Bicycle with Round Spoked Wheels, Diamond Frame & Handlebars (x=40..42, y=8..9)!
-      const yWheel = py + 39;
-      const xRear = px + 24;
-      const xFront = px + pw - 24;
-      const rWheel = 15;
-      // Ground shadow beneath tires
-      c.ellipse(xRear, yWheel + 13, 14, 4, SHADOW);
-      c.ellipse(xFront, yWheel + 13, 14, 4, SHADOW);
-      // Two genuinely ROUND black rubber tires + aluminum rims + hubs + wire spokes!
+      // Sleek Mint City Bicycle parked neatly along North Garage Wall (x=40..42, y=14 -> 96x32px)!
+      const yWheel = py + 20;
+      const xRear = px + 20;
+      const xFront = px + pw - 22;
+      const rWheel = 11;
+      c.ellipse(xRear, yWheel + 9, 10, 3, SHADOW);
+      c.ellipse(xFront, yWheel + 9, 10, 3, SHADOW);
       for (const wx of [xRear, xFront]) {
-        c.ring(wx, yWheel, rWheel, rWheel - 3, hex("#20242a")); // rubber tire
-        c.ring(wx, yWheel, rWheel - 3, rWheel - 5, hex("#cfd6de")); // alloy rim
-        // 8 crisp silver spokes
+        c.ring(wx, yWheel, rWheel, rWheel - 2.5, hex("#20242a"));
+        c.ring(wx, yWheel, rWheel - 2.5, rWheel - 4, hex("#cfd6de"));
         for (let a = 0; a < 4; a++) {
           const ang = (a * Math.PI) / 4;
-          const dx = Math.cos(ang) * (rWheel - 4), dy = Math.sin(ang) * (rWheel - 4);
+          const dx = Math.cos(ang) * (rWheel - 3), dy = Math.sin(ang) * (rWheel - 3);
           c.line(wx - dx, yWheel - dy, wx + dx, yWheel + dy, 1, hex("#9ba5b0", 190));
         }
-        c.circle(wx, yWheel, 3, hex("#4b535e")); // hub
+        c.circle(wx, yWheel, 2.5, hex("#4b535e"));
       }
-      // Authentic Diamond Road/City Bicycle Frame (Teal-Emerald metallic tubes!)
       const frame = hex("#2f9c8c");
       const frameHi = hex("#5ec9b6");
-      const bbX = px + 46, bbY = yWheel; // bottom bracket / crank
-      const seatTopX = px + 38, seatTopY = py + 17;
-      const headTopX = px + pw - 32, headTopY = py + 16;
-      const headBotX = px + pw - 29, headBotY = py + 24;
-      // Chainstay & seatstay (rear triangle)
-      c.line(xRear, yWheel, bbX, bbY, 2.5, hex("#23272e")); // chain!
-      c.line(xRear, yWheel, seatTopX, seatTopY, 3, frame);
-      // Main diamond triangle (seat tube, top tube, down tube)
-      c.line(bbX, bbY, seatTopX, seatTopY, 3.5, frame);
-      c.line(seatTopX, seatTopY, headTopX, headTopY, 3.5, frame);
-      c.line(seatTopX, seatTopY - 1, headTopX, headTopY - 1, 1.2, frameHi);
-      c.line(bbX, bbY, headBotX, headBotY, 3.5, frame);
-      // Front fork to front axle
-      c.line(headTopX, headTopY, xFront, yWheel, 3, frame);
-      // Crankset & pedal
-      c.circle(bbX, bbY, 5, hex("#454d57"));
-      c.circle(bbX, bbY, 2, hex("#cfd6de"));
-      // Seatpost & sculpted leather saddle
-      c.line(seatTopX, seatTopY, seatTopX - 2, py + 10, 2.5, hex("#c8d0d8"));
-      c.borderedRoundRect(seatTopX - 11, py + 6, 17, 6, 3, hex("#5c3a24"), INK, 1);
-      // Stem, curved handlebars & front LED headlight!
-      c.line(headTopX, headTopY, headTopX + 2, py + 8, 2.5, hex("#c8d0d8"));
-      c.line(headTopX - 4, py + 8, headTopX + 9, py + 10, 3, hex("#2a2f36"));
-      c.circle(headTopX + 10, py + 13, 3, hex("#ffe680")); // chrome/LED headlight!
+      const bbX = px + 44, bbY = yWheel;
+      const seatTopX = px + 36, seatTopY = py + 7;
+      const headTopX = px + pw - 29, headTopY = py + 6;
+      const headBotX = px + pw - 26, headBotY = py + 12;
+      c.line(xRear, yWheel, bbX, bbY, 2, hex("#23272e"));
+      c.line(xRear, yWheel, seatTopX, seatTopY, 2.5, frame);
+      c.line(bbX, bbY, seatTopX, seatTopY, 3, frame);
+      c.line(seatTopX, seatTopY, headTopX, headTopY, 3, frame);
+      c.line(seatTopX, seatTopY - 1, headTopX, headTopY - 1, 1, frameHi);
+      c.line(bbX, bbY, headBotX, headBotY, 3, frame);
+      c.line(headTopX, headTopY, xFront, yWheel, 2.5, frame);
+      c.circle(bbX, bbY, 4, hex("#454d57"));
+      c.circle(bbX, bbY, 1.5, hex("#cfd6de"));
+      c.line(seatTopX, seatTopY, seatTopX - 2, py + 3, 2, hex("#c8d0d8"));
+      c.borderedRoundRect(seatTopX - 9, py + 1, 14, 5, 2, hex("#5c3a24"), INK, 1);
+      c.line(headTopX, headTopY, headTopX + 2, py + 3, 2, hex("#c8d0d8"));
+      c.line(headTopX - 3, py + 3, headTopX + 7, py + 4, 2.5, hex("#2a2f36"));
+      c.circle(headTopX + 8, py + 7, 2.5, hex("#ffe680"));
     } else if (p.k === "car") {
-      // IMAGE 4: REAL Detailed Top-Down Pixel-Art Modern Sporty Car (Crimson Metallic Hatchback/SUV, x=40..43, y=15..21)!
-      const cx = px + 14, cy = py + 14, cw = pw - 28, ch = ph - 28; // 100x196 px modern vehicle!
-      // Soft grounded drop shadow
+      // REAL Detailed Top-Down Pixel-Art Modern Sporty Car (Crimson Metallic Hatchback/SUV, x=40..43, y=16..21 -> 128x192px)!
+      const cx = px + 14, cy = py + 10, cw = pw - 28, ch = ph - 20; // 100x172 px crisp modern vehicle!
       c.roundRect(cx - 2, cy + 5, cw + 8, ch + 4, 22, SHADOW);
-      // 4 Curved Black Rubber Tires tucked cleanly into wheel arches!
       for (const [tx, ty] of [
-        [cx - 4, cy + 28], [cx + cw - 5, cy + 28],
-        [cx - 4, cy + ch - 62], [cx + cw - 5, cy + ch - 62],
+        [cx - 4, cy + 24], [cx + cw - 5, cy + 24],
+        [cx - 4, cy + ch - 54], [cx + cw - 5, cy + ch - 54],
       ]) {
-        c.borderedRoundRect(tx, ty, 9, 34, 4, hex("#1f2329"), INK, 1);
-        c.rect(tx + 2, ty + 6, 2, 22, hex("#3c434d"));
+        c.borderedRoundRect(tx, ty, 9, 30, 4, hex("#1f2329"), INK, 1);
+        c.rect(tx + 2, ty + 5, 2, 20, hex("#3c434d"));
       }
-      // Sculpted Metallic Crimson Car Body (outer outline + deep side bevel + bright hood/roof sheen!)
       const paint = hex("#c93838");
       const paintHi = hex("#e55852");
       const paintDark = hex("#8a1e22");
       c.borderedRoundRect(cx, cy, cw, ch, 20, paint, INK, 2);
-      // Subtle metallic side shading & body-line highlights
       c.roundRect(cx + 4, cy + 4, cw - 8, ch - 8, 17, paintHi);
       c.roundRect(cx + 10, cy + 8, cw - 20, ch - 16, 13, paint);
-      // Sculpted hood character creases (south end = front facing garage door!)
-      c.rect(cx + 22, cy + ch - 48, 3, 34, paintHi);
-      c.rect(cx + cw - 25, cy + ch - 48, 3, 34, paintHi);
-      // Side wing mirrors (left & right near front windshield!)
-      c.borderedRoundRect(cx - 10, cy + ch - 74, 12, 9, 3, paint, INK, 2);
-      c.borderedRoundRect(cx + cw - 2, cy + ch - 74, 12, 9, 3, paint, INK, 2);
-
-      // Cabin Greenhouse: Rear Window (north), Panoramic Sunroof (center), Curved Front Windshield (south)!
-      // Rear window (north end)
-      c.borderedRoundRect(cx + 15, cy + 20, cw - 30, 24, 7, hex("#2c3c4c"), INK, 2);
-      c.line(cx + 22, cy + 24, cx + 34, cy + 38, 3, hex("#6a94b8", 160));
+      c.rect(cx + 22, cy + ch - 42, 3, 28, paintHi);
+      c.rect(cx + cw - 25, cy + ch - 42, 3, 28, paintHi);
+      c.borderedRoundRect(cx - 10, cy + ch - 66, 12, 9, 3, paint, INK, 2);
+      c.borderedRoundRect(cx + cw - 2, cy + ch - 66, 12, 9, 3, paint, INK, 2);
+      // Rear window
+      c.borderedRoundRect(cx + 15, cy + 16, cw - 30, 22, 7, hex("#2c3c4c"), INK, 2);
+      c.line(cx + 22, cy + 20, cx + 34, cy + 32, 3, hex("#6a94b8", 160));
       // Roof & Panoramic Tinted Glass Sunroof
-      c.borderedRoundRect(cx + 13, cy + 46, cw - 26, 68, 8, paintHi, paintDark, 2);
-      c.borderedRoundRect(cx + 20, cy + 54, cw - 40, 48, 6, hex("#23303d"), hex("#141a21"), 2);
-      c.line(cx + 26, cy + 62, cx + 56, cy + 92, 5, hex("#5983a8", 120)); // glass reflection!
-      c.line(cx + 42, cy + 60, cx + 64, cy + 82, 2, hex("#9ac4e6", 110));
-      // Sleek roof rails & shark-fin antenna
-      c.rect(cx + 14, cy + 48, 3, 64, hex("#3c434d"));
-      c.rect(cx + cw - 17, cy + 48, 3, 64, hex("#3c434d"));
-      c.box(cx + Math.floor(cw / 2) - 2, cy + 48, 4, 8, hex("#262b31"), INK, 1);
-
-      // Large Curved Front Windshield (south half, facing garage door!)
-      c.borderedRoundRect(cx + 13, cy + 116, cw - 26, 30, 8, hex("#2c3c4c"), INK, 2);
-      c.line(cx + 20, cy + 122, cx + 38, cy + 140, 4, hex("#7ab2db", 170));
-      c.line(cx + 34, cy + 121, cx + 48, cy + 135, 2, hex("#c2e3fa", 160));
-      // Wiper blades at base of windshield
-      c.line(cx + 22, cy + 142, cx + 42, cy + 138, 2, hex("#181c20"));
-      c.line(cx + 52, cy + 142, cx + 74, cy + 138, 2, hex("#181c20"));
-
-      // Door panel seams & chrome handles
-      c.rect(cx + 5, cy + 82, 4, 2, paintDark);
-      c.rect(cx + cw - 9, cy + 82, 4, 2, paintDark);
-      c.rect(cx + 6, cy + 96, 3, 8, hex("#e3e8ee"));
-      c.rect(cx + cw - 9, cy + 96, 3, 8, hex("#e3e8ee"));
-
-      // Rear LED Tail Light Bar (north bumper) + License Plate
+      c.borderedRoundRect(cx + 13, cy + 40, cw - 26, 56, 8, paintHi, paintDark, 2);
+      c.borderedRoundRect(cx + 20, cy + 47, cw - 40, 40, 6, hex("#23303d"), hex("#141a21"), 2);
+      c.line(cx + 26, cy + 54, cx + 52, cy + 80, 5, hex("#5983a8", 120));
+      c.line(cx + 42, cy + 52, cx + 62, cy + 72, 2, hex("#9ac4e6", 110));
+      c.rect(cx + 14, cy + 42, 3, 52, hex("#3c434d"));
+      c.rect(cx + cw - 17, cy + 42, 3, 52, hex("#3c434d"));
+      c.box(cx + Math.floor(cw / 2) - 2, cy + 42, 4, 8, hex("#262b31"), INK, 1);
+      // Curved Front Windshield
+      c.borderedRoundRect(cx + 13, cy + 98, cw - 26, 28, 8, hex("#2c3c4c"), INK, 2);
+      c.line(cx + 20, cy + 104, cx + 36, cy + 120, 4, hex("#7ab2db", 170));
+      c.line(cx + 34, cy + 103, cx + 46, cy + 115, 2, hex("#c2e3fa", 160));
+      c.line(cx + 22, cy + 122, cx + 42, cy + 118, 2, hex("#181c20"));
+      c.line(cx + 52, cy + 122, cx + 74, cy + 118, 2, hex("#181c20"));
+      c.rect(cx + 5, cy + 72, 4, 2, paintDark);
+      c.rect(cx + cw - 9, cy + 72, 4, 2, paintDark);
+      c.rect(cx + 6, cy + 84, 3, 8, hex("#e3e8ee"));
+      c.rect(cx + cw - 9, cy + 84, 3, 8, hex("#e3e8ee"));
       c.box(cx + 14, cy + 4, 22, 6, hex("#ff4a4a"), hex("#5e1010"), 1);
       c.box(cx + cw - 36, cy + 4, 22, 6, hex("#ff4a4a"), hex("#5e1010"), 1);
       c.rect(cx + 38, cy + 5, cw - 76, 4, hex("#d42c2c"));
       c.box(cx + Math.floor(cw / 2) - 10, cy + 1, 20, 4, hex("#f4f6f8"), INK, 1);
-
-      // Front LED Headlights + Modern Grille (south nose facing garage roller door!)
       c.borderedRoundRect(cx + 12, cy + ch - 12, 22, 8, 3, hex("#fff9d6"), hex("#4a4f57"), 1);
       c.borderedRoundRect(cx + cw - 34, cy + ch - 12, 22, 8, 3, hex("#fff9d6"), hex("#4a4f57"), 1);
       c.rect(cx + 16, cy + ch - 9, 14, 3, hex("#ffffff"));
       c.rect(cx + cw - 30, cy + ch - 9, 14, 3, hex("#ffffff"));
       c.borderedRoundRect(cx + 36, cy + ch - 9, cw - 72, 6, 2, hex("#242930"), INK, 1);
-      c.circle(cx + Math.floor(cw / 2), cy + ch - 6, 2, hex("#d6dde6")); // chrome emblem
+      c.circle(cx + Math.floor(cw / 2), cy + ch - 6, 2, hex("#d6dde6"));
     } else if (p.k === "plant") {
       paintStardewPlant(c, px, py, p.x + p.y);
     }

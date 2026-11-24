@@ -74,6 +74,6 @@ export function floorPropLabel(_theme: FloorTheme, kind: FloorPropKind): { title
     case "coffee":
       return { title: "Coffee Machine Bar", hint: "Send free agents to the coffee bar or kitchen for a break" };
     case "meeting":
-      return { title: "Community Standup Table", hint: "Call Team Standup huddle here" };
+      return { title: "Executive Meeting Room", hint: "Call a live Team Standup huddle in the boardroom" };
   }
 }
