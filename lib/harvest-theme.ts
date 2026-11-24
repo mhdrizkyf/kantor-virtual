@@ -1,14 +1,14 @@
 import type { FloorPropKind } from "./munder-workflows";
 
-export type FloorTheme = "harvest" | "campus";
+export type FloorTheme = "harvest";
 export type HarvestLightingMode = "auto" | "morning" | "day" | "sunset" | "night";
 export type HarvestPhase = "morning" | "day" | "sunset" | "night";
 
 export const FLOOR_THEME_STORAGE_KEY = "kantor-floor-theme";
 export const HARVEST_LIGHTING_STORAGE_KEY = "kantor-harvest-lighting";
 
-export function parseFloorTheme(raw?: string | null): FloorTheme {
-  return raw === "campus" ? "campus" : "harvest";
+export function parseFloorTheme(_raw?: string | null): FloorTheme {
+  return "harvest";
 }
 
 export function parseHarvestLighting(raw?: string | null): HarvestLightingMode {
@@ -65,27 +65,15 @@ export function harvestPhaseLabel(phase: HarvestPhase): string {
   }
 }
 
-export function floorPropLabel(theme: FloorTheme, kind: FloorPropKind): { title: string; hint: string } {
-  if (theme === "harvest") {
-    switch (kind) {
-      case "board":
-        return { title: "Help Wanted Board", hint: "Open Task Board & Pelican Town requests" };
-      case "server":
-        return { title: "Junimo Control Cabinet", hint: "Inspect AI Engines & office controls" };
-      case "coffee":
-        return { title: "Farmhouse Coffee Bar", hint: "Send free agents for a warm brew" };
-      case "meeting":
-        return { title: "Community Standup Table", hint: "Call Team Standup huddle here" };
-    }
-  }
+export function floorPropLabel(_theme: FloorTheme, kind: FloorPropKind): { title: string; hint: string } {
   switch (kind) {
     case "board":
-      return { title: "Task Board", hint: "Open Kanban board & all project tasks" };
+      return { title: "Help Wanted Board", hint: "Open Task Board & Pelican Town requests" };
     case "server":
-      return { title: "AI Engines & Controls", hint: "Open office controls & engine status" };
+      return { title: "AI Compute Cabinet", hint: "Inspect Codex credit & office controls" };
     case "coffee":
-      return { title: "Coffee Bar", hint: "Send free agents on a quick coffee break" };
+      return { title: "Coffee Machine Bar", hint: "Send free agents to the coffee bar or kitchen for a break" };
     case "meeting":
-      return { title: "Standup Meeting", hint: "Call a live Team Standup huddle here" };
+      return { title: "Community Standup Table", hint: "Call Team Standup huddle here" };
   }
 }

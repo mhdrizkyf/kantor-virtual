@@ -23,13 +23,10 @@ import { LiveActivityFeed, QuickApprovalBar } from "./office-hud";
 import { formatClockNow, type ActivityEvent, type DropZone, type FloorPropKind, type GoalStepDraft } from "@/lib/munder-workflows";
 import { isLunchHour } from "@/lib/office-time";
 import {
-  FLOOR_THEME_STORAGE_KEY,
   HARVEST_LIGHTING_STORAGE_KEY,
   harvestPhaseLabel,
-  parseFloorTheme,
   parseHarvestLighting,
   resolveHarvestPhase,
-  type FloorTheme,
   type HarvestLightingMode,
   type HarvestPhase,
 } from "@/lib/harvest-theme";
@@ -148,20 +145,14 @@ export default function OfficeView({ office, buildings, attention, people, seen,
   const [orchDraft, setOrchDraft] = useState<{ goal: string; heading?: string; steps?: GoalStepDraft[] } | null>(null);
   const [previewStep, setPreviewStep] = useState<number | null>(null);
   const [flowNotice, setFlowNotice] = useState("");
-  const [floorTheme, setFloorThemeState] = useState<FloorTheme>("harvest");
   const [harvestLighting, setHarvestLightingState] = useState<HarvestLightingMode>("auto");
   const [harvestPhase, setHarvestPhase] = useState<HarvestPhase>("day");
   useEffect(() => {
     try {
-      setFloorThemeState(parseFloorTheme(localStorage.getItem(FLOOR_THEME_STORAGE_KEY)));
       setHarvestLightingState(parseHarvestLighting(localStorage.getItem(HARVEST_LIGHTING_STORAGE_KEY)));
     } catch {
       // Ignore storage access failures in private browsing.
     }
-  }, []);
-  const setFloorTheme = useCallback((next: FloorTheme) => {
-    setFloorThemeState(next);
-    try { localStorage.setItem(FLOOR_THEME_STORAGE_KEY, next); } catch { /* ignore */ }
   }, []);
   const setHarvestLighting = useCallback((next: HarvestLightingMode) => {
     setHarvestLightingState(next);
@@ -613,37 +604,24 @@ export default function OfficeView({ office, buildings, attention, people, seen,
               <ThemeToggle variant="segmented" />
             </div>
             <div className="office-controls-theme">
-              <span className="hlabel">Office world</span>
-              <div className="world-seg" role="group" aria-label="Office floor world theme">
-                <button type="button" className="theme-seg-btn" aria-pressed={floorTheme === "harvest"} onClick={() => setFloorTheme("harvest")}>
-                  🌾 Stardew Valley
-                </button>
-                <button type="button" className="theme-seg-btn" aria-pressed={floorTheme === "campus"} onClick={() => setFloorTheme("campus")}>
-                  🏢 Studio Campus
-                </button>
+              <div className="world-light-head">
+                <span className="hlabel">Pelican sky</span>
+                <small className="clock">{harvestPhaseLabel(harvestPhase)}</small>
+              </div>
+              <div className="world-light-seg" role="group" aria-label="Stardew Valley time-of-day lighting">
+                {(["auto", "morning", "day", "sunset", "night"] as const).map(mode => (
+                  <button
+                    key={mode}
+                    type="button"
+                    className="theme-seg-btn"
+                    aria-pressed={harvestLighting === mode}
+                    onClick={() => setHarvestLighting(mode)}
+                  >
+                    {mode === "auto" ? "Auto" : mode === "morning" ? "Dawn" : mode === "day" ? "Day" : mode === "sunset" ? "Sunset" : "Night"}
+                  </button>
+                ))}
               </div>
             </div>
-            {floorTheme === "harvest" && (
-              <div className="office-controls-theme">
-                <div className="world-light-head">
-                  <span className="hlabel">Pelican sky</span>
-                  <small className="clock">{harvestPhaseLabel(harvestPhase)}</small>
-                </div>
-                <div className="world-light-seg" role="group" aria-label="Stardew Valley time-of-day lighting">
-                  {(["auto", "morning", "day", "sunset", "night"] as const).map(mode => (
-                    <button
-                      key={mode}
-                      type="button"
-                      className="theme-seg-btn"
-                      aria-pressed={harvestLighting === mode}
-                      onClick={() => setHarvestLighting(mode)}
-                    >
-                      {mode === "auto" ? "Auto" : mode === "morning" ? "Dawn" : mode === "day" ? "Day" : mode === "sunset" ? "Sunset" : "Night"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
             <div className="runtime-strip" aria-label="Codex credit status">
               {office.codexQuota ? (
                 <>
@@ -685,7 +663,7 @@ export default function OfficeView({ office, buildings, attention, people, seen,
             huddleIds={huddleIds}
             coffeeTick={coffeeTick}
             reviewTasksByAgent={reviewTasksByAgent}
-            floorTheme={floorTheme}
+            floorTheme="harvest"
             harvestPhase={harvestPhase}
             onDesk={d => openAgentDrawer(d.agentId, "tasks")}
             onHuman={name => { setOpenHuman(name); setHumanAvatarOpen(false); setHumanFaceErr(null); setOpenDeskId(null); }}
