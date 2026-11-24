@@ -1,18 +1,15 @@
 // Task chains: run a list of agent tasks one after another. The next task only starts once the previous one is
 // done (approved), so the laptop runs one heavy agent job at a time. Kept in data/chains.json (git-ignored).
 import "server-only";
-import { readFileSync, writeFileSync, mkdirSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { call_, updateIssue, addComment, cancelRun } from "./multica";
 import { ProcessBusyError, withProcessLock } from "./process-lock";
+import { readJsonFile, writeJsonAtomic } from "./json-store";
 
 type Chain = { id: string; ws: string; title: string; issues: string[]; message: string; started: string[]; starting?: string[] };
-const FILE = join(process.cwd(), "data", "chains.json");
-const read = (): Chain[] => {
-  try { return JSON.parse(readFileSync(FILE, "utf8")); }
-  catch (e) { if ((e as NodeJS.ErrnoException).code === "ENOENT") return []; throw e; }
-};
-const write = (c: Chain[]) => { mkdirSync(join(process.cwd(), "data"), { recursive: true }); const tmp = `${FILE}.${process.pid}.tmp`; writeFileSync(tmp, JSON.stringify(c, null, 2)); renameSync(tmp, FILE); };
+const file = () => join(process.cwd(), "data", "chains.json");
+const read = (): Chain[] => readJsonFile<Chain[]>(file(), () => []);
+const write = (c: Chain[]) => { writeJsonAtomic(file(), c); };
 
 export function addChain(c: Omit<Chain, "started">) { write([...read().filter(x => x.id !== c.id), { ...c, started: [] }]); }
 

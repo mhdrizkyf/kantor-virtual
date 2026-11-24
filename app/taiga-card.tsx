@@ -6,7 +6,7 @@ import { Px } from "./pixel-icon";
 import { WaTask } from "./wa-card";
 
 type Row = { title: string; date: string; start: string; minutes: number; training: boolean; on: boolean };
-type Status = { connected: boolean; expires?: string; autoRenew: boolean; user?: string; story?: string; storyUrl?: string; logged: Record<string, { ref: number; url: string }> };
+type Status = { configured: boolean; connected: boolean; expires?: string; autoRenew: boolean; user?: string; story?: string; storyUrl?: string; logged: Record<string, { ref: number; url: string }> };
 
 // One shared copy of the connection status for every card.
 let cur: Status | null = null;
@@ -126,7 +126,9 @@ export function TaigaCard({ block }: { block: string }) {
         {st?.storyUrl && <a className="tg-story" href={st.storyUrl} target="_blank" rel="noreferrer">{st.story}</a>}
       </div>
       {err && !expired && <div className="note bad">{err}</div>}
-      {st && (!st.connected || expired) && !allDone ? <Connect again={expired || !!st.user} onDone={() => { setExpired(false); setErr(null); }} /> : (
+      {st && !st.configured && !allDone ? (
+        <div className="wa-row"><span className="hint">Taiga is not configured yet. Set <code>TAIGA_URL</code>, <code>TAIGA_PROJECT</code>, and <code>TAIGA_STORY</code> in <code>.env.local</code>, then restart Virtual Office.</span></div>
+      ) : st && (!st.connected || expired) && !allDone ? <Connect again={expired || !!st.user} onDone={() => { setExpired(false); setErr(null); }} /> : (
         <div className="wa-row">
           <span className="hint">
             {allDone ? <><Px name="done" /> All logged in Taiga.{closed === "yes" ? " This task is closed." : ""}{closedOthers.length ? ` Also closed: ${closedOthers.join(", ")}.` : ""}</>

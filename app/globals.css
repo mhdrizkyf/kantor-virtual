@@ -823,6 +823,7 @@ main.pagewide{gap:24px;padding-block:24px}
 .runtime-chip{display:inline-flex;align-items:center;gap:7px;background:#fff;border:1px solid #dedbd2;border-radius:9px;padding:6px 10px;color:#45443f;font-size:12px;font-weight:700;white-space:nowrap}
 .runtime-chip i,.agent-row i{width:8px;height:8px;background:#aaa79f;border-radius:50%;display:inline-block;flex:none}
 .runtime-chip i.on,.agent-row i.on{background:#2b9b60}
+.agent-row i.err{background:#c2412d}
 .floor-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#fff;border:1px solid var(--office-line);border-radius:14px;padding:10px 14px;color:var(--office-ink);font-size:13px}
 .floor-toolbar>span{white-space:nowrap}.floor-tabs{display:flex;flex:1;gap:5px;overflow:auto;scrollbar-width:thin}.floor-tabs button,.floor-add{border:0;background:transparent;border-radius:8px;padding:7px 10px;font:600 12px var(--f-body);color:#66645e;white-space:nowrap;cursor:pointer}.floor-tabs button[aria-pressed="true"]{background:#282729;color:white}.floor-add{border:1px solid #dedbd2;color:#282729}
 .office-scene{overflow:hidden;border:2px solid #343137;border-radius:18px;background:#d5cdb6;min-height:540px;box-shadow:0 8px 24px #25211f12}

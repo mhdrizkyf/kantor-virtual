@@ -17,7 +17,7 @@ import CharacterFace from "./character-face";
 import ReferenceOffice from "./reference-office";
 import { isLunchHour } from "@/lib/office-time";
 
-const REFRESH_MS = 30_000;
+const REFRESH_MS = 15_000;
 
 function Avatar({ d, home }: { d: Desk; home?: boolean }) {
   return (
@@ -203,7 +203,11 @@ export default function OfficeView({ office, attention, people, seen, meId }: { 
   const runtimeSummary = useMemo(() => {
     const groups = new Map<string, Office["runtimes"]>();
     for (const runtime of office.runtimes) groups.set(runtime.provider, [...(groups.get(runtime.provider) ?? []), runtime]);
-    return [...groups.entries()];
+    return [...groups.entries()].sort(([, a], [, b]) => {
+      const aOn = a.filter(r => r.online).length;
+      const bOn = b.filter(r => r.online).length;
+      return bOn - aOn || b.length - a.length;
+    });
   }, [office.runtimes]);
   useEffect(() => {
     const f = (event: Event) => { const id = (event as CustomEvent<{ agentId: string }>).detail?.agentId; const d = uniqueDesks.find(d => d.agentId === id); if (d) setOpenDesk(d); };
@@ -294,8 +298,9 @@ export default function OfficeView({ office, attention, people, seen, meId }: { 
         <div className="wrap hbar">
           <button type="button" className="office-nav-button" onClick={() => { setControlsOpen(false); setAttentionOpen(false); window.dispatchEvent(new Event("kantor:nav-toggle")); }} aria-label="Toggle navigation" title="Navigation">☰</button>
           <div className="brand"><h1>{office.workspace}</h1><span className="office-live"><i />{office.switchOpen ? "Office open" : "Office closed"}</span></div>
-          <div className="header-engines">{runtimeSummary.slice(0,3).map(([provider, list]) => <span key={provider}><b>{provider === "codex" ? "Codex" : provider === "claude" ? "Claude Code" : provider}</b><i><em style={{ width: `${Math.round(list.filter(r => r.online).length / list.length * 100)}%` }} /></i></span>)}</div>
+          <div className="header-engines">{runtimeSummary.slice(0,3).map(([provider, list]) => { const online = list.filter(r => r.online).length; const label = provider === "codex" ? "Codex" : provider === "claude" ? "Claude Code" : provider === "qoder_cloud" ? "Qoder Cloud" : provider; return <span key={provider} title={`${label}: ${online}/${list.length} online (${list.map(r => `${r.name}${r.owner ? ` · ${r.owner}` : ""}: ${r.online ? "online" : "offline"}`).join(", ")})`}><b>{label}</b><i><em style={{ width: `${Math.round(online / list.length * 100)}%` }} /></i></span>; })}</div>
           <div className="office-top-actions">
+            <button type="button" className="office-top-button" onClick={refresh} disabled={refreshing} title={`Last synced at ${office.updatedAt}. Click to sync with Multica now.`}><Px name="refresh" /> {refreshing ? "Syncing…" : "Sync"}</button>
             <OfficeAmbience open={office.switchOpen} timeZone={office.timeZone} calendar={office.workCalendar} activeWork={activeWork} />
             <button type="button" className="office-top-button" onClick={() => { setControlsOpen(false); setAttentionOpen(v => !v); }} aria-expanded={attentionOpen}><Px name="bell" /> Attention{total > 0 && <b>{total}</b>}</button>
             <button type="button" className="office-top-button" onClick={() => setNewProject(true)}><Px name="plus" /> Project</button>

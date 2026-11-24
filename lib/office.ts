@@ -69,10 +69,11 @@ function shortError(e: string | null) {
   return e.length > 60 ? e.slice(0, 57) + "…" : e;
 }
 
-/** Peringatan kalau login Claude/GPT di laptop kedaluwarsa (run terakhir di runtime itu gagal karena login). */
+/** Peringatan kalau login Claude/GPT di laptop kedaluwarsa (run terakhir di runtime aktif itu gagal karena login). */
 function loginAlerts(s: Snapshot): string[] {
   const out: string[] = [];
   for (const rt of s.runtimes) {
+    if (rt.status !== "online" || !s.agents.some(a => a.runtime_id === rt.id)) continue;
     const last = s.runs.filter(r => r.runtime_id === rt.id).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))[0];
     if (last?.status === "failed" && /oauth|authenticat|login/i.test(last.error ?? "")) {
       const who = rt.provider === "claude" ? "Claude" : rt.provider === "codex" ? "ChatGPT (Codex)" : rt.provider;
@@ -159,26 +160,33 @@ export function buildOffice(s: Snapshot): Office {
     const active = runs.find(r => ACTIVE_RUN.has(r.status));
     const last = runs[0];
     const mine = open.filter(i => i.assignee_type === "agent" && i.assignee_id === a.id);
+    const mineIds = new Set(mine.map(i => i.id));
     const review = mine.filter(i => i.status === "in_review");
     const ready = mine.filter(i => (i.status === "todo" || i.status === "in_progress") && !workerFinished(i));
+    const agentBusy = ["working", "running", "busy"].includes(String(a.status || "").toLowerCase());
+    // Ignore stale failures from an old runtime the agent was switched away from, or from issues no longer open/assigned to this agent.
+    const recentFail = last?.status === "failed"
+      && last.runtime_id === a.runtime_id
+      && (!last.issue_id || (mineIds.has(last.issue_id) && issueById.get(last.issue_id)?.status !== "in_review"))
+      && Date.now() - Date.parse(last.created_at) < 86400000 * 3;
     let state: DeskState, bubble: string;
     const parkedMine = mine.filter(i => (i.metadata ?? {}).kantor_parked).length;
-    if (!switchOpen && !active) { state = "closed"; bubble = parkedMine ? `Office closed · ${parkedMine} waiting` : "Office closed"; }
+    if (!switchOpen && !active && !agentBusy) { state = "closed"; bubble = parkedMine ? `Office closed · ${parkedMine} waiting` : "Office closed"; }
     else if (!online) { state = "off"; bubble = "Laptop off · resumes when on"; }
-    else if (!active && quota.has(a.runtime_id)) {
+    else if (!active && !agentBusy && quota.has(a.runtime_id)) {
       const q = quota.get(a.runtime_id)!;
       const past = q.resetAt && Date.parse(q.resetAt) <= Date.now();
       state = "break";
       bubble = q.resetAt ? (past ? "Quota back · resuming soon" : `On a break · quota resets ${fmtTime(new Date(q.resetAt))}`) : "On a break · AI quota used up";
     }
-    else if (active) { state = "working"; const ai = issueById.get(active.issue_id || ""); bubble = "Working on: " + (ai ? friendlyTitle(ai) : "a task"); }
-    else if (last?.status === "failed" && Date.now() - Date.parse(last.created_at) < 86400000 * 3) { state = "failed"; bubble = "Failed: " + shortError(last.error); }
+    else if (active || agentBusy) { state = "working"; const ai = active?.issue_id ? issueById.get(active.issue_id) : undefined; bubble = "Working on: " + (ai ? friendlyTitle(ai) : "a task"); }
+    else if (recentFail) { state = "failed"; bubble = "Failed: " + shortError(last.error); }
     else if (review.length) { state = "review"; bubble = `Waiting for your review (${review.length})`; }
     else if (ready.length) { state = "ready"; bubble = `Ready for ${ready.length} task${ready.length > 1 ? "s" : ""}`; }
     else {
       state = "home";
       const backlog = mine.filter(i => i.status === "backlog").length;
-      bubble = backlog ? `Off duty · ${backlog} in backlog` : "Off duty · no tasks";
+      bubble = backlog ? `Standby · ${backlog} in backlog` : "Standby · ready for tasks";
     }
     return {
       agentId: a.id, name: a.name, emoji: emojiOf(a), avatar: imgOf(a), face: characters[a.id] ?? defaultFace(a.id), description: a.description || "",

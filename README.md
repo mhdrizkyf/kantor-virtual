@@ -152,9 +152,10 @@ To update an existing clone, first commit or back up local code edits, then run 
 
 | Page | What it shows |
 |---|---|
-| **Office** | Team desks (people and agents), a room per project, the lounge, and **Needs attention**: late or at-risk tasks, to-dos for people, work to review, and failures. |
+| **Office** | A 23-seat animated campus floor (owner office, human desks, and squad-assigned AI agent workstations), a quick message composer, controls, and **Needs attention**: late or at-risk tasks, to-dos for people, work to review, and failures. |
 | **Task Board** | A kanban per project: Backlog → Ready → In progress → Needs review → Done. |
 | **Team Members** | People and AI agents, their projects and workload. Invite someone by email, create an agent, or pick each agent's AI engine. |
+| **Knowledge & Files** | Per-agent OneDrive `Knowledge` and `Outputs` folders, linked OneDrive folders, and automatic output syncing. |
 | **Messages** | Chat between people in the workspace. |
 | **Notifications** | Your Multica inbox: mentions, reviews and updates. |
 | **Task pop-up** | The agent's output on the left. On the right: a short summary, the agent's questions as answer cards, and approve / request changes. Type `@` to mention someone. |
@@ -169,6 +170,11 @@ To update an existing clone, first commit or back up local code edits, then run 
 | `KANTOR_TIMEZONE` | Time zone for "today", due dates and late tasks. Default is `Asia/Jakarta`. |
 | `MULTICA_WORKSPACE_ID` | Workspace to open first. Default is the first one. |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHATS`, `TELEGRAM_BOTS` | Telegram reminders. See `setup/SETUP-TELEGRAM.md`. |
+| `TAIGA_URL`, `TAIGA_PROJECT`, `TAIGA_STORY` | Optional Taiga server URL, project slug, and user story reference number for logging daily activities (all three are required before connecting). |
+| `KANTOR_FILES_FOLDER`, `KANTOR_ONEDRIVE` | Top folder name inside OneDrive (default `Kantor Virtual`) and optional explicit OneDrive root directory path. |
+| `KANTOR_CHROME` | Optional path to Chrome/Chromium executable for the assistant's WhatsApp Web session (`whatsapp-web.js`). |
+| `KANTOR_ALLOWED_HOSTS` | Optional comma-separated extra `Host` values allowed by the `/api/*` security guard (defaults to loopback hosts: `localhost`, `127.0.0.1`, `[::1]`). |
+| `KANTOR_NO_WATCHDOG` | Set to `1` to disable the in-process background watchdog and timers during local development. |
 
 ### Better agent summaries
 
@@ -213,12 +219,15 @@ Otherwise it shows when they were last seen.
 ## For developers
 
 - **Stack:** Next.js 15 (App Router), React 19, TypeScript. All Multica calls happen server-side in `lib/multica.ts`. The token never reaches the browser.
+- **Security guard:** `middleware.ts` (`lib/request-guard.ts`) protects `/api/*` against DNS rebinding and cross-origin CSRF by restricting local `Host` headers to loopback addresses (`localhost`, `127.0.0.1`, `[::1]`, extendable via `KANTOR_ALLOWED_HOSTS`) and enforcing same-origin `Origin` / `Sec-Fetch-Site` / `Referer` checks on mutating requests.
+- **Platform notes:** Core Multica views work on macOS and Windows. Local OneDrive auto-discovery (`~/Library/CloudStorage/OneDrive*`), Finder Open/Reveal, web screenshots (`scripts/web-shot.sh`), and WhatsApp bot Chrome auto-discovery are currently macOS-focused; set `KANTOR_ONEDRIVE` and `KANTOR_CHROME` to override paths on other platforms.
 - **Scripts:**
   - `npm run typecheck`: TypeScript check.
-  - `npm test`: mocked Multica flow tests for task approval/revision, office switching and task chains.
+  - `npm test`: unit and mocked Multica flow tests for task approval/revision, office switching, task chains, Retina workstations, campus pathing, and security hardening.
   - `npm run office:measure -- --baseline` and `npm run office:measure`: compare Office load time and API-call counts against your configured Multica server. Run each command separately with the same workspace (`--ws=slug` if needed).
   - `npm run penjaga:uji`: dry run of the office watchdog, which resumes paused tasks and sends Telegram reminders.
 - **Other files:**
+  - `.github/workflows/ci.yml`: automated CI check running `typecheck`, `test`, and `build` on pushes to `main` and pull requests.
   - `.github/workflows/penjaga.yml`: optional scheduled watchdog that runs on GitHub. It needs repository secrets; see `setup/SETUP-TELEGRAM.md`.
   - `data/judul.json` (optional, not committed): friendlier titles for your own issues, as `{ "issue-id": "Title" }`. See `data/judul.example.json`.
 
@@ -226,13 +235,11 @@ Otherwise it shows when they were last seen.
 
 MIT. See [LICENSE](LICENSE).
 
-### Your own office character (optional, private)
-Put your animation frames in `public/me/` with a `character.json` (`people`: your name(s); `frames.idle`, optional `frames.waving`: image paths; optional `scale`, `x`, `y`, `fps`).
-That folder is git-ignored, so the character only shows on your own computer; everyone else keeps the default pixel person.
-
 ### Office artwork attribution
 
-The office scene, furniture, procedural character sprites and animation renderer use the MIT-licensed landing-page code from [Munder Difflin](https://github.com/HarnessMD/munder-difflin), copyright 2026 Chaitanya Giri. The original license is included in `public/vendor/munder/LICENSE`. Only procedural source art is used; the separately licensed LimeZu tilesets are not included. The scene is connected to live Multica agents, with keyboard-accessible desk controls, meeting access, squad filtering and lunch-hour movement.
+The office scene, procedural engine and animation renderer build on the MIT-licensed landing-page code from [Munder Difflin](https://github.com/HarnessMD/munder-difflin), copyright 2026 Chaitanya Giri. The original license is included in `public/vendor/munder/LICENSE`. Only procedural source art is used; the separately licensed LimeZu tilesets are not included. All 23 workstations use the Golden Retina Assets v2.7 sprite system (`public/art/retina-v2.7/` + `public/retina-workstation.js`) by default; append `?retina=0` to the Office URL to fall back to the legacy 1x workstation renderer. The scene is connected to live Multica agents, with keyboard-accessible desk controls, meeting access, squad room assignments, and lunch-hour movement.
+
+> Note: Custom `public/me/character.json` frames are currently only supported by the legacy `app/pixel-desk.tsx` component and are not yet wired into the campus canvas (`app/reference-office.tsx`).
 
 All pages and shared dialogs use the same neutral visual tokens and controls as Office. Legacy browser theme and palette preferences are no longer applied; pixel artwork is retained for the office scene and character portraits.
 

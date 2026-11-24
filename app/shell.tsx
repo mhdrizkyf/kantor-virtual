@@ -212,7 +212,7 @@ export default function Shell({ buildings, current, section, roster = [], childr
             {unread > 0 && <span className="sl-badge" aria-label={`${unread} unread`}>{unread > 99 ? "99+" : unread}</span>}
           </button>
         </nav>
-        {open && roster.length > 0 && <div className="agent-roster"><h2>AGENTS</h2>{roster.map(a => <button type="button" className="agent-row" key={a.agentId} onClick={() => { window.dispatchEvent(new CustomEvent("kantor:desk", { detail: { agentId: a.agentId } })); if (section === "kantor" || narrow()) toggle(false); }}><CharacterFace face={a.face} size={34} /><span><b>{a.name}</b><small>{a.description || a.state}</small></span><i className={a.state === "working" || a.state === "ready" ? "on" : ""} /></button>)}</div>}
+        {open && roster.length > 0 && <div className="agent-roster"><h2>AGENTS</h2>{roster.map(a => <button type="button" className="agent-row" key={a.agentId} onClick={() => { window.dispatchEvent(new CustomEvent("kantor:desk", { detail: { agentId: a.agentId } })); if (section === "kantor" || narrow()) toggle(false); }}><CharacterFace face={a.face} size={34} /><span><b>{a.name}</b><small>{a.description || a.state}</small></span><i className={a.state === "failed" ? "err" : !["off", "closed"].includes(a.state) ? "on" : ""} title={a.state === "home" ? "Online · standby" : a.state} /></button>)}</div>}
       </aside>
       {open && <div className="side-scrim" onClick={() => toggle(false)} />}
 

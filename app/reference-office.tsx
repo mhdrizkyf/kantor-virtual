@@ -77,7 +77,7 @@ export default function ReferenceOffice({ desks, humans, ownerId, lunch, preview
       scene.current=s;
       // Full Retina rollout: all 23 workstations share one asset library.
       // Keep the selected character preset for every agent; preserve the owner/human variety.
-      shown.forEach(d => {const actor=s.get(d.agentId); if(actor) actor.retinaFaceId=d.face;});
+      shown.forEach(d => {const actor=s.get(d.agentId); if(actor) { actor.retinaFaceId=d.face; actor.hidden=!actor.busy && ['off','closed'].includes(d.state); }});
       const humanFaceIds=['raya','niko','sari','bima','lia','danu'];
       visibleHumans.forEach((h,i)=>{const actor=s.get(`person:${h.id}`);if(actor) actor.retinaFaceId=humanFaceIds[i%humanFaceIds.length];});
       // ?retina=0 immediately restores the complete legacy renderer. A seat param is debug-only.
@@ -98,7 +98,7 @@ export default function ReferenceOffice({ desks, humans, ownerId, lunch, preview
       }
       const pending = new Map<string,{h:Handover & {key:string}; delivered:boolean}>();
       s.onTick=()=> {
-        for(const d of latest.current.desks) { const a=s.get(d.agentId); if(a) { a.busy=d.state==='working' || (latest.current.previewWorking && d.agentId===latest.current.desks[0]?.agentId); a.hidden=!a.busy && ['home','off','closed'].includes(d.state) && a.state==='seat'; if(a.busy) s.bubble(d.agentId,'dots',1); } }
+        for(const d of latest.current.desks) { const a=s.get(d.agentId); if(a) { a.busy=d.state==='working' || (latest.current.previewWorking && d.agentId===latest.current.desks[0]?.agentId); a.hidden=!a.busy && ['off','closed'].includes(d.state) && a.state==='seat'; if(a.busy) s.bubble(d.agentId,'dots',1); } }
         for(const h of latest.current.walks) {
           if(pending.has(h.key)) continue;
           const a=s.get(h.from), b=s.get(h.to);

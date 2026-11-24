@@ -5,25 +5,57 @@ import "server-only";
 import { inflateRawSync } from "node:zlib";
 
 // ---------- zip ----------
+export const OFFICE_PREVIEW_LIMITS = {
+  maxArchiveBytes: 50 * 1024 * 1024,
+  maxEntries: 2000,
+  maxEntryBytes: 10 * 1024 * 1024,
+  maxTotalBytes: 32 * 1024 * 1024,
+} as const;
+
 type Zip = Map<string, () => Buffer>;
 function unzip(buf: Buffer): Zip {
+  if (buf.length < 22) throw new Error("Not a valid Office file.");
+  if (buf.length > OFFICE_PREVIEW_LIMITS.maxArchiveBytes) throw new Error("Office file is too large to preview.");
   let eocd = -1;
   for (let i = buf.length - 22; i >= Math.max(0, buf.length - 65557); i--) if (buf.readUInt32LE(i) === 0x06054b50) { eocd = i; break; }
   if (eocd < 0) throw new Error("Not a valid Office file.");
   const count = buf.readUInt16LE(eocd + 10);
+  if (count > OFFICE_PREVIEW_LIMITS.maxEntries) throw new Error("Office file has too many entries to preview.");
   let p = buf.readUInt32LE(eocd + 16);
   const out: Zip = new Map();
-  for (let n = 0; n < count && buf.readUInt32LE(p) === 0x02014b50; n++) {
-    const method = buf.readUInt16LE(p + 10), size = buf.readUInt32LE(p + 20);
+  let totalInflated = 0;
+  for (let n = 0; n < count && p + 46 <= buf.length && buf.readUInt32LE(p) === 0x02014b50; n++) {
+    const method = buf.readUInt16LE(p + 10), size = buf.readUInt32LE(p + 20), uncompressed = buf.readUInt32LE(p + 24);
     const nameLen = buf.readUInt16LE(p + 28), extraLen = buf.readUInt16LE(p + 30), commentLen = buf.readUInt16LE(p + 32);
     const local = buf.readUInt32LE(p + 42);
+    const next = p + 46 + nameLen + extraLen + commentLen;
+    if (next > buf.length) throw new Error("Not a valid Office file.");
     const name = buf.toString("utf8", p + 46, p + 46 + nameLen);
     out.set(name, () => {
+      if (method !== 0 && method !== 8) throw new Error("Unsupported Office compression format.");
+      if (uncompressed > OFFICE_PREVIEW_LIMITS.maxEntryBytes) throw new Error("Office file is too large to preview.");
+      if (local + 30 > buf.length || buf.readUInt32LE(local) !== 0x04034b50) throw new Error("Not a valid Office file.");
       const start = local + 30 + buf.readUInt16LE(local + 26) + buf.readUInt16LE(local + 28);
+      if (start + size > buf.length) throw new Error("Not a valid Office file.");
+      const remaining = OFFICE_PREVIEW_LIMITS.maxTotalBytes - totalInflated;
+      const limit = Math.min(OFFICE_PREVIEW_LIMITS.maxEntryBytes, remaining);
+      if (limit <= 0) throw new Error("Office file is too large to preview.");
       const data = buf.subarray(start, start + size);
-      return method === 8 ? inflateRawSync(data) : Buffer.from(data);
+      let entry: Buffer;
+      if (method === 8) {
+        try { entry = inflateRawSync(data, { maxOutputLength: limit }); }
+        catch (e) {
+          if ((e as NodeJS.ErrnoException).code === "ERR_BUFFER_TOO_LARGE") throw new Error("Office file is too large to preview.");
+          throw new Error("Not a valid Office file.");
+        }
+      } else {
+        if (data.length > limit) throw new Error("Office file is too large to preview.");
+        entry = Buffer.from(data);
+      }
+      totalInflated += entry.length;
+      return entry;
     });
-    p += 46 + nameLen + extraLen + commentLen;
+    p = next;
   }
   return out;
 }
@@ -41,6 +73,7 @@ function blocks(xml: string, tag: string): string[] {
   while ((m = open.exec(xml))) {
     const start = m.index;
     const selfEnd = xml.indexOf(">", start);
+    if (selfEnd < 0) break;
     if (xml[selfEnd - 1] === "/") { out.push(xml.slice(start, selfEnd + 1)); open.lastIndex = selfEnd + 1; continue; }
     let depth = 1, i = selfEnd + 1;
     while (depth > 0) {

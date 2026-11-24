@@ -3,14 +3,29 @@
 // (e.g. DRH #2467), with the custom fields Activity Date, Start Time, Total Time Spent and Training Activity.
 // The member's Taiga login (bearer key, and the refresh key when given) stays on this computer in
 // data/taiga.json (git-ignored). Agents never see it.
-import { readFileSync, writeFileSync, mkdirSync, chmodSync } from "node:fs";
-import { join, dirname } from "node:path";
+import "server-only";
+import { join } from "node:path";
 import { createHash } from "node:crypto";
+import { readJsonFile, writeJsonAtomic } from "./json-store";
+import { withProcessLock } from "./process-lock";
 
-const BASE = (process.env.TAIGA_URL || "https://projects.digitaltelkom.id").replace(/\/+$/, "");
-const PROJECT = process.env.TAIGA_PROJECT || "DRH";
-const STORY = Number(process.env.TAIGA_STORY || 2467);
-const FILE = join(process.cwd(), "data", "taiga.json");
+type TaigaConfig = { base: string; project: string; story: number; configured: boolean };
+function taigaConfig(): TaigaConfig {
+  const base = (process.env.TAIGA_URL ?? "").trim().replace(/\/+$/, "");
+  const project = (process.env.TAIGA_PROJECT ?? "").trim();
+  const storyRaw = (process.env.TAIGA_STORY ?? "").trim();
+  const story = storyRaw ? Number(storyRaw) : NaN;
+  const configured = !!base && /^https?:\/\//i.test(base) && !!project && Number.isInteger(story) && story > 0;
+  return { base, project, story, configured };
+}
+function requireConfig(): TaigaConfig {
+  const cfg = taigaConfig();
+  if (!cfg.configured) {
+    throw new TaigaError("Taiga is not configured. Set TAIGA_URL, TAIGA_PROJECT, and TAIGA_STORY in .env.local first.");
+  }
+  return cfg;
+}
+const storeFile = () => join(process.cwd(), "data", "taiga.json");
 
 export type Activity = { title: string; date: string; start: string; minutes: number; training: boolean };
 type Logged = { key: string; ref: number; url: string; at: string };
@@ -23,11 +38,9 @@ type Store = {
   logged?: Logged[];
 };
 
-const read = (): Store => { try { return JSON.parse(readFileSync(FILE, "utf8")); } catch { return {}; } };
+const read = (): Store => readJsonFile<Store>(storeFile(), () => ({}), { tolerateInvalid: true });
 function write(s: Store) {
-  mkdirSync(dirname(FILE), { recursive: true });
-  writeFileSync(FILE, JSON.stringify(s, null, 2));
-  try { chmodSync(FILE, 0o600); } catch { /* ignore */ }
+  writeJsonAtomic(storeFile(), s, { mode: 0o600 });
 }
 
 /** The JWT payload (no signature check; Taiga checks it). */
@@ -43,8 +56,8 @@ export const activityKey = (a: Activity) =>
 
 class TaigaError extends Error { constructor(m: string, public login = false) { super(m); } }
 
-async function raw(method: string, path: string, token: string | undefined, body?: unknown) {
-  const r = await fetch(BASE + "/api/v1" + path, {
+async function raw(base: string, method: string, path: string, token: string | undefined, body?: unknown) {
+  const r = await fetch(base + "/api/v1" + path, {
     method,
     headers: { "Content-Type": "application/json", Accept: "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     body: body === undefined ? undefined : JSON.stringify(body),
@@ -57,11 +70,11 @@ async function raw(method: string, path: string, token: string | undefined, body
 }
 
 /** A valid bearer key: refreshes it with the refresh key when it ran out. */
-async function access(s: Store): Promise<string> {
+async function access(cfg: TaigaConfig, s: Store): Promise<string> {
   const soon = (s.exp ?? Infinity) * 1000 - Date.now() < 60_000;
   if (s.access && !soon) return s.access;
   if (s.refresh) {
-    const r = await raw("POST", "/auth/refresh", undefined, { refresh: s.refresh });
+    const r = await raw(cfg.base, "POST", "/auth/refresh", undefined, { refresh: s.refresh });
     const j = r.j as { auth_token?: string; refresh?: string } | null;
     if (r.ok && j?.auth_token) {
       s.access = j.auth_token; s.refresh = j.refresh ?? s.refresh; s.exp = claims(j.auth_token)?.exp;
@@ -72,9 +85,9 @@ async function access(s: Store): Promise<string> {
   throw new TaigaError(s.access ? "Your Taiga key has expired. Paste a new one to continue." : "Connect Taiga first.", true);
 }
 
-async function api<T>(s: Store, method: string, path: string, body?: unknown): Promise<T> {
-  let r = await raw(method, path, await access(s), body);
-  if (r.status === 401 && s.refresh) { s.exp = 0; r = await raw(method, path, await access(s), body); }
+async function api<T>(cfg: TaigaConfig, s: Store, method: string, path: string, body?: unknown): Promise<T> {
+  let r = await raw(cfg.base, method, path, await access(cfg, s), body);
+  if (r.status === 401 && s.refresh) { s.exp = 0; r = await raw(cfg.base, method, path, await access(cfg, s), body); }
   if (r.status === 401) throw new TaigaError("Taiga didn't accept the key (it may have expired). Paste a new one.", true);
   if (!r.ok) {
     const m = (r.j as { _error_message?: string; detail?: string } | null);
@@ -84,61 +97,73 @@ async function api<T>(s: Store, method: string, path: string, body?: unknown): P
 }
 
 /** Look up the user, project, user story, Done status and custom fields once, and keep them. */
-async function setup(s: Store, force = false) {
+async function setup(cfg: TaigaConfig, s: Store, force = false) {
   if (!force && s.user && s.project && s.story && s.done && s.attrs) return;
-  const u = await api<{ id: number; full_name_display?: string; username: string }>(s, "GET", "/users/me");
+  const u = await api<{ id: number; full_name_display?: string; username: string }>(cfg, s, "GET", "/users/me");
   s.user = { id: u.id, name: u.full_name_display || u.username };
   let p: { id: number; slug: string; name: string } | null = null;
-  for (const slug of [PROJECT, PROJECT.toLowerCase()]) {
-    try { p = await api(s, "GET", `/projects/by_slug?slug=${encodeURIComponent(slug)}`); break; } catch (e) { if ((e as TaigaError).login) throw e; }
+  for (const slug of [cfg.project, cfg.project.toLowerCase()]) {
+    try { p = await api(cfg, s, "GET", `/projects/by_slug?slug=${encodeURIComponent(slug)}`); break; } catch (e) { if ((e as TaigaError).login) throw e; }
   }
-  if (!p) throw new TaigaError(`Couldn't find the Taiga project "${PROJECT}". Check that your account can open it.`);
+  if (!p) throw new TaigaError(`Couldn't find the Taiga project "${cfg.project}". Check that your account can open it.`);
   s.project = { id: p.id, slug: p.slug, name: p.name };
-  const us = await api<{ id: number; ref: number; subject: string }>(s, "GET", `/userstories/by_ref?ref=${STORY}&project=${p.id}`);
+  const us = await api<{ id: number; ref: number; subject: string }>(cfg, s, "GET", `/userstories/by_ref?ref=${cfg.story}&project=${p.id}`);
   s.story = { id: us.id, ref: us.ref, subject: us.subject };
-  const st = await api<{ id: number; name: string; is_closed: boolean }[]>(s, "GET", `/task-statuses?project=${p.id}`);
+  const st = await api<{ id: number; name: string; is_closed: boolean }[]>(cfg, s, "GET", `/task-statuses?project=${p.id}`);
   s.done = (st.find(x => /^done$/i.test(x.name.trim())) ?? st.find(x => x.is_closed) ?? st[st.length - 1])?.id;
-  s.attrs = (await api<{ id: number; name: string; type: string }[]>(s, "GET", `/task-custom-attributes?project=${p.id}`))
+  s.attrs = (await api<{ id: number; name: string; type: string }[]>(cfg, s, "GET", `/task-custom-attributes?project=${p.id}`))
     .map(a => ({ id: a.id, name: a.name, type: a.type }));
   write(s);
 }
 
 export type Status = {
+  configured: boolean;
   connected: boolean; expires?: string; autoRenew: boolean;
   user?: string; story?: string; storyUrl?: string;
   logged: Record<string, { ref: number; url: string }>;
 };
 export function status(): Status {
+  const cfg = taigaConfig();
   const s = read();
-  const alive = !!s.access && (!!s.refresh || (s.exp ?? Infinity) * 1000 > Date.now());
+  const alive = cfg.configured && !!s.access && (!!s.refresh || (s.exp ?? Infinity) * 1000 > Date.now());
   return {
+    configured: cfg.configured,
     connected: alive,
     expires: s.exp && !s.refresh ? new Date(s.exp * 1000).toISOString() : undefined,
     autoRenew: !!s.refresh,
     user: s.user?.name,
     story: s.story ? `#${s.story.ref} ${s.story.subject}` : undefined,
-    storyUrl: s.project && s.story ? `${BASE}/project/${s.project.slug}/us/${s.story.ref}` : undefined,
+    storyUrl: cfg.configured && s.project && s.story ? `${cfg.base}/project/${s.project.slug}/us/${s.story.ref}` : undefined,
     logged: Object.fromEntries((s.logged ?? []).map(l => [l.key, { ref: l.ref, url: l.url }])),
   };
 }
 
 /** Save the key(s) the member pasted. Accepts a bare key, or anything copied from Taiga's storage. */
 export async function saveKeys(text: string) {
-  const jwts = text.match(/eyJ[\w-]+\.[\w-]+\.[\w-]+/g) ?? [];
-  let acc = jwts.find(t => claims(t)?.token_type === "access") ?? jwts.find(t => claims(t)?.token_type !== "refresh");
-  const ref = jwts.find(t => claims(t)?.token_type === "refresh");
-  if (!acc && !ref) {
-    const plain = text.trim().replace(/^bearer\s+/i, "").replace(/^["']|["']$/g, "");
-    if (!plain || /\s/.test(plain)) throw new TaigaError("That doesn't look like a Taiga key. Copy it again with the steps on the card.");
-    acc = plain;
-  }
-  const prev = read();
-  const s: Store = { logged: prev.logged, access: acc, refresh: ref, exp: acc ? claims(acc)?.exp : 0 };
-  await setup(s, true);
-  return status();
+  const cfg = requireConfig();
+  return withProcessLock("taiga", async () => {
+    const jwts = text.match(/eyJ[\w-]+\.[\w-]+\.[\w-]+/g) ?? [];
+    let acc = jwts.find(t => claims(t)?.token_type === "access") ?? jwts.find(t => claims(t)?.token_type !== "refresh");
+    const ref = jwts.find(t => claims(t)?.token_type === "refresh");
+    if (!acc && !ref) {
+      const plain = text.trim().replace(/^bearer\s+/i, "").replace(/^["']|["']$/g, "");
+      if (!plain || /\s/.test(plain)) throw new TaigaError("That doesn't look like a Taiga key. Copy it again with the steps on the card.");
+      acc = plain;
+    }
+    const prev = read();
+    const s: Store = { logged: prev.logged, access: acc, refresh: ref, exp: acc ? claims(acc)?.exp : 0 };
+    await setup(cfg, s, true);
+    return status();
+  });
 }
 
-export function forget() { const s = read(); write({ logged: s.logged }); return status(); }
+export async function forget() {
+  return withProcessLock("taiga", async () => {
+    const s = read();
+    write({ logged: s.logged });
+    return status();
+  });
+}
 
 const cut = (s: string, n: number) => s.trim().slice(0, n);
 /** Taiga's Start Time list only has :00 and :30, so 09:45 becomes 09:30. */
@@ -146,44 +171,47 @@ const halfHour = (t: string) => { const m = t.match(/^(\d{1,2}):(\d{2})/); retur
 
 /** Create one Done task for each activity under the user story and fill its custom fields. */
 export async function logActivities(list: Activity[]) {
-  const s = read();
-  await setup(s);
-  const out: { key: string; ref?: number; url?: string; error?: string }[] = [];
-  for (const a of list) {
-    const key = activityKey(a);
-    const had = s.logged?.find(l => l.key === key);
-    if (had) { out.push({ key, ref: had.ref, url: had.url }); continue; }
-    try {
-      if (!a.title.trim()) throw new TaigaError("The activity needs a title.");
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(a.date)) throw new TaigaError("The date should look like 2026-11-16.");
-      const t = await api<{ id: number; ref: number; version: number }>(s, "POST", "/tasks", {
-        project: s.project!.id, user_story: s.story!.id, subject: cut(a.title, 500), status: s.done, assigned_to: s.user!.id,
-      });
-      const values: Record<string, unknown> = {};
-      for (const at of s.attrs ?? []) {
-        const n = at.name.toLowerCase();
-        const v = /training/.test(n) ? a.training
-          : /date/.test(n) ? a.date
-          : /start/.test(n) ? (at.type === "dropdown" ? halfHour(a.start) : a.start)
-          : /time spent|duration|minutes|durasi/.test(n) ? a.minutes
-          : undefined;
-        if (v === undefined || v === "") continue;
-        values[String(at.id)] = at.type === "checkbox" ? !!v : at.type === "number" ? Number(v) : typeof v === "boolean" ? v : String(v);
+  const cfg = requireConfig();
+  return withProcessLock("taiga", async () => {
+    const s = read();
+    await setup(cfg, s);
+    const out: { key: string; ref?: number; url?: string; error?: string }[] = [];
+    for (const a of list) {
+      const key = activityKey(a);
+      const had = s.logged?.find(l => l.key === key);
+      if (had) { out.push({ key, ref: had.ref, url: had.url }); continue; }
+      try {
+        if (!a.title.trim()) throw new TaigaError("The activity needs a title.");
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(a.date)) throw new TaigaError("The date should look like 2026-11-16.");
+        const t = await api<{ id: number; ref: number; version: number }>(cfg, s, "POST", "/tasks", {
+          project: s.project!.id, user_story: s.story!.id, subject: cut(a.title, 500), status: s.done, assigned_to: s.user!.id,
+        });
+        const values: Record<string, unknown> = {};
+        for (const at of s.attrs ?? []) {
+          const n = at.name.toLowerCase();
+          const v = /training/.test(n) ? a.training
+            : /date/.test(n) ? a.date
+            : /start/.test(n) ? (at.type === "dropdown" ? halfHour(a.start) : a.start)
+            : /time spent|duration|minutes|durasi/.test(n) ? a.minutes
+            : undefined;
+          if (v === undefined || v === "") continue;
+          values[String(at.id)] = at.type === "checkbox" ? !!v : at.type === "number" ? Number(v) : typeof v === "boolean" ? v : String(v);
+        }
+        if (Object.keys(values).length) {
+          const cur = await api<{ version: number }>(cfg, s, "GET", `/tasks/custom-attributes-values/${t.id}`);
+          await api(cfg, s, "PATCH", `/tasks/custom-attributes-values/${t.id}`, { attributes_values: values, version: cur.version });
+        }
+        const url = `${cfg.base}/project/${s.project!.slug}/task/${t.ref}`;
+        s.logged = [...(s.logged ?? []), { key, ref: t.ref, url, at: new Date().toISOString() }].slice(-500);
+        write(s);
+        out.push({ key, ref: t.ref, url });
+      } catch (e) {
+        if ((e as TaigaError).login) throw e;
+        out.push({ key, error: e instanceof Error ? e.message : String(e) });
       }
-      if (Object.keys(values).length) {
-        const cur = await api<{ version: number }>(s, "GET", `/tasks/custom-attributes-values/${t.id}`);
-        await api(s, "PATCH", `/tasks/custom-attributes-values/${t.id}`, { attributes_values: values, version: cur.version });
-      }
-      const url = `${BASE}/project/${s.project!.slug}/task/${t.ref}`;
-      s.logged = [...(s.logged ?? []), { key, ref: t.ref, url, at: new Date().toISOString() }].slice(-500);
-      write(s);
-      out.push({ key, ref: t.ref, url });
-    } catch (e) {
-      if ((e as TaigaError).login) throw e;
-      out.push({ key, error: e instanceof Error ? e.message : String(e) });
     }
-  }
-  return { results: out, status: status() };
+    return { results: out, status: status() };
+  });
 }
 
 export const isLoginError = (e: unknown) => e instanceof TaigaError && e.login;
