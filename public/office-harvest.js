@@ -12,7 +12,7 @@
   if (!O) return;
 
   var ASSET_BASE = '/art/stardew-v1/';
-  var ASSET_VER = '?v=7';
+  var ASSET_VER = '?v=8';
   var ASSETS = {
     bg: { uri: ASSET_BASE + 'farmhouse-bg@2x.png', w: 768, h: 448 },
     meadow: { uri: ASSET_BASE + 'meadow-tile@2x.png', w: 96, h: 96 },
@@ -22,8 +22,10 @@
     bush: { uri: ASSET_BASE + 'bush@2x.png', w: 24, h: 20 },
     deskNorth: { uri: ASSET_BASE + 'desk-north@2x.png', w: 36, h: 28 },
     deskSouth: { uri: ASSET_BASE + 'desk-south@2x.png', w: 36, h: 28 },
+    deskCeo: { uri: ASSET_BASE + 'desk-ceo@2x.png', w: 36, h: 28 },
     chairNorth: { uri: ASSET_BASE + 'chair-north@2x.png', w: 15, h: 13 },
     chairSouth: { uri: ASSET_BASE + 'chair-south@2x.png', w: 15, h: 20 },
+    chairCeo: { uri: ASSET_BASE + 'chair-ceo@2x.png', w: 15, h: 13 },
     mug: { uri: ASSET_BASE + 'mug@2x.png', w: 8, h: 9 },
     herb: { uri: ASSET_BASE + 'herb@2x.png', w: 9, h: 11 },
     chickenWhite: { uri: ASSET_BASE + 'chicken-white@2x.png', w: 32, h: 16 },
@@ -318,7 +320,8 @@
       var y = d.y * T - 2;
       var off = offsets[dir];
       var seat = deskIndexMap.get(d) || 0;
-      drawImg(g, pack, dir === 'north' ? 'deskNorth' : 'deskSouth', x, y);
+      var deskKey = seat === 8 && pack.has('deskCeo') ? 'deskCeo' : (dir === 'north' ? 'deskNorth' : 'deskSouth');
+      drawImg(g, pack, deskKey, x, y);
       // Keep the crisp Retina 2x laptop status indicator (working / active / idle / closed)
       if (retinaPack && retinaPack.images && O.retinaWorkstation) {
         var lState = O.retinaWorkstation.laptopState(this, seat);
@@ -338,7 +341,8 @@
     };
 
     scene.drawCampusChair = function (g, d, front) {
-      var key = front ? 'chairSouth' : 'chairNorth';
+      var seat = deskIndexMap.get(d) || 0;
+      var key = !front && seat === 8 && pack.has('chairCeo') ? 'chairCeo' : (front ? 'chairSouth' : 'chairNorth');
       var occupied = this.agents && this.agents.some(function (a) {
         return !a.hidden && a.state === 'seat' && scene.L.desks[a.desk] === d;
       });
@@ -591,9 +595,11 @@
         g.save();
         g.globalCompositeOperation = 'lighter';
 
-        // Warm hearth firelight & cozy north-side lounge TV glow spilling south across the coffee table
+        // Warm hearth firelight, lounge TV glow & Founder/CEO executive brass lamps!
         drawWarmGlow(g, 12.2 * T, 21 * T, 56, 'rgba(255, 160, 66, ' + (0.42 * glowStrength).toFixed(2) + ')');
         drawWarmGlow(g, 15.8 * T, 19.3 * T, 34, 'rgba(120, 200, 255, ' + (0.28 * glowStrength).toFixed(2) + ')');
+        drawWarmGlow(g, 2.6 * T, 18.6 * T, 34, 'rgba(255, 206, 112, ' + (0.44 * glowStrength).toFixed(2) + ')');
+        drawWarmGlow(g, 7.6 * T, 17.2 * T, 30, 'rgba(255, 216, 128, ' + (0.38 * glowStrength).toFixed(2) + ')');
 
         // Porch entrance lanterns flanking the farmhouse front door
         drawWarmGlow(g, 21.7 * T, 24.8 * T, 26, 'rgba(255, 206, 108, ' + (0.58 * glowStrength).toFixed(2) + ')');
