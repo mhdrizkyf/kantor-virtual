@@ -7825,12 +7825,14 @@ main.pagewide > * {
 
 .ch-ic,
 .kc-who.agent i,
+.kc-who.member i,
 .mp-av {
   overflow: hidden;
   padding: 0;
 }
 
-.kc-who.agent i {
+.kc-who.agent i,
+.kc-who.member i {
   background: transparent;
   border-color: var(--line);
 }

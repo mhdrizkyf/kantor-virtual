@@ -242,7 +242,13 @@ export default function OfficeView({ office, buildings, attention, people, seen,
   const runs: RunView[] = openDesk ? office.agentsDetail[openDesk.agentId]?.runs ?? [] : [];
   const allTasks: TaskView[] = openDesk ? office.agentsDetail[openDesk.agentId]?.tasks ?? [] : [];
   const closeAll = () => { setOpenTask(null); setOpenDeskId(null); setOpenHuman(null); setChatWith(null); };
-  const visibleRooms = roomId === "all" ? office.rooms : office.rooms.filter(r => r.id === roomId);
+  const visibleRooms = useMemo(() => {
+    const rooms = roomId === "all" ? office.rooms : office.rooms.filter(r => r.id === roomId);
+    return rooms.map(r => ({
+      ...r,
+      desks: r.desks.map(d => (deskPatches[d.agentId] ? { ...d, ...deskPatches[d.agentId] } : d)),
+    }));
+  }, [office.rooms, roomId, deskPatches]);
   const ownerName = office.members.find(m => m.id === meId)?.name ?? people[0] ?? null;
   const meetingAgent = uniqueDesks.find(d => /meeting|secretary/i.test(`${d.name} ${d.description}`)) ?? uniqueDesks.find(d => isManager(d.name)) ?? uniqueDesks[0];
   const mika = allDesks.find(d => isManager(d.name));

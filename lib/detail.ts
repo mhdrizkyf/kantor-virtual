@@ -4,7 +4,7 @@ import { issueDetail, loadDirectory, activeRuns, kantorSettings } from "./multic
 import { friendlyTitle } from "./titles";
 import type { Mentionable } from "./mentions";
 import { digest, type Digest } from "./digest";
-import { readCharacters } from "./characters";
+import { memberCharacterKey, readCharacters } from "./characters";
 import { assignUniqueFaces, defaultFace } from "./character-presets";
 
 export type Message = {
@@ -40,8 +40,16 @@ export async function buildDetail(id: string, wsPick?: string | null): Promise<T
     ? snap.agents.find(a => a.id === aid)?.name ?? "Agent"
     : snap.members.find(m => m.id === aid || m.user_id === aid)?.name ?? "Member";
   const emojiOf = (kind: string, aid: string) => (kind === "agent" ? emoji(snap.agents.find(a => a.id === aid)?.avatar_url) : null);
-  const assignedFaces = assignUniqueFaces(snap.agents.map(a => a.id), readCharacters(snap.workspace.id));
-  const faceOf = (kind: string, aid: string) => (kind === "agent" ? (assignedFaces[aid] ?? defaultFace(aid)) : null);
+  const assignedFaces = assignUniqueFaces(
+    [...snap.agents.map(a => a.id), ...snap.members.map(m => memberCharacterKey(m.user_id))],
+    readCharacters(snap.workspace.id)
+  );
+  const memberFace = (aid: string) => {
+    const found = snap.members.find(m => m.id === aid || m.user_id === aid);
+    const key = memberCharacterKey(found?.user_id ?? aid);
+    return assignedFaces[key] ?? defaultFace(key);
+  };
+  const faceOf = (kind: string, aid: string) => (kind === "agent" ? (assignedFaces[aid] ?? defaultFace(aid)) : kind === "member" ? memberFace(aid) : null);
   const when = (iso: string) => new Intl.DateTimeFormat("en-GB", { timeZone: tz, weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
 
   const proxied = (f: { id: string; filename: string }) => ({ id: f.id, name: f.filename, url: `/api/file/${f.id}?ws=${snap.workspace.id}` });
@@ -139,12 +147,12 @@ export async function buildDetail(id: string, wsPick?: string | null): Promise<T
       id: issue.assignee_id,
       name: agent?.name ?? member?.name ?? null,
       emoji: emoji(agent?.avatar_url),
-      face: agent ? (assignedFaces[agent.id] ?? defaultFace(agent.id)) : null,
+      face: agent ? (assignedFaces[agent.id] ?? defaultFace(agent.id)) : member ? memberFace(member.user_id) : null,
       online: runtime?.status === "online",
     },
     brief: issue.description ?? "", messages, me: me.name, artifacts,
     people: [
-      ...snap.members.filter(m => m.user_id !== me.id).map(m => ({ kind: "member" as const, id: m.user_id, name: m.name, emoji: null, face: null })),
+      ...snap.members.filter(m => m.user_id !== me.id).map(m => ({ kind: "member" as const, id: m.user_id, name: m.name, emoji: null, face: memberFace(m.user_id) })),
       ...snap.agents.map(a => ({ kind: "agent" as const, id: a.id, name: a.name, emoji: emoji(a.avatar_url), face: assignedFaces[a.id] ?? defaultFace(a.id) })),
     ],
   };
