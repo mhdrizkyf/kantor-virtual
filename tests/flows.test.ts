@@ -144,11 +144,11 @@ test("Office loading and critical Multica flows", async t => {
       const invalid = await patchSquad(new Request("http://localhost/api/squad", { method: "PATCH", body: JSON.stringify({ ws: "w1", agentId: "a1", squad: "" }) }));
       assert.equal(invalid.status, 400);
     });
-    await t.test("breakout hour uses office timezone and closes at 13:00", () => {
-      assert.equal(isLunchHour("Asia/Jakarta", new Date("2026-11-23T04:59:00Z")), false);
-      assert.equal(isLunchHour("Asia/Jakarta", new Date("2026-11-23T05:00:00Z")), true);
-      assert.equal(isLunchHour("Asia/Jakarta", new Date("2026-11-23T05:59:00Z")), true);
-      assert.equal(isLunchHour("Asia/Jakarta", new Date("2026-11-23T06:00:00Z")), false);
+    await t.test("breakout hour uses office timezone and closes at 13:15", () => {
+      assert.equal(isLunchHour("Asia/Jakarta", new Date("2026-11-23T04:59:00Z")), false); // 11:59 WIB
+      assert.equal(isLunchHour("Asia/Jakarta", new Date("2026-11-23T05:00:00Z")), true);  // 12:00 WIB
+      assert.equal(isLunchHour("Asia/Jakarta", new Date("2026-11-23T06:14:00Z")), true);  // 13:14 WIB
+      assert.equal(isLunchHour("Asia/Jakarta", new Date("2026-11-23T06:15:00Z")), false); // 13:15 WIB
     });
 
     await t.test("character choices persist per workspace and reject unknown faces", async () => {
