@@ -24,6 +24,12 @@ test("all Stardew Valley 2x Retina PNG assets exist with exact expected dimensio
     "chair-south@2x.png": [30, 40],
     "mug@2x.png": [16, 18],
     "herb@2x.png": [18, 22],
+    "chicken-white@2x.png": [64, 32],
+    "chicken-brown@2x.png": [64, 32],
+    "cat-ginger@2x.png": [96, 32],
+    "cat-tuxedo@2x.png": [96, 32],
+    "rabbit-white@2x.png": [64, 32],
+    "rabbit-cinnamon@2x.png": [64, 32],
   };
 
   for (const [file, [w, h]] of Object.entries(expected)) {
@@ -109,6 +115,14 @@ test("public/office-harvest.js installs cleanly, switches phases live, and unins
   assert.equal(scene.harvestTheme.getPhase(), "sunset");
   assert.notEqual(scene.drawWindows, origWin);
   assert.notEqual(scene.drawCampusDesk, origDesk);
+
+  // Interactive workspace critters (chickens, cats, rabbits) are registered and can be petted!
+  const critters = scene.harvestTheme.getCritters();
+  assert.ok(Array.isArray(critters) && critters.length >= 6);
+  const kinds = new Set(critters.map((c: any) => c.kind));
+  assert.deepEqual([...kinds].sort(), ["cat", "chicken", "rabbit"]);
+  scene.harvestTheme.petCritter(critters[0]);
+  assert.ok(critters[0].emoteT > 0 && critters[0].jumpT > 0);
 
   scene.harvestTheme.setPhase("night");
   assert.equal(scene.harvestTheme.getPhase(), "night");
