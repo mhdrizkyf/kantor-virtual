@@ -534,21 +534,24 @@ export default function OfficeView({ office, buildings, attention, people, seen,
           <div className="brand"><h1>{office.workspace}</h1><span className={`office-live ${office.switchOpen ? "is-open" : "is-closed"}`}><i />{office.switchOpen ? "Office open" : "Office closed"}</span></div>
           {(() => {
             const cq = office.codexQuota;
-            const pct = cq ? cq.remaining5h : (office.open ? 100 : 0);
-            const tone = !cq?.online ? "is-off" : pct < 15 ? "is-low" : pct < 40 ? "is-warn" : "is-ok";
+            const pct5h = cq ? cq.remaining5h : (office.open ? 100 : 0);
+            const pctWk = cq ? cq.remainingWeekly : pct5h;
+            const minPct = Math.min(pct5h, pctWk);
+            const tone = !cq?.online ? "is-off" : minPct < 15 ? "is-low" : minPct < 40 ? "is-warn" : "is-ok";
             const tipParts = [
               `Codex ${cq?.planType ? `(${cq.planType.toUpperCase()})` : ""}`.trim(),
-              `5h credit left: ${pct}%${cq?.reset5hAt ? ` · resets ${cq.reset5hAt}` : ""}`,
-              cq ? `Weekly left: ${cq.remainingWeekly}%${cq.resetWeeklyAt ? ` · resets ${cq.resetWeeklyAt}` : ""}` : null,
+              `5h remaining: ${pct5h}%${cq?.reset5hAt ? ` · resets ${cq.reset5hAt}` : ""}`,
+              `Weekly remaining: ${pctWk}%${cq?.resetWeeklyAt ? ` · resets ${cq.resetWeeklyAt}` : ""}`,
               cq?.creditsBalance ? `Extra credits: ${cq.creditsBalance}` : null,
-              cq ? `Runtimes online: ${cq.onlineCount}/${cq.totalCount}` : null,
+              cq?.updatedAt ? `Synced ${cq.updatedAt}` : null,
             ].filter(Boolean);
             return (
               <div className="header-engines">
                 <span className={`codex-meter ${tone}`} title={tipParts.join(" • ")}>
                   <b>Codex</b>
-                  <i><em style={{ width: `${pct}%` }} /></i>
-                  <small className="codex-pct">{cq?.online === false && pct === 0 ? "Off" : `${pct}%`}</small>
+                  <i><em style={{ width: `${pct5h}%` }} /></i>
+                  <small className="codex-pct">{`5h ${pct5h}%`}</small>
+                  {cq && <small className={`codex-wk${pctWk < 20 ? " is-low" : pctWk < 40 ? " is-warn" : ""}`}>{`7d ${pctWk}%`}</small>}
                 </span>
               </div>
             );

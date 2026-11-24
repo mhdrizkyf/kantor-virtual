@@ -7959,6 +7959,24 @@ main.pagewide > * {
   color: var(--ink-muted);
 }
 
+.header-engines .codex-wk {
+  font-size: 10.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--sunk);
+  color: var(--ink-muted);
+}
+
+.header-engines .codex-wk.is-warn {
+  color: var(--warn);
+}
+
+.header-engines .codex-wk.is-low {
+  color: var(--bad);
+}
+
 .sound-wrap {
   position: relative;
 }
