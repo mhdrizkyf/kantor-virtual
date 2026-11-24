@@ -24,5 +24,5 @@ export default function OfficeAmbience({ open, timeZone, calendar, activeWork }:
     }, 160);
     return ()=>{clearInterval(timer);audio.current=null;void ctx.close();};
   }, [enabled, open, timeZone, calendar, activeWork]);
-  return <button className="office-top-button" aria-pressed={enabled} title="Quiet typing sounds, 08:00–17:00, paused during lunch and when this tab is hidden" onClick={()=>setEnabled(v=>!v)}>{enabled ? '♪ Sound on' : '♪ Sound off'}</button>;
+  return <button className="office-top-button" aria-pressed={enabled} aria-label={enabled ? "Sound on" : "Sound off"} title="Quiet typing sounds, 08:00–17:00, paused during lunch and when this tab is hidden" onClick={()=>setEnabled(v=>!v)}><span aria-hidden="true">♪</span><span className="btn-label">{enabled ? 'Sound on' : 'Sound off'}</span></button>;
 }

@@ -9,7 +9,8 @@ import FilePicker, { uploadAll } from "./file-picker";
 import FilePreview from "./file-preview";
 import { sharedJson, useVisiblePoll } from "./visible-poll";
 import { localAttachmentHref } from "@/lib/attachment-meta";
-import { Px, Emo, PxSpan, rehypePx, type PxName } from "./pixel-icon";
+import { Px, PxSpan, rehypePx, type PxName } from "./pixel-icon";
+import CharacterFace from "./character-face";
 
 type Session = { id: string; agentId: string; title: string; updatedAt: string; unread: number; last: string };
 type Msg = { id: string; mine: boolean; text: string; when: string; failed: string | null; files: { id: string; name: string; url: string }[] };
@@ -32,7 +33,7 @@ const MIKA_CAN: { icon: PxName; label: string; hint: string; prompt: string }[] 
   { icon: "chart", label: "Team check-in", hint: "Who is busy, what is late, what is stuck", prompt: "How is the team doing right now? Anything late, stuck, or waiting on my decision?" },
 ];
 
-type AgentInfo = { id: string; name: string; emoji: string | null; role: string };
+type AgentInfo = { id: string; name: string; emoji: string | null; face?: string | null; role: string };
 const dayOf = (iso: string) => new Date(iso).toDateString();
 function groupOf(iso: string) {
   const d = new Date(iso), now = new Date();
@@ -41,7 +42,11 @@ function groupOf(iso: string) {
   if (now.getTime() - d.getTime() < 7 * 86400000) return "This week";
   return "Older";
 }
-const AgentIc = ({ a }: { a?: AgentInfo | null }) => <span className="ch-ic">{a?.emoji ? <Emo e={a.emoji} /> : <Px name="agent" />}</span>;
+const AgentIc = ({ a, size = 28 }: { a?: AgentInfo | null; size?: number }) => (
+  <span className="ch-ic">
+    {a ? <CharacterFace face={a.face} size={size} shape="rounded" /> : <Px name="agent" />}
+  </span>
+);
 
 /** Chat with your agents in a pop-up: a fresh chat each time you open it, past chats on the left (like Claude). */
 export default function ChatPanel({ ws, agent: start, laptopOn, initialPrompt, onClose, onMakeTask }: {
@@ -163,7 +168,7 @@ export default function ChatPanel({ ws, agent: start, laptopOn, initialPrompt, o
           <div className="ch-who">
             <button className="ch-agentbtn" onClick={() => fresh && setPickAgent(p => !p)} disabled={!fresh} aria-expanded={pickAgent}
               title={fresh ? "Pick who to chat with" : undefined}>
-              <span className="avatar">{agent.emoji ? <Emo e={agent.emoji} /> : <Px name="chat" />}</span>
+              <span className="avatar"><CharacterFace face={agent.face} size={42} shape="circle" /></span>
               <span className="meta"><h2>{agent.name}{fresh && <span className="caret"> ▾</span>}</h2>
                 <span className="role">{fresh ? "New chat · nothing gets done until you ask" : (sessions?.find(x => x.id === sid)?.title ?? "Chat")}</span></span>
             </button>
@@ -186,11 +191,11 @@ export default function ChatPanel({ ws, agent: start, laptopOn, initialPrompt, o
           {msgs === null ? <div className="loading"><span className="spinner" /> Opening chat…</div> : (
             <div className="thread">
               {msgs.length === 0 && !sending && !isMika && (
-                <div className="ch-hello"><AgentIc a={agent} /><b>Chat with {agent.name}</b><span>Share an idea, ask for an opinion, or ask for an example.</span></div>
+                <div className="ch-hello"><CharacterFace face={agent.face} size={56} shape="rounded" /><b>Chat with {agent.name}</b><span>Share an idea, ask for an opinion, or ask for an example.</span></div>
               )}
               {msgs.map(m => (
                 <div key={m.id} className={`msg ${m.mine ? "me" : "bot"}`}>
-                  <div className="from"><span>{m.mine ? "You" : <>{agent.emoji ? <Emo e={agent.emoji} /> : null} {agent.name}</>}</span><span>{m.when}</span></div>
+                  <div className="from"><span className="from-who">{m.mine ? "You" : <><CharacterFace face={agent.face} size={18} shape="circle" /> {agent.name}</>}</span><span>{m.when}</span></div>
                   {m.text && <div className="md">{md(m.text, ws)}</div>}
                   {m.failed && <div className="note bad">{m.failed}</div>}
                   {m.files.map(f => <FilePreview key={f.id} f={f} />)}

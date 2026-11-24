@@ -6,10 +6,11 @@ export const dynamic = "force-dynamic";
 
 /** Beri task baru ke worker. */
 export async function POST(req: Request) {
-  const b = (await req.json()) as { files?: string[]; ws?: string; agentId?: string; assigneeType?: "agent" | "member" | null; assigneeId?: string | null; title: string; detail?: string; due?: string; projectId?: string; now?: boolean };
+  const b = (await req.json()) as { files?: string[]; ws?: string; agentId?: string; assigneeType?: "agent" | "member" | null; assigneeId?: string | null; title: string; detail?: string; due?: string; projectId?: string; priority?: "urgent" | "high" | "medium" | "low" | "none"; now?: boolean };
   // Judul kosong: ambil baris pertama detail (tanpa tanda markdown) sebagai judul.
   if (!b.title?.trim()) b.title = (b.detail ?? "").split("\n").map(l => l.replace(/^[\s#>*\-\d.)]+/, "").replace(/[*_`]/g, "").trim()).find(Boolean)?.slice(0, 80) ?? "";
   if (!b.title?.trim()) return NextResponse.json({ error: "Add a title or some details first." }, { status: 400 });
+  const priority = b.priority && ["urgent", "high", "medium", "low", "none"].includes(b.priority) ? b.priority : "medium";
   try {
     // Penerima: agen (bawaan, dari meja kantor) atau manusia / belum ada (dari Papan Kerjaan).
     const type = b.assigneeType === undefined ? "agent" : b.assigneeType;
@@ -20,7 +21,7 @@ export async function POST(req: Request) {
       description: b.detail?.trim() || null,
       // "Simpan untuk nanti" masuk backlog; "Kerjakan sekarang" masuk antrean.
       status: b.now === false || closed ? "backlog" : "todo",
-      priority: "medium",
+      priority,
       assignee_type: who ? type : null,
       assignee_id: who,
       project_id: b.projectId || null,

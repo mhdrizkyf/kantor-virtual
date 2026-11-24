@@ -2,7 +2,7 @@
 // done (approved), so the laptop runs one heavy agent job at a time. Kept in data/chains.json (git-ignored).
 import "server-only";
 import { join } from "node:path";
-import { call_, updateIssue, addComment, cancelRun } from "./multica";
+import { call_, updateIssue, addComment, cancelRun, kantorSettings } from "./multica";
 import { ProcessBusyError, withProcessLock } from "./process-lock";
 import { readJsonFile, writeJsonAtomic } from "./json-store";
 
@@ -11,7 +11,9 @@ const file = () => join(process.cwd(), "data", "chains.json");
 const read = (): Chain[] => readJsonFile<Chain[]>(file(), () => []);
 const write = (c: Chain[]) => { writeJsonAtomic(file(), c); };
 
-export function addChain(c: Omit<Chain, "started">) { write([...read().filter(x => x.id !== c.id), { ...c, started: [] }]); }
+export function addChain(c: Omit<Chain, "started"> & { started?: string[] }) {
+  write([...read().filter(x => x.id !== c.id), { ...c, started: c.started ?? [] }]);
+}
 
 const FINISHED = /^(done|cancelled|canceled)$/;
 
@@ -21,6 +23,7 @@ export async function runChains(opts: { settleMs?: number } = {}) {
   const out: string[] = [];
   const chains = read();
   for (const c of chains) {
+    if ((await kantorSettings(c.ws)).open === false) continue;
     for (const id of c.issues) {
       const i = await call_<{ status: string; identifier: string }>("GET", `/api/issues/${id}`, c.ws);
       if (FINISHED.test(i.status)) continue;

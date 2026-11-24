@@ -4,16 +4,18 @@ import { issueDetail, loadDirectory, activeRuns, kantorSettings } from "./multic
 import { friendlyTitle } from "./titles";
 import type { Mentionable } from "./mentions";
 import { digest, type Digest } from "./digest";
+import { readCharacters } from "./characters";
+import { assignUniqueFaces, defaultFace } from "./character-presets";
 
 export type Message = {
-  id: string; who: string; whoKind: "agent" | "member" | "system"; emoji: string | null; when: string; text: string;
+  id: string; who: string; whoKind: "agent" | "member" | "system"; emoji: string | null; face?: string | null; when: string; text: string;
   images: { id: string; name: string; url: string }[]; files: { id: string; name: string; url: string }[];
 };
 export type TaskDetail = {
   id: string; title: string; originalTitle: string; key: string; project: string | null; url: string;
   status: string; situation: string; mode: "review" | "human" | "working" | "waiting" | "closed";
   due: string | null; dueText: string | null; dueFlag: "late" | "risk" | "done" | null;
-  assignee: { kind: "agent" | "member" | null; id: string | null; name: string | null; emoji: string | null; online: boolean };
+  assignee: { kind: "agent" | "member" | null; id: string | null; name: string | null; emoji: string | null; face?: string | null; online: boolean };
   brief: string; messages: Message[]; me: string;
   /** Who can be called with @ on this task. */
   people: Mentionable[];
@@ -38,6 +40,8 @@ export async function buildDetail(id: string, wsPick?: string | null): Promise<T
     ? snap.agents.find(a => a.id === aid)?.name ?? "Agent"
     : snap.members.find(m => m.id === aid || m.user_id === aid)?.name ?? "Member";
   const emojiOf = (kind: string, aid: string) => (kind === "agent" ? emoji(snap.agents.find(a => a.id === aid)?.avatar_url) : null);
+  const assignedFaces = assignUniqueFaces(snap.agents.map(a => a.id), readCharacters(snap.workspace.id));
+  const faceOf = (kind: string, aid: string) => (kind === "agent" ? (assignedFaces[aid] ?? defaultFace(aid)) : null);
   const when = (iso: string) => new Intl.DateTimeFormat("en-GB", { timeZone: tz, weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
 
   const proxied = (f: { id: string; filename: string }) => ({ id: f.id, name: f.filename, url: `/api/file/${f.id}?ws=${snap.workspace.id}` });
@@ -51,7 +55,7 @@ export async function buildDetail(id: string, wsPick?: string | null): Promise<T
     .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at))
     .map(c => ({
       id: c.id, who: nameOf(c.author_type, c.author_id), whoKind: c.author_type === "agent" ? "agent" : c.author_type === "member" ? "member" : "system",
-      emoji: emojiOf(c.author_type, c.author_id), when: when(c.created_at), text: c.content, ...files(c.attachments ?? []),
+      emoji: emojiOf(c.author_type, c.author_id), face: faceOf(c.author_type, c.author_id), when: when(c.created_at), text: c.content, ...files(c.attachments ?? []),
     }));
   // Rak "Hasil kerja": semua file, baik yang dikirim di pesan maupun yang ditempel langsung ke task.
   type Art = TaskDetail["artifacts"][number] & { t: number };
@@ -130,11 +134,18 @@ export async function buildDetail(id: string, wsPick?: string | null): Promise<T
     project: snap.projects.find(p => p.id === issue.project_id)?.title ?? null,
     url: `${process.env.MULTICA_APP_URL || "https://multica.ai"}/${snap.workspace.slug}/issues/${issue.identifier}`,
     status: issue.status, situation, mode, due: issue.due_date, dueText, dueFlag,
-    assignee: { kind: issue.assignee_type, id: issue.assignee_id, name: agent?.name ?? member?.name ?? null, emoji: emoji(agent?.avatar_url), online: runtime?.status === "online" },
+    assignee: {
+      kind: issue.assignee_type,
+      id: issue.assignee_id,
+      name: agent?.name ?? member?.name ?? null,
+      emoji: emoji(agent?.avatar_url),
+      face: agent ? (assignedFaces[agent.id] ?? defaultFace(agent.id)) : null,
+      online: runtime?.status === "online",
+    },
     brief: issue.description ?? "", messages, me: me.name, artifacts,
     people: [
-      ...snap.members.filter(m => m.user_id !== me.id).map(m => ({ kind: "member" as const, id: m.user_id, name: m.name, emoji: null })),
-      ...snap.agents.map(a => ({ kind: "agent" as const, id: a.id, name: a.name, emoji: emoji(a.avatar_url) })),
+      ...snap.members.filter(m => m.user_id !== me.id).map(m => ({ kind: "member" as const, id: m.user_id, name: m.name, emoji: null, face: null })),
+      ...snap.agents.map(a => ({ kind: "agent" as const, id: a.id, name: a.name, emoji: emoji(a.avatar_url), face: assignedFaces[a.id] ?? defaultFace(a.id) })),
     ],
   };
 }

@@ -3,13 +3,15 @@ import type { Snapshot, Issue } from "./multica";
 import { buildOffice, type Desk } from "./office";
 import { friendlyTitle } from "./titles";
 import type { Mentionable } from "./mentions";
+import { readCharacters } from "./characters";
+import { assignUniqueFaces, defaultFace } from "./character-presets";
 
 import { type Col } from "./board-cols";
 export { COLS, type Col } from "./board-cols";
 
 export type Card = {
   id: string; title: string; key: string; col: Col; projectId: string | null; project: string | null; projectIcon: string | null;
-  who: { kind: "agent" | "member"; id: string; name: string; emoji: string | null } | null;
+  who: { kind: "agent" | "member"; id: string; name: string; emoji: string | null; face?: string | null } | null;
   due: string | null; dueText: string | null; dueFlag: "late" | "risk" | null; priority: string; updated: string;
 };
 export type ProjectTab = { id: string; name: string; icon: string | null; open: number; done: number; total: number; due: string | null };
@@ -42,7 +44,7 @@ export function levelOf(open: number): Load["level"] {
   return open === 0 ? "santai" : open <= 3 ? "pas" : open <= 6 ? "sibuk" : "kewalahan";
 }
 
-function cards(s: Snapshot): Card[] {
+function cards(s: Snapshot, faces: Record<string, string>): Card[] {
   const t = today();
   const pById = new Map(s.projects.map(p => [p.id, p]));
   const out: Card[] = [];
@@ -62,8 +64,8 @@ function cards(s: Snapshot): Card[] {
     const p = i.project_id ? pById.get(i.project_id) : undefined;
     out.push({
       id: i.id, title: friendlyTitle(i), key: i.identifier, col, projectId: p?.id ?? null, project: p?.title ?? null, projectIcon: p?.icon ?? null,
-      who: agent ? { kind: "agent", id: agent.id, name: agent.name, emoji: emojiOf(agent.avatar_url) }
-        : member ? { kind: "member", id: member.user_id, name: member.name, emoji: null } : null,
+      who: agent ? { kind: "agent", id: agent.id, name: agent.name, emoji: emojiOf(agent.avatar_url), face: faces[agent.id] ?? defaultFace(agent.id) }
+        : member ? { kind: "member", id: member.user_id, name: member.name, emoji: null, face: null } : null,
       due: i.due_date, dueText, dueFlag, priority: i.priority, updated: i.updated_at,
     });
   }
@@ -72,16 +74,17 @@ function cards(s: Snapshot): Card[] {
     : rank(a) - rank(b) || String(a.due ?? "9999").localeCompare(String(b.due ?? "9999")) || b.updated.localeCompare(a.updated));
 }
 
-const people = (s: Snapshot): Mentionable[] => [
-  ...s.members.map(m => ({ kind: "member" as const, id: m.user_id, name: m.name, emoji: null })),
-  ...s.agents.map(a => ({ kind: "agent" as const, id: a.id, name: a.name, emoji: emojiOf(a.avatar_url) })),
+const people = (s: Snapshot, faces: Record<string, string>): Mentionable[] => [
+  ...s.members.map(m => ({ kind: "member" as const, id: m.user_id, name: m.name, emoji: null, face: null })),
+  ...s.agents.map(a => ({ kind: "agent" as const, id: a.id, name: a.name, emoji: emojiOf(a.avatar_url), face: faces[a.id] ?? defaultFace(a.id) })),
 ];
 
 export function buildBoard(s: Snapshot): Board {
-  const all = cards(s);
+  const faces = assignUniqueFaces(s.agents.map(a => a.id), readCharacters(s.workspace.id));
+  const all = cards(s, faces);
   const live = s.issues.filter(i => colOf(i));
   return {
-    workspaceId: s.workspace.id, workspace: s.workspace.name, cards: all, people: people(s),
+    workspaceId: s.workspace.id, workspace: s.workspace.name, cards: all, people: people(s, faces),
     loose: all.filter(c => !c.projectId && c.col !== "done").length,
     projects: s.projects.map(p => {
       const mine = live.filter(i => i.project_id === p.id);
@@ -108,7 +111,8 @@ function projectsOf(cs: Card[]) {
 }
 
 export function buildTeam(s: Snapshot, invites: { invitee_email: string; role: string; created_at: string; status?: string }[], meId: string | null): Team {
-  const all = cards(s);
+  const faces = assignUniqueFaces(s.agents.map(a => a.id), readCharacters(s.workspace.id));
+  const all = cards(s, faces);
   const office = buildOffice(s);
   const desks = new Map<string, Desk>();
   for (const d of [...office.rooms.flatMap(r => r.desks), ...office.idleDesks]) if (!desks.has(d.agentId)) desks.set(d.agentId, d);

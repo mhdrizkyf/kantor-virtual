@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import type { Mentionable } from "@/lib/mentions";
 import { useAutoGrow } from "./auto-grow";
-import { Px, Emo } from "./pixel-icon";
+import CharacterFace from "./character-face";
 
 type Props = Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, "value" | "onChange"> & {
   value: string; onChange: (v: string) => void;
@@ -57,7 +57,7 @@ export default function MentionBox({ value, onChange, people, picked, onPick, ..
           {matches.map((p, i) => (
             <li key={p.id} role="option" aria-selected={i === hi}>
               <button type="button" onMouseDown={e => { e.preventDefault(); choose(p); }} onMouseEnter={() => setHi(i)}>
-                <span className="mp-av">{p.emoji ? <Emo e={p.emoji} /> : (p.kind === "agent" ? <Px name="agent" /> : p.name.slice(0, 1).toUpperCase())}</span>
+                <span className="mp-av">{p.kind === "agent" ? <CharacterFace face={p.face} size={24} shape="circle" /> : p.name.slice(0, 1).toUpperCase()}</span>
                 <span className="mp-name">{p.name}</span>
                 <small>{p.kind === "agent" ? "agent · replies right away" : "person · gets notified"}</small>
               </button>
