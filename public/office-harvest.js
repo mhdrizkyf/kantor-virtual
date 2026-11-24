@@ -12,7 +12,7 @@
   if (!O) return;
 
   var ASSET_BASE = '/art/stardew-v1/';
-  var ASSET_VER = '?v=3';
+  var ASSET_VER = '?v=4';
   var ASSETS = {
     bg: { uri: ASSET_BASE + 'farmhouse-bg@2x.png', w: 768, h: 448 },
     meadow: { uri: ASSET_BASE + 'meadow-tile@2x.png', w: 96, h: 96 },
@@ -26,6 +26,12 @@
     chairSouth: { uri: ASSET_BASE + 'chair-south@2x.png', w: 15, h: 20 },
     mug: { uri: ASSET_BASE + 'mug@2x.png', w: 8, h: 9 },
     herb: { uri: ASSET_BASE + 'herb@2x.png', w: 9, h: 11 },
+    chickenWhite: { uri: ASSET_BASE + 'chicken-white@2x.png', w: 32, h: 16 },
+    chickenBrown: { uri: ASSET_BASE + 'chicken-brown@2x.png', w: 32, h: 16 },
+    catGinger: { uri: ASSET_BASE + 'cat-ginger@2x.png', w: 48, h: 16 },
+    catTuxedo: { uri: ASSET_BASE + 'cat-tuxedo@2x.png', w: 48, h: 16 },
+    rabbitWhite: { uri: ASSET_BASE + 'rabbit-white@2x.png', w: 32, h: 16 },
+    rabbitCinnamon: { uri: ASSET_BASE + 'rabbit-cinnamon@2x.png', w: 32, h: 16 },
   };
 
   var loading = null;
@@ -273,7 +279,7 @@
       g.fillRect(Math.round(38.1 * T + pShift), 15, 7, 1);
       g.fillRect(Math.round(38.6 * T - pShift), 19, 5, 1);
 
-      // 2. Cozy crackling embers in the Lounge brick hearth (x=11.7*T, y=20.7*T) & Kitchen iron woodstove
+      // 2. Cozy crackling embers in the Lounge brick hearth (x=11.7*T, y=20.7*T) & modern espresso warm light
       var flicker = 0.75 + 0.25 * Math.sin(t * 11) * Math.cos(t * 7);
       var fx = 11 * T + 10;
       var fy = 20 * T + 14;
@@ -283,14 +289,11 @@
       g.fillRect(fx + 1, fy + 4 + Math.round(Math.sin(t * 9)), 5, 5);
       // Warm orange firelight cast onto Persian rug
       drawWarmGlow(g, fx + 10, fy + 6, 28, 'rgba(255, 162, 68, ' + (0.24 * flicker).toFixed(2) + ')');
-      // Kitchen cast-iron woodstove glow
-      drawWarmGlow(g, 3 * T + 8, 5 * T + 8, 16, 'rgba(255, 148, 56, ' + (0.22 * flicker).toFixed(2) + ')');
 
-      // 3. Softly rising steam wisps (Kitchen pot, Hot-Spring Hinoki Tub, Tea Counter)
+      // 3. Softly rising steam wisps (Modern Kitchen induction kettle, Espresso Machine, Studio Coffee Bar)
       var steamSpots = [
-        [2 * T + 15, 4 * T + 2],
-        [3 * T + 12, 13 * T + 10],
-        [4 * T + 6, 13 * T + 14],
+        [4 * T + 6, 4 * T + 14],
+        [7 * T + 8, 4 * T + 10],
         [34 * T + 11, 3 * T + 1],
       ];
       for (var s = 0; s < steamSpots.length; s++) {
@@ -339,9 +342,208 @@
       drawImg(g, pack, key, d.x * T + 9, d.y * T + (front ? 20 : -14));
     };
 
+    // Interactive Workspace Critters (Chickens, Cats & Rabbits!) — autonomous roaming + click-to-pet!
+    var critters = [
+      { id: 'hen-north', kind: 'chicken', asset: 'chickenWhite', x: 13 * T, y: 0.9 * T, minX: 9.2 * T, maxX: 19.5 * T, minY: 0.45 * T, maxY: 1.25 * T, dir: 1, speed: 12, mode: 'walk', timer: 2.2, emote: '', emoteT: 0, jumpT: 0, seed: 1.1 },
+      { id: 'hen-south', kind: 'chicken', asset: 'chickenBrown', x: 33 * T, y: 25.1 * T, minX: 27 * T, maxX: 39.5 * T, minY: 24.85 * T, maxY: 25.45 * T, dir: -1, speed: 11, mode: 'peck', timer: 1.8, emote: '', emoteT: 0, jumpT: 0, seed: 2.7 },
+      { id: 'cat-indoor', kind: 'cat', asset: 'catGinger', x: 21.5 * T, y: 22.4 * T, minX: 18.2 * T, maxX: 26.2 * T, minY: 20.6 * T, maxY: 23.1 * T, dir: 1, speed: 14, mode: 'nap', timer: 5.5, emote: '', emoteT: 0, jumpT: 0, seed: 3.4 },
+      { id: 'cat-porch', kind: 'cat', asset: 'catTuxedo', x: 15.2 * T, y: 25.1 * T, minX: 9.5 * T, maxX: 19.2 * T, minY: 24.85 * T, maxY: 25.4 * T, dir: 1, speed: 13, mode: 'walk', timer: 3.2, emote: '', emoteT: 0, jumpT: 0, seed: 4.8 },
+      { id: 'rabbit-ne', kind: 'rabbit', asset: 'rabbitWhite', x: 31 * T, y: 0.95 * T, minX: 27 * T, maxX: 35.8 * T, minY: 0.45 * T, maxY: 1.25 * T, dir: -1, speed: 18, mode: 'walk', timer: 1.9, emote: '', emoteT: 0, jumpT: 0, seed: 5.3 },
+      { id: 'rabbit-sw', kind: 'rabbit', asset: 'rabbitCinnamon', x: 6.2 * T, y: 25.1 * T, minX: 1.8 * T, maxX: 9.0 * T, minY: 24.85 * T, maxY: 25.45 * T, dir: 1, speed: 17, mode: 'idle', timer: 1.6, emote: '', emoteT: 0, jumpT: 0, seed: 6.2 },
+      { id: 'rabbit-nw', kind: 'rabbit', asset: 'rabbitWhite', x: 3.2 * T, y: 0.9 * T, minX: 1.2 * T, maxX: 6.5 * T, minY: 0.45 * T, maxY: 1.25 * T, dir: 1, speed: 16, mode: 'walk', timer: 2.4, emote: '', emoteT: 0, jumpT: 0, seed: 7.5 },
+    ];
+    var lastCritterT = scene.t || 0;
+    var petCount = 0;
+
+    function petCritter(cr) {
+      petCount++;
+      cr.jumpT = 0.65;
+      cr.emoteT = 2.3;
+      if (cr.kind === 'chicken') {
+        cr.emote = petCount % 2 === 0 ? 'Cluck! ♥' : 'Bawk! ♥';
+        cr.mode = 'walk';
+        cr.timer = 2.5;
+      } else if (cr.kind === 'cat') {
+        cr.emote = petCount % 2 === 0 ? 'Purr~ ♥' : 'Meow! ♥';
+        if (cr.mode === 'nap') { cr.mode = 'walk'; cr.timer = 4.0; }
+      } else {
+        cr.emote = petCount % 2 === 0 ? '*hop!* ♥' : '*sniff* ♥';
+        cr.mode = 'walk';
+        cr.timer = 2.4;
+      }
+      if (typeof scene.draw === 'function') scene.draw();
+    }
+
+    function critterAtLogical(lx, ly) {
+      var best = null;
+      var bestD = 15;
+      for (var i = 0; i < critters.length; i++) {
+        var cr = critters[i];
+        var d = Math.hypot(lx - cr.x, ly - (cr.y - 3));
+        if (d < bestD) { bestD = d; best = cr; }
+      }
+      return best;
+    }
+
+    var cvEl = scene.cv || scene.canvas;
+
+    function pointerToLogical(ev) {
+      if (!cvEl || typeof cvEl.getBoundingClientRect !== 'function') return null;
+      var r = cvEl.getBoundingClientRect();
+      if (!r.width || !r.height) return null;
+      return {
+        x: ((ev.clientX - r.left) / r.width) * scene.W,
+        y: ((ev.clientY - r.top) / r.height) * scene.H,
+      };
+    }
+
+    function onCanvasClick(ev) {
+      var pt = pointerToLogical(ev);
+      if (!pt) return;
+      var cr = critterAtLogical(pt.x, pt.y);
+      if (cr) petCritter(cr);
+    }
+
+    function onCanvasMove(ev) {
+      var pt = pointerToLogical(ev);
+      if (!pt || !cvEl) return;
+      var cr = critterAtLogical(pt.x, pt.y);
+      cvEl.style.cursor = cr ? 'pointer' : '';
+    }
+
+    if (cvEl && typeof cvEl.addEventListener === 'function') {
+      cvEl.addEventListener('click', onCanvasClick);
+      cvEl.addEventListener('mousemove', onCanvasMove);
+    }
+
+    function drawPixelHeart(g, cx, cy, col) {
+      var x = Math.round(cx), y = Math.round(cy);
+      g.fillStyle = '#301d18';
+      g.fillRect(x - 3, y - 2, 7, 4);
+      g.fillRect(x - 2, y + 2, 5, 1);
+      g.fillRect(x - 1, y + 3, 3, 1);
+      g.fillStyle = col || '#ff5e7e';
+      g.fillRect(x - 2, y - 1, 2, 2);
+      g.fillRect(x + 1, y - 1, 2, 2);
+      g.fillRect(x - 1, y, 3, 2);
+      g.fillRect(x, y + 2, 1, 1);
+    }
+
+    function updateAndDrawCritters(g, t) {
+      var dt = Math.max(0, Math.min(0.12, t - lastCritterT));
+      lastCritterT = t;
+      for (var i = 0; i < critters.length; i++) {
+        var cr = critters[i];
+        if (cr.jumpT > 0) cr.jumpT = Math.max(0, cr.jumpT - dt);
+        if (cr.emoteT > 0) cr.emoteT = Math.max(0, cr.emoteT - dt);
+        cr.timer -= dt;
+
+        // Friendly indoor cat reacts with a little heart when an agent strolls nearby!
+        if (cr.kind === 'cat' && cr.id === 'cat-indoor' && cr.emoteT <= 0 && scene.agents) {
+          for (var ai = 0; ai < scene.agents.length; ai++) {
+            var ag = scene.agents[ai];
+            if (ag.hidden || ag.state === 'seat') continue;
+            if (Math.hypot((ag.x || 0) - cr.x, (ag.y || 0) - cr.y) < 22) {
+              cr.emote = 'Purr~ ♥';
+              cr.emoteT = 1.9;
+              if (cr.mode === 'nap') { cr.mode = 'idle'; cr.timer = 2.0; }
+              break;
+            }
+          }
+        }
+
+        if (cr.timer <= 0) {
+          var h = Math.abs(Math.sin((t + 1.3) * 12.9898 + cr.seed * 78.233));
+          if (cr.kind === 'cat') {
+            cr.mode = h < 0.38 ? 'nap' : h < 0.62 ? 'idle' : 'walk';
+            cr.timer = cr.mode === 'nap' ? 4.8 + h * 4 : 2.0 + h * 2.5;
+          } else if (cr.kind === 'chicken') {
+            cr.mode = h < 0.42 ? 'peck' : 'walk';
+            cr.timer = cr.mode === 'peck' ? 1.4 + h * 1.5 : 2.2 + h * 2.6;
+          } else {
+            cr.mode = h < 0.36 ? 'idle' : 'walk';
+            cr.timer = cr.mode === 'idle' ? 1.2 + h * 1.4 : 1.8 + h * 2.2;
+          }
+          if (cr.mode === 'walk') cr.dir = h > 0.5 ? 1 : -1;
+        }
+
+        if (cr.mode === 'walk') {
+          var moveSpeed = cr.speed * (cr.kind === 'rabbit' ? (0.55 + 0.9 * Math.abs(Math.sin(t * 7 + cr.seed))) : 1);
+          cr.x += cr.dir * moveSpeed * dt;
+          cr.y += Math.sin(t * 1.1 + cr.seed * 3) * 2.2 * dt;
+          if (cr.x <= cr.minX) { cr.x = cr.minX; cr.dir = 1; }
+          if (cr.x >= cr.maxX) { cr.x = cr.maxX; cr.dir = -1; }
+          if (cr.y < cr.minY) cr.y = cr.minY;
+          if (cr.y > cr.maxY) cr.y = cr.maxY;
+        }
+
+        var item = pack.get(cr.asset);
+        if (!item) continue;
+        // Pick animation frame index (each frame is 32x32 physical -> 16x16 logical)
+        var frame = 0;
+        var hopLift = 0;
+        if (cr.kind === 'chicken') {
+          frame = cr.mode === 'peck' ? (Math.sin(t * 9 + cr.seed) > 0 ? 1 : 0) : (Math.floor(t * 4 + cr.seed) % 2);
+        } else if (cr.kind === 'cat') {
+          frame = cr.mode === 'nap' ? 2 : cr.mode === 'walk' ? (Math.floor(t * 5 + cr.seed) % 2) : 0;
+        } else {
+          var hopping = cr.mode === 'walk' && Math.sin(t * 7 + cr.seed) > 0;
+          frame = hopping ? 1 : 0;
+          hopLift = hopping ? Math.sin(t * 7 + cr.seed) * 2.5 : 0;
+        }
+        if (cr.jumpT > 0) {
+          hopLift += Math.sin((cr.jumpT / 0.65) * Math.PI) * 6;
+          if (cr.kind !== 'cat') frame = 1;
+        }
+
+        var dx = Math.round(cr.x - 8);
+        var dy = Math.round(cr.y - 12 - hopLift);
+        g.save();
+        g.imageSmoothingEnabled = false;
+        if (cr.dir < 0 && cr.mode !== 'nap') {
+          g.translate(dx + 16, dy);
+          g.scale(-1, 1);
+          g.drawImage(item.image, frame * 32, 0, 32, 32, 0, 0, 16, 16);
+        } else {
+          g.drawImage(item.image, frame * 32, 0, 32, 32, dx, dy, 16, 16);
+        }
+        g.restore();
+
+        // Sleepy tiny pixel "z" floating above napping cats
+        if (cr.kind === 'cat' && cr.mode === 'nap' && cr.emoteT <= 0) {
+          var zp = (t * 0.7 + cr.seed) % 1;
+          g.fillStyle = 'rgba(255, 250, 232, ' + (Math.sin(zp * Math.PI) * 0.85).toFixed(2) + ')';
+          g.font = 'bold 6px monospace';
+          g.fillText('z', Math.round(cr.x + 5 + Math.sin(zp * 4) * 2), Math.round(cr.y - 10 - zp * 7));
+        }
+
+        // Joyful floating heart & mini Stardew emote pill when petted!
+        if (cr.emoteT > 0) {
+          var ep = 1 - cr.emoteT / 2.3;
+          var rise = ep * 9;
+          drawPixelHeart(g, cr.x, cr.y - 17 - rise, '#ff5e7e');
+          if (cr.emote) {
+            var tw = cr.emote.length * 4 + 8;
+            var bx = Math.round(cr.x - tw / 2);
+            var by = Math.round(cr.y - 31 - rise);
+            g.fillStyle = 'rgba(46, 30, 21, 0.88)';
+            g.fillRect(bx - 1, by - 1, tw + 2, 11);
+            g.fillStyle = '#fff9ec';
+            g.fillRect(bx, by, tw, 9);
+            g.fillStyle = '#3b2419';
+            g.font = 'bold 6px ui-sans-serif, system-ui, sans-serif';
+            g.fillText(cr.emote, bx + 4, by + 6.5);
+          }
+        }
+      }
+    }
+
     scene.onDraw = function (g) {
       if (typeof orig.onDraw === 'function') orig.onDraw.call(this, g);
       var t = this.t || 0;
+
+      // Render lively interactive Chickens, Cats & Rabbits around the workspace & gardens!
+      updateAndDrawCritters(g, t);
 
       // Time-of-day atmospheric lighting glaze
       var wash = phaseWashColor(phase);
@@ -429,7 +631,14 @@
         phase = next || 'day';
         scene.draw();
       },
+      getCritters: function () { return critters; },
+      petCritter: petCritter,
       uninstall: function () {
+        if (cvEl && typeof cvEl.removeEventListener === 'function') {
+          cvEl.removeEventListener('click', onCanvasClick);
+          cvEl.removeEventListener('mousemove', onCanvasMove);
+          cvEl.style.cursor = '';
+        }
         scene.drawWindows = orig.drawWindows;
         scene.drawCampusDesk = orig.drawCampusDesk;
         scene.drawCampusChair = orig.drawCampusChair;
