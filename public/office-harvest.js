@@ -12,7 +12,7 @@
   if (!O) return;
 
   var ASSET_BASE = '/art/stardew-v1/';
-  var ASSET_VER = '?v=9';
+  var ASSET_VER = '?v=10';
   var ASSETS = {
     bg: { uri: ASSET_BASE + 'farmhouse-bg@2x.png', w: 768, h: 448 },
     meadow: { uri: ASSET_BASE + 'meadow-tile@2x.png', w: 96, h: 96 },
@@ -292,11 +292,12 @@
       // Warm orange firelight cast onto Persian rug
       drawWarmGlow(g, fx + 10, fy + 6, 28, 'rgba(255, 162, 68, ' + (0.24 * flicker).toFixed(2) + ')');
 
-      // 3. Softly rising steam wisps (Modern Kitchen induction kettle, Espresso Machine, Studio Coffee Bar)
+      // 3. Softly rising steam wisps (Modern Kitchen induction kettle, Kitchen pantry brewer, & Dedicated Coffee Machine Bar!)
       var steamSpots = [
-        [4 * T + 6, 4 * T + 14],
-        [7 * T + 8, 4 * T + 10],
-        [34 * T + 11, 3 * T + 1],
+        [4 * T + 5, 3 * T + 5],
+        [9 * T + 8, 4 * T + 10],
+        [34 * T + 13, 3 * T + 6],
+        [35 * T + 3, 3 * T + 6],
       ];
       for (var s = 0; s < steamSpots.length; s++) {
         var sp = steamSpots[s];
@@ -601,9 +602,9 @@
         drawWarmGlow(g, 2.6 * T, 18.6 * T, 34, 'rgba(255, 206, 112, ' + (0.44 * glowStrength).toFixed(2) + ')');
         drawWarmGlow(g, 7.6 * T, 17.2 * T, 30, 'rgba(255, 216, 128, ' + (0.38 * glowStrength).toFixed(2) + ')');
 
-        // Porch entrance lanterns flanking the farmhouse front door
-        drawWarmGlow(g, 21.7 * T, 24.8 * T, 26, 'rgba(255, 206, 108, ' + (0.58 * glowStrength).toFixed(2) + ')');
-        drawWarmGlow(g, 24.3 * T, 24.8 * T, 26, 'rgba(255, 206, 108, ' + (0.58 * glowStrength).toFixed(2) + ')');
+        // Porch entrance carriage lanterns flanking the farmhouse front door
+        drawWarmGlow(g, 21.5 * T, 24.4 * T, 26, 'rgba(255, 206, 108, ' + (0.62 * glowStrength).toFixed(2) + ')');
+        drawWarmGlow(g, 24.5 * T, 24.4 * T, 26, 'rgba(255, 206, 108, ' + (0.62 * glowStrength).toFixed(2) + ')');
 
         // Warm golden cottage windows glowing softly into the garden
         var winN = [3, 12, 19, 31, 40, 44];

@@ -135,8 +135,8 @@ export function interactiveFloorProps(): InteractiveProp[] {
       y: coffee.y,
       w: coffee.w,
       h: coffee.h,
-      title: "Coffee Bar",
-      hint: "Send free agents for a quick coffee stretch",
+      title: "Coffee Machine Bar",
+      hint: "Send free agents to the coffee machine bar or kitchen for a break",
     });
   }
   out.push({
