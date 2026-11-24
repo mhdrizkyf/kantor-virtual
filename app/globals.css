@@ -3902,19 +3902,24 @@ header.top {
 }
 
 .mpop {
-  position: absolute;
-  left: 8px;
-  bottom: calc(100% + 6px);
-  z-index: 30;
+  position: fixed;
+  inset: auto;
+  z-index: 95;
   list-style: none;
   margin: 0;
   padding: 6px;
   min-width: 260px;
-  max-width: calc(100% - 16px);
+  max-width: calc(100vw - 20px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: var(--panel);
   border: 1px solid var(--line-strong);
   border-radius: var(--r-md);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-lg);
+}
+
+.mpop[popover]:is(:popover-open, .\:popover-open) {
+  display: block;
 }
 
 .mpop button {
@@ -3936,6 +3941,7 @@ header.top {
 }
 
 .mp-av {
+  flex-shrink: 0;
   width: 26px;
   height: 26px;
   border-radius: 50%;
@@ -3950,6 +3956,10 @@ header.top {
 .mp-name {
   font-weight: 700;
   font-size: 13.5px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .mpop small {
