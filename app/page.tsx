@@ -1,5 +1,6 @@
 import { loadWorkspace, workspaces, me } from "@/lib/multica";
 import { buildOffice, type Office } from "@/lib/office";
+import { fetchLiveCodexQuota } from "@/lib/codex-quota";
 import OfficeView from "./office-view";
 import Shell from "./shell";
 
@@ -14,7 +15,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ w
     const selected = all.find(w => w.slug === ws || w.id === ws)
       ?? all.find(w => w.id === process.env.MULTICA_WORKSPACE_ID) ?? all[0];
     // Only the selected workspace needs issues, agent task history, and question comments.
-    const current: Office = buildOffice(await loadWorkspace(selected.id));
+    const snap = await loadWorkspace(selected.id);
+    const built: Office = buildOffice(snap);
+    const liveCodex = await fetchLiveCodexQuota({ runtimes: built.runtimes, timeZone: built.timeZone }).catch(() => built.codexQuota);
+    const current: Office = liveCodex ? { ...built, codexQuota: liveCodex } : built;
     const count = (o: Office) => o.attention.overdue.length + o.attention.human.length + o.attention.review.length + o.attention.failed.length;
     const buildings: Building[] = all.map(w => ({ id: w.id, slug: w.slug, name: w.name,
       ...(w.id === selected.id ? { attention: count(current), open: current.open, switchOpen: current.switchOpen } : {}) }));

@@ -744,7 +744,7 @@ function paintStardewHearth(c, x, y, w, h) {
   c.box(x + Math.floor(w / 2) - 8, y - 10, 16, 10, hex("#7ab864"), hex("#5e361c"), 2);
 }
 
-/** Paint a Stardew Valley cozy green cottage sofa facing South, North, or West. */
+/** Paint a Stardew Valley cozy green cottage sofa facing South, North (back to viewer), or West. */
 function paintStardewSofa(c, x, y, w, h, dir = "south") {
   c.rect(x + 2, y + 4, w, h, SHADOW);
   const fabric = hex("#5b8f56");
@@ -766,8 +766,24 @@ function paintStardewSofa(c, x, y, w, h, dir = "south") {
       c.box(cx, y + 12, cw, h - 14, fabric, hex("#31542f"), 1);
       c.rect(cx + 3, y + 15, cw - 6, 5, fabricHi);
     }
+  } else if (dir === "north") {
+    // Facing NORTH (toward TV!) — cushions visible along top, upholstered backrest & walnut rail along bottom!
+    c.box(x, y, w, h, fabric, INK, 2);
+    const cushions = Math.max(2, Math.round((w - 24) / 34));
+    const cw = Math.floor((w - 24) / cushions);
+    for (let i = 0; i < cushions; i++) {
+      const cx = x + 12 + i * cw;
+      c.box(cx, y + 2, cw, h - 14, fabric, hex("#31542f"), 1);
+      c.rect(cx + 3, y + 4, cw - 6, 6, fabricHi);
+    }
+    // Padded side armrests
+    c.box(x, y, 12, h - 6, fabricSh, INK, 2);
+    c.box(x + w - 12, y, 12, h - 6, fabricSh, INK, 2);
+    // Rear backrest & sleek walnut back rail along bottom edge
+    c.box(x, y + h - 12, w, 12, trim, INK, 2);
+    c.rect(x + 4, y + h - 10, w - 8, 3, hex("#ad6b3c"));
   } else {
-    // Cozy side armchair
+    // Cozy side armchair facing WEST
     c.box(x, y, w, h, fabric, INK, 2);
     c.box(x + w - 12, y, 12, h, trim, INK, 2);
     c.box(x, y, w - 8, 10, fabricSh, INK, 2);
@@ -1176,48 +1192,44 @@ function generateFarmhouseBackground(laneCanvas) {
       c.box(px + 10, py + ph - 42, pw - 20, 26, hex("#54786b"), hex("#375248"), 2);
       c.rect(px + 12, py + ph - 38, pw - 24, 4, hex("#71998a"));
     } else if (p.k === "lounge") {
-      // IMAGE 1: Cozy Breakout Lounge with Plush Sofas, Coffee Table & Modern Smart TV Console (x=11..20, y=18..23)!
+      // IMAGE 1: Realistic 3/4 Top-Down Breakout Lounge — Smart TV on NORTH facing SOUTH into the room, Plush Sofa on SOUTH facing NORTH toward the TV!
       // 1) Large ornate crimson & gold woven Stardew rug!
-      paintStardewCarpet(c, px + 44, py + 20, pw - 72, ph - 38);
+      paintStardewCarpet(c, px + 44, py + 24, pw - 72, ph - 40);
       // 2) Brick Hearth Fireplace along left wall (x=11..12, y=19..22 — aligned with live firelight!)
       paintStardewHearth(c, px + 4, py + 34, 48, 86);
-      // 3) Plush 3-Seater Sage Sofa on top (facing south toward the TV!) + 2-Seater Loveseat on right!
-      paintStardewSofa(c, px + 92, py + 12, 132, 38, "south");
-      paintStardewSofa(c, px + pw - 50, py + 58, 40, 74, "west");
-      // 4) Modern Walnut Coffee Table in center with coffee mugs, snack plate & game controllers!
-      c.rect(px + 106, py + 74, 96, 34, SHADOW);
-      c.borderedRoundRect(px + 104, py + 68, 96, 36, 5, hex("#8f5932"), INK, 2);
-      c.rect(px + 108, py + 71, 88, 4, hex("#b87a4a"));
-      c.circle(px + 124, py + 84, 5, hex("#f7f2e8")); // coffee mug
-      c.circle(px + 124, py + 84, 3, hex("#5c351c"));
-      c.borderedRoundRect(px + 144, py + 78, 22, 12, 3, hex("#2c323b"), INK, 1); // game controller!
-      c.rect(px + 148, py + 82, 4, 4, hex("#68d67a"));
-      c.rect(px + 158, py + 82, 4, 4, hex("#ff7070"));
-      c.circle(px + 182, py + 85, 5, hex("#f7f2e8")); // snack plate
-      c.circle(px + 182, py + 85, 2.5, hex("#e5a44c"));
-      // 5) Sleek Walnut TV Media Console + Wide Flat-Screen Smart TV at bottom (facing north toward the sofa!)
-      const tvX = px + 96, tvY = py + ph - 48, tvW = 112, tvH = 28;
-      c.rect(tvX + 4, tvY + 12, tvW, 20, SHADOW);
+      // 3) Sleek Walnut TV Media Console + Wide Flat-Screen Smart TV at NORTH side facing SOUTH toward sofa!
+      const tvX = px + 96, tvY = py + 12, tvW = 116, tvH = 26;
+      c.rect(tvX + 4, tvY + 14, tvW, 20, SHADOW);
       // Low-profile mid-century walnut media console
-      c.borderedRoundRect(tvX, tvY + 8, tvW, 22, 3, hex("#6e4428"), INK, 2);
-      c.rect(tvX + 4, tvY + 10, tvW - 8, 5, hex("#96613c"));
-      // Console cabinets & soundbar
-      c.box(tvX + 6, tvY + 18, 30, 8, hex("#54331d"), hex("#382011"), 1);
-      c.box(tvX + tvW - 36, tvY + 18, 30, 8, hex("#54331d"), hex("#382011"), 1);
-      c.box(tvX + 40, tvY + 17, 32, 6, hex("#252a32"), INK, 1); // matte-black soundbar
-      c.rect(tvX + 54, tvY + 19, 4, 2, hex("#68e38a")); // power LED
-      // Wide Flat-Screen Smart TV mounted above console (crisp dark bezel + bright vivid screen!)
-      c.borderedRoundRect(tvX + 12, tvY - 12, tvW - 24, 24, 3, hex("#1c222b"), INK, 2);
-      // Vivid cozy Stardew Valley / studio ambient screen display!
-      c.rect(tvX + 16, tvY - 8, tvW - 32, 16, hex("#4aa4d8")); // sky
-      c.rect(tvX + 16, tvY + 1, tvW - 32, 7, hex("#54ad4e")); // valley hills
-      c.circle(tvX + 30, tvY - 3, 3, hex("#ffe675")); // little sun
-      c.rect(tvX + 58, tvY - 3, 14, 7, hex("#c9543e")); // cozy cottage on TV!
+      c.borderedRoundRect(tvX, tvY + 10, tvW, 22, 3, hex("#6e4428"), INK, 2);
+      c.rect(tvX + 4, tvY + 12, tvW - 8, 5, hex("#96613c"));
+      c.box(tvX + 6, tvY + 20, 30, 8, hex("#54331d"), hex("#382011"), 1);
+      c.box(tvX + tvW - 36, tvY + 20, 30, 8, hex("#54331d"), hex("#382011"), 1);
+      c.box(tvX + 42, tvY + 19, 32, 6, hex("#252a32"), INK, 1); // matte-black soundbar facing room!
+      c.rect(tvX + 56, tvY + 21, 4, 2, hex("#68e38a")); // green power LED
+      // Wide Flat-Screen Smart TV facing SOUTH into the lounge (crisp dark bezel + vivid glowing display!)
+      c.borderedRoundRect(tvX + 12, tvY - 12, tvW - 24, 25, 3, hex("#1c222b"), INK, 2);
+      c.rect(tvX + 16, tvY - 8, tvW - 32, 17, hex("#4aa4d8")); // sunlit sky
+      c.rect(tvX + 16, tvY + 2, tvW - 32, 7, hex("#54ad4e")); // valley hills
+      c.circle(tvX + 30, tvY - 3, 3, hex("#ffe675")); // warm sun
+      c.rect(tvX + 58, tvY - 3, 14, 8, hex("#c9543e")); // cozy cottage on TV!
       c.rect(tvX + 61, tvY - 1, 4, 3, hex("#ffe99c"));
-      // Diagonal glass screen highlight
-      c.line(tvX + 20, tvY - 7, tvX + 30, tvY + 6, 2, hex("#ffffff", 95));
-      // TV center stand neck
-      c.rect(tvX + Math.floor(tvW / 2) - 5, tvY + 10, 10, 5, hex("#2e343d"));
+      c.line(tvX + 20, tvY - 7, tvX + 30, tvY + 7, 2, hex("#ffffff", 90)); // subtle glass sheen
+      c.rect(tvX + Math.floor(tvW / 2) - 5, tvY + 11, 10, 5, hex("#2e343d")); // stand neck
+      // 4) Modern Walnut Coffee Table centered between TV & South Sofa!
+      c.rect(px + 106, py + 76, 96, 34, SHADOW);
+      c.borderedRoundRect(px + 104, py + 70, 96, 36, 5, hex("#8f5932"), INK, 2);
+      c.rect(px + 108, py + 73, 88, 4, hex("#b87a4a"));
+      c.circle(px + 124, py + 86, 5, hex("#f7f2e8")); // coffee mug
+      c.circle(px + 124, py + 86, 3, hex("#5c351c"));
+      c.borderedRoundRect(px + 144, py + 80, 22, 12, 3, hex("#2c323b"), INK, 1); // game controller!
+      c.rect(px + 148, py + 84, 4, 4, hex("#68d67a"));
+      c.rect(px + 158, py + 84, 4, 4, hex("#ff7070"));
+      c.circle(px + 182, py + 87, 5, hex("#f7f2e8")); // snack plate
+      c.circle(px + 182, py + 87, 2.5, hex("#e5a44c"));
+      // 5) Plush 3-Seater Sage Sofa at SOUTH side facing NORTH directly toward the TV + East Loveseat facing WEST!
+      paintStardewSofa(c, px + 88, py + ph - 50, 132, 38, "north");
+      paintStardewSofa(c, px + pw - 50, py + 54, 40, 74, "west");
     } else if (p.k === "meeting") {
       // IMAGE 5: Relocated Modern-Cozy Community Standup Conference Table (x=30..33, y=12..13 — clear of front door!)
       c.rect(px + 4, py + 10, pw - 8, ph - 8, SHADOW);

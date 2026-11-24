@@ -10,7 +10,7 @@ import {
   parseHarvestLighting,
   resolveHarvestPhase,
 } from "../lib/harvest-theme";
-import { readCodexQuota } from "../lib/codex-quota";
+import { parseCodexAppServerRateLimits, readCodexQuota } from "../lib/codex-quota";
 
 test("all Stardew Valley 2x Retina PNG assets exist with exact expected dimensions", () => {
   const expected: Record<string, [number, number]> = {
@@ -191,6 +191,30 @@ test("readCodexQuota syncs real remaining 5h & weekly percentages and resets exp
     assert.equal(capped.source, "multica-quota");
     assert.equal(capped.remaining5h, 0);
     assert.equal(capped.reset5hAt, "21:30");
+
+    // Live codex app-server RPC response parses real 5h & weekly remaining percentages accurately
+    const live = parseCodexAppServerRateLimits(
+      {
+        ordinaryUsageAllowed: true,
+        rateLimits: {
+          limitId: "codex",
+          planType: "plus",
+          primary: { usedPercent: 2, windowDurationMins: 300, resetsAt: nowSec + 18000 },
+          secondary: { usedPercent: 71, windowDurationMins: 10080, resetsAt: nowSec + 345600 },
+          credits: { hasCredits: false, unlimited: false, balance: "0" },
+        },
+      },
+      {
+        runtimes: [{ provider: "codex", online: true, quotaOut: true, quotaReset: null }],
+        timeZone: "Asia/Jakarta",
+        now: new Date(nowSec * 1000),
+      }
+    );
+    assert.ok(live);
+    assert.equal(live.source, "codex-live");
+    assert.equal(live.remaining5h, 98);
+    assert.equal(live.remainingWeekly, 29);
+    assert.equal(live.planType, "plus");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
