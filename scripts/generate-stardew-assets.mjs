@@ -843,8 +843,17 @@ function generateFarmhouseBackground(laneCanvas) {
   // STEP E: Farmhouse Interior Floors (100% aligned to OFFICE_PLAN walls!)
   // 1) Main Studio Floor (x=11..37, y=3..23) — Iconic Stardew Valley Honey-Oak Planks!
   paintHoneyOakFloor(c, 11, 3, 27, 21, "honey");
-  // 2) Owner's Modern Executive Studio (x=2..9, y=17..23) — Rich Warm Walnut-Oak Wide Planks!
-  paintHoneyOakFloor(c, 2, 17, 8, 7, "cedar");
+  // 2) Founder / CEO Executive Suite (x=2..9, y=17..23) — Rich Deep Espresso-Walnut Executive Hardwood!
+  const gradeExecA = (r, g, b, a) => [clamp(r * 1.14 + 10), clamp(g * 1.02 + 6), clamp(b * 0.88 + 3), a];
+  const gradeExecB = (r, g, b, a) => [clamp(r * 1.06 + 8), clamp(g * 0.94 + 4), clamp(b * 0.82 + 2), a];
+  for (let ty = 17; ty <= 23; ty++) {
+    for (let tx = 2; tx <= 9; tx++) {
+      c.blit(SHEETS.inside, 0, 128, 32, 32, tx * S, ty * S, {
+        grade: (tx + ty) % 2 === 0 ? gradeExecA : gradeExecB,
+        flipX: (tx * 5 + ty * 3) % 2 === 0,
+      });
+    }
+  }
   // 3) Modern Cozy Studio Kitchen & Cafe (x=2..9, y=3..10) — Clean Warm Cream Terrazzo Porcelain Tiles!
   for (let ty = 3; ty <= 10; ty++) {
     for (let tx = 2; tx <= 9; tx++) {
@@ -991,39 +1000,66 @@ function generateFarmhouseBackground(laneCanvas) {
   c.rect(25 * S + 15, 25 * S + 4, 3, 6, hex("#d9443e")); // red mail flag!
 
   // STEP G: Paint EVERY Interior Prop in OFFICE_PLAN!
-  // 1) Owner's Modern Executive Studio (x=2..9, y=17..23) — Sleek Architectural Rug + Modern Credenza + Corner Plant!
-  // Modern warm charcoal-cream woven studio rug centered cleanly under Executive Desk (x=6, y=19) & visitor area!
-  const erX = 4 * S + 10, erY = 18 * S + 6, erW = 5 * S - 10, erH = 4 * S + 10;
-  c.rect(erX + 2, erY + 3, erW, erH, SHADOW_SOFT);
-  c.box(erX, erY, erW, erH, hex("#d9d0c0"), hex("#5e574e"), 2);
-  c.box(erX + 6, erY + 6, erW - 12, erH - 12, hex("#ece4d6"), hex("#a89d8c"), 2);
-  // Subtle modern geometric herringbone accent stripes on rug
-  for (let rx = erX + 14; rx < erX + erW - 16; rx += 16) {
-    c.rect(rx, erY + 12, 8, 2, hex("#9c8f7d", 140));
-    c.rect(rx, erY + erH - 14, 8, 2, hex("#9c8f7d", 140));
+  // 1) FOUNDER / CEO EXECUTIVE SUITE (x=2..9, y=17..23) — Authoritative Executive Suite (ZERO bedroom feel!)
+  // A) Deep Midnight-Navy & Champagne-Gold Executive Carpet centered under CEO Desk (x=6, y=19) & VIP Guest Chairs!
+  const erX = 4 * S + 8, erY = 18 * S + 8, erW = 5 * S - 6, erH = 4 * S + 14;
+  c.rect(erX + 2, erY + 3, erW, erH, SHADOW);
+  c.box(erX, erY, erW, erH, hex("#1f2d3d"), hex("#121a24"), 2);
+  c.box(erX + 5, erY + 5, erW - 10, erH - 10, hex("#27384c"), hex("#d4af62"), 2);
+  c.box(erX + 11, erY + 11, erW - 22, erH - 22, hex("#2d4057"), hex("#475f7a"), 1);
+  // Subtle woven executive diamond weave highlights
+  for (let ry = erY + 18; ry < erY + erH - 18; ry += 16) {
+    for (let rx = erX + 18; rx < erX + erW - 18; rx += 20) {
+      c.rect(rx, ry, 2, 2, hex("#4c6785", 130));
+    }
   }
-  // Mid-Century Modern Walnut Executive Credenza against North Wall (x=4..7, y=17) — behind Owner's chair!
-  const crX = 4 * S + 12, crY = 17 * S + 2, crW = 3 * S + 24, crH = 24;
+
+  // B) Commanding North Backdrop Wall: NW Executive Bookcase + Wide Walnut Credenza + Gold-Framed Art Triptych!
+  // Tall Executive Walnut Bookshelf in NW corner (x=2..3, y=17)
+  c.blit(SHEETS.cabinets, 32, 0, 32, 64, 2 * S + 2, 16 * S + 12, { dw: 30, dh: 54, grade: GRADE.stardewWalnut });
+  c.blit(SHEETS.cabinets, 64, 0, 32, 64, 3 * S, 16 * S + 12, { dw: 30, dh: 54, grade: GRADE.stardewWalnut });
+  // Wide Mid-Century Espresso-Walnut Executive Credenza behind CEO chair (x=4..8, y=17)
+  const crX = 4 * S + 8, crY = 17 * S + 2, crW = 4 * S + 14, crH = 24;
   c.rect(crX + 2, crY + 4, crW, crH, SHADOW);
-  c.box(crX, crY, crW, crH, hex("#6b442b"), INK, 2);
-  c.rect(crX + 2, crY + 2, crW - 4, 7, hex("#8f5d3c")); // sunlit walnut top
-  // Slatted cabinet doors + brass handles
-  for (let dx = crX + 8; dx < crX + crW - 12; dx += 28) {
-    c.box(dx, crY + 11, 24, 10, hex("#593722"), hex("#3b2214"), 1);
-    c.rect(dx + 9, crY + 14, 6, 2, hex("#e5bc62"));
+  c.box(crX, crY, crW, crH, hex("#4f311e"), INK, 2);
+  c.rect(crX + 2, crY + 2, crW - 4, 7, hex("#754b30")); // polished dark walnut top
+  for (let dx = crX + 8; dx < crX + crW - 16; dx += 32) {
+    c.box(dx, crY + 11, 26, 10, hex("#3e2516"), hex("#26160d"), 1);
+    c.rect(dx + 9, crY + 14, 8, 2, hex("#e5bc62")); // brushed brass pulls
   }
-  // Decor on credenza: modern framed gallery art on wall, vinyl/books, golden award, mini desk lamp
-  c.box(5 * S + 2, 16 * S + 8, 36, 16, hex("#304352"), hex("#c79d52"), 2);
-  c.circle(5 * S + 14, 16 * S + 15, 4, hex("#e89a5a"));
-  c.rect(5 * S + 22, 16 * S + 12, 10, 8, hex("#7fb39c"));
-  c.box(crX + 10, crY - 4, 14, 8, hex("#3c6e71"), INK, 1); // design art book stack
-  c.box(crX + crW - 26, crY - 6, 12, 10, hex("#f7e8b2"), INK, 1); // warm modern ceramic lamp!
-  // Modern ceramic potted Monstera plant in bottom-right corner of Owner Studio (x=9, y=23 — non-blocking corner)
-  c.circle(9 * S + 16, 23 * S + 18, 9, hex("#ebe7df"));
-  c.ring(9 * S + 16, 23 * S + 18, 9, 7, hex("#5a554c"));
-  c.circle(9 * S + 12, 23 * S + 11, 6, hex("#3c8444"));
-  c.circle(9 * S + 20, 23 * S + 12, 6, hex("#52a458"));
-  c.circle(9 * S + 16, 23 * S + 8, 5, hex("#72c46c"));
+  // Golden Founder Award Trophy, strategy books & brass banker's lamp on credenza!
+  c.rect(crX + 14, crY - 7, 8, 7, hex("#f0c44d")); // golden trophy cup!
+  c.rect(crX + 16, crY - 1, 4, 3, hex("#b38424"));
+  c.box(crX + 30, crY - 4, 16, 7, hex("#2c5e63"), INK, 1); // hardcover strategy books
+  c.box(crX + crW - 30, crY - 6, 14, 9, hex("#3d825a"), INK, 1); // classic emerald banker's lamp shade!
+  c.rect(crX + crW - 26, crY + 3, 6, 2, hex("#f7de8a")); // warm brass glow
+  // Executive 3-Panel Gold-Framed Modern Art Triptych mounted on solid North Wall (y=16) right behind CEO!
+  for (const [ax, bg, fg] of [
+    [4 * S + 22, "#243647", "#d9a95b"],
+    [5 * S + 26, "#1f2e3d", "#6aa899"],
+    [6 * S + 30, "#243647", "#d97a54"],
+  ]) {
+    c.box(ax, 16 * S + 6, 26, 18, hex(bg), hex("#d4af62"), 2);
+    c.rect(ax + 5, 16 * S + 11, 16, 4, hex(fg));
+    c.circle(ax + 13, 16 * S + 17, 3, hex("#f5e8c8"));
+  }
+
+  // C) Two Sleek Cognac-Leather VIP Guest Chairs facing the CEO Desk (positioned south of review spots y=21.3)
+  for (const gx of [5 * S + 14, 7 * S + 4]) {
+    const gy = 21 * S + 10;
+    c.rect(gx + 2, gy + 5, 28, 22, SHADOW);
+    c.borderedRoundRect(gx, gy, 28, 22, 5, hex("#9c562c"), INK, 2); // cognac leather seat
+    c.rect(gx + 4, gy + 3, 20, 9, hex("#bd7140")); // sunlit cushion
+    c.box(gx, gy + 15, 28, 7, hex("#783e1c"), INK, 2); // leather backrest facing north!
+    c.rect(gx + 3, gy + 17, 22, 2, hex("#d4935c")); // brass trim highlight
+  }
+
+  // D) Tall Executive Potted Fiddle-Leaf Fig in Matte-Black & Brass Planter (SE corner x=9, y=23)
+  c.circle(9 * S + 16, 23 * S + 18, 10, hex("#262b33"));
+  c.ring(9 * S + 16, 23 * S + 18, 10, 8, hex("#d4af62")); // brass rim!
+  c.circle(9 * S + 11, 23 * S + 10, 7, hex("#2f6e3a"));
+  c.circle(9 * S + 21, 23 * S + 11, 7, hex("#438f4c"));
+  c.circle(9 * S + 16, 23 * S + 6, 6, hex("#62b360"));
 
   // 2) Modern Conference Rug beneath relocated Meeting Table (x=30..33, y=12..13)!
   const mrX = 29 * S + 14, mrY = 11 * S + 6, mrW = 5 * S + 4, mrH = 3 * S + 20;
@@ -1178,24 +1214,37 @@ function generateFarmhouseBackground(laneCanvas) {
       c.rect(9 * S + 16, 15 * S + 4, 3, 14, hex("#5cb062"));
       c.rect(9 * S + 20, 15 * S + 8, 3, 10, hex("#3c7d44"));
     } else if (p.k === "bed") {
-      // IMAGE 3: Modern Executive Studio Daybed / Lounge Sofa-Bed (x=2..3, y=19..22 — ZERO dark shadow box!)
-      c.rect(px + 6, py + 12, pw - 8, ph - 16, SHADOW_SOFT);
-      // Sleek round walnut bedside table + glowing warm brass lamp above bed (x=2, y=18)
-      c.circle(px + 20, py - 14, 12, INK);
-      c.circle(px + 20, py - 14, 10, hex("#7d5034"));
-      c.circle(px + 20, py - 14, 5, hex("#f7d674")); // warm brass bedside lamp!
-      c.circle(px + 20, py - 14, 2, hex("#fffbe0"));
-      // Modern tailored walnut platform bed frame
-      c.borderedRoundRect(px + 4, py + 6, pw - 8, ph - 14, 5, hex("#734930"), INK, 2);
-      // Crisp tailored ivory duvet + upholstered charcoal headboard
-      c.box(px + 8, py + 10, pw - 16, 12, hex("#495057"), INK, 1);
-      c.borderedRoundRect(px + 8, py + 22, pw - 16, ph - 34, 4, hex("#f5f1e8"), hex("#a89f91"), 2);
-      // Plush twin ivory pillows
-      c.borderedRoundRect(px + 11, py + 25, 19, 14, 3, hex("#ffffff"), hex("#c7bfb2"), 1);
-      c.borderedRoundRect(px + 34, py + 25, 19, 14, 3, hex("#ffffff"), hex("#c7bfb2"), 1);
-      // Folded modern sage-slate throw blanket across foot of bed
-      c.box(px + 10, py + ph - 42, pw - 20, 26, hex("#54786b"), hex("#375248"), 2);
-      c.rect(px + 12, py + ph - 38, pw - 24, 4, hex("#71998a"));
+      // FOUNDER / CEO VIP COGNAC-LEATHER CHESTERFIELD SOFA & MARBLE COFFEE CORNER (x=2..3, y=19..22 — ZERO BED!)
+      // 1) Sleek Dark-Marble Round Side Table + Warm Brass Executive Floor Lamp at NW of sofa (x=2, y=18.4)
+      c.circle(px + 20, py - 10, 12, INK);
+      c.circle(px + 20, py - 10, 10, hex("#2b323b")); // black Nero Marquina marble
+      c.line(px + 14, py - 14, px + 24, py - 6, 1, hex("#7d8794", 130)); // subtle marble vein
+      c.circle(px + 20, py - 10, 5, hex("#e8be5a")); // warm brass floor lamp dome
+      c.circle(px + 20, py - 10, 2, hex("#fffbe0"));
+      // 2) Plush Cognac-Leather Chesterfield Sofa facing EAST into the CEO suite!
+      const sx = px + 4, sy = py + 8, sw = 38, sh = ph - 16;
+      c.rect(sx + 3, sy + 5, sw, sh, SHADOW);
+      c.borderedRoundRect(sx, sy, sw, sh, 5, hex("#9c562c"), INK, 2);
+      // Tufted leather backrest along west wall + rolled armrests north & south
+      c.box(sx, sy, 13, sh, hex("#783e1c"), INK, 2);
+      c.box(sx, sy, sw - 2, 12, hex("#824420"), INK, 2);
+      c.box(sx, sy + sh - 12, sw - 2, 12, hex("#824420"), INK, 2);
+      // 3 Plump stitched cognac leather seat cushions
+      for (let ci = 0; ci < 3; ci++) {
+        const cy = sy + 13 + ci * 28;
+        c.box(sx + 13, cy, sw - 15, 26, hex("#ab6235"), hex("#633115"), 1);
+        c.rect(sx + 16, cy + 3, sw - 22, 6, hex("#c97d49")); // rich leather sheen!
+        c.rect(sx + 6, cy + 12, 2, 2, hex("#d9b15f")); // Chesterfield brass tuft button
+      }
+      // 3) Low Smoked-Glass & Walnut VIP Coffee Table right beside the sofa with espresso & pitch deck!
+      const tx = px + 46, ty = py + 32, tw = 22, th = 62;
+      c.rect(tx + 2, ty + 4, tw, th, SHADOW_SOFT);
+      c.borderedRoundRect(tx, ty, tw, th, 4, hex("#4f311e"), INK, 2);
+      c.rect(tx + 3, ty + 3, tw - 6, th - 6, hex("#303e4d")); // smoked glass tabletop
+      c.line(tx + 5, ty + 8, tx + 15, ty + 20, 2, hex("#8cb4d6", 80));
+      c.box(tx + 5, ty + 24, 12, 15, hex("#f7f2e8"), hex("#5e4a38"), 1); // investor pitch deck
+      c.circle(tx + 11, ty + 48, 4, hex("#ffffff")); // espresso cup
+      c.circle(tx + 11, ty + 48, 2, hex("#4a2915"));
     } else if (p.k === "lounge") {
       // IMAGE 1: Realistic 3/4 Top-Down Breakout Lounge — Smart TV on NORTH facing SOUTH into the room, Plush Sofa on SOUTH facing NORTH toward the TV!
       // 1) Large ornate crimson & gold woven Stardew rug!
@@ -1534,6 +1583,37 @@ function generateChair(dir) {
   return c;
 }
 
+function generateCeoDesk() {
+  // Exact 72x56 — Bespoke Founder/CEO Deep Espresso-Walnut Executive Desk with Black Leather Blotter & Gold Nameplate!
+  const c = new Canvas(72, 56);
+  c.rect(2, 48, 68, 6, SHADOW);
+  // Commanding wide dark-walnut desktop + paneled executive front modesty apron
+  c.borderedRoundRect(2, 4, 68, 46, 4, hex("#4f311e"), INK, 2);
+  c.box(4, 6, 64, 22, hex("#6b442a"), hex("#361f12"), 1); // polished walnut top
+  c.rect(6, 7, 60, 2, hex("#946240")); // sunlit edge sheen
+  // Executive black leather desk blotter pad in center
+  c.box(16, 10, 40, 14, hex("#23272e"), hex("#12151a"), 1);
+  // Front executive walnut paneling + brushed brass CEO nameplate!
+  c.box(6, 30, 60, 18, hex("#422717"), hex("#26150c"), 1);
+  c.box(10, 33, 18, 12, hex("#52321e"), hex("#2e1a0e"), 1);
+  c.box(44, 33, 18, 12, hex("#52321e"), hex("#2e1a0e"), 1);
+  c.box(29, 34, 14, 7, hex("#e5bc62"), hex("#7d5b18"), 1); // Gold "CEO" nameplate!
+  c.rect(31, 37, 10, 1, hex("#593e0c"));
+  return c;
+}
+
+function generateCeoChair() {
+  // Exact 30x26 — High-Back Tufted Black-Leather Executive Swivel Chair with Brushed-Brass Trim!
+  const c = new Canvas(30, 26);
+  c.borderedRoundRect(3, 1, 24, 23, 5, hex("#262b33"), INK, 2);
+  c.borderedRoundRect(6, 3, 18, 16, 3, hex("#363d47"), hex("#181b21"), 1);
+  c.rect(8, 5, 14, 3, hex("#545e6e")); // headrest leather sheen
+  // Brushed brass armrest caps left & right
+  c.rect(2, 11, 3, 9, hex("#d4af62"));
+  c.rect(25, 11, 3, 9, hex("#d4af62"));
+  return c;
+}
+
 function generateMug() {
   // Exact 16x18 handmade Stardew stoneware coffee mug!
   const c = new Canvas(16, 18);
@@ -1704,8 +1784,10 @@ const outputs = [
   ["bush@2x.png", generateBushSprite()],
   ["desk-north@2x.png", generateDesk("north")],
   ["desk-south@2x.png", generateDesk("south")],
+  ["desk-ceo@2x.png", generateCeoDesk()],
   ["chair-north@2x.png", generateChair("north")],
   ["chair-south@2x.png", generateChair("south")],
+  ["chair-ceo@2x.png", generateCeoChair()],
   ["mug@2x.png", generateMug()],
   ["herb@2x.png", generateHerb()],
   ["chicken-white@2x.png", generateChickenSprite("white")],
