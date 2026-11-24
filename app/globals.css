@@ -2421,7 +2421,7 @@ header.top {
   align-items: center;
   gap: 10px;
   flex: none;
-  width: calc(100% - 196px);
+  width: calc(100% - 176px);
   min-height: 58px;
   background: var(--panel);
   border: 1px solid var(--line-strong);
@@ -2793,7 +2793,7 @@ header.top {
 }
 
 .office-shell .stapler-root {
-  bottom: 20px;
+  bottom: 14px;
   right: 18px;
   z-index: 17;
 }
@@ -2806,7 +2806,7 @@ header.top {
 .stapler-nudge {
   position: absolute;
   right: 0;
-  bottom: 58px;
+  bottom: 60px;
   width: min(296px, calc(100vw - 24px));
   display: flex;
   align-items: stretch;
@@ -2817,6 +2817,11 @@ header.top {
   box-shadow: var(--shadow-lg), 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
   transform-origin: bottom right;
   z-index: 2;
+}
+
+.office-shell .stapler-nudge,
+.office-shell .stapler-panel {
+  bottom: 68px;
 }
 
 .stapler-nudge::after {
@@ -2911,88 +2916,105 @@ header.top {
   color: var(--ink);
 }
 
-/* Stapler floating trigger pill */
+/* Stapler floating / studio-dock trigger button */
 .stapler-fab {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
-  border: 1.5px solid color-mix(in srgb, var(--accent) 42%, var(--line-strong));
-  border-radius: var(--r-pill);
+  gap: 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
   background: var(--panel);
   color: var(--ink);
-  padding: 6px 12px 6px 6px;
-  box-shadow: var(--shadow-md), 0 0 0 1px color-mix(in srgb, var(--accent) 10%, transparent);
+  padding: 7px 13px 7px 9px;
+  box-shadow: var(--shadow-md);
   font-size: 13px;
   font-weight: 700;
+  text-align: left;
   cursor: pointer;
   transform-origin: bottom center;
-  transition: transform 160ms ease-out, box-shadow 160ms ease-out, border-color 140ms ease-out, background-color 140ms ease-out;
+  transition: transform 150ms ease-out, box-shadow 150ms ease-out, border-color 140ms ease-out, background-color 140ms ease-out;
+}
+
+.office-shell .stapler-fab {
+  width: 164px;
+  min-height: 58px;
+  padding: 8px 12px 8px 10px;
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
 }
 
 .stapler-fab::before {
   content: "";
   position: absolute;
-  inset: -4px;
+  inset: -3px;
   border-radius: inherit;
-  border: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  border: 1.5px solid color-mix(in srgb, var(--accent) 48%, transparent);
   opacity: 0;
   pointer-events: none;
 }
 
 .stapler-fab:hover {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
   border-color: var(--accent);
-  box-shadow: var(--shadow-lg), 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
+  box-shadow: var(--shadow-md), 0 0 0 3px var(--accent-ring);
 }
 
 .stapler-fab:active {
-  transform: scale(0.97);
+  transform: scale(0.98);
 }
 
 .stapler-fab:focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: 3px;
+  outline-offset: 2px;
 }
 
 .stapler-fab.is-open {
   border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent-soft) 55%, var(--panel));
+  background: color-mix(in srgb, var(--accent-soft) 50%, var(--panel));
+  box-shadow: var(--shadow-md), 0 0 0 3px var(--accent-ring);
 }
 
 .stapler-fab.is-recording {
   border-color: var(--danger);
-  box-shadow: var(--shadow-md), 0 0 0 3px color-mix(in srgb, var(--danger) 18%, transparent);
+  box-shadow: var(--shadow-sm), 0 0 0 3px color-mix(in srgb, var(--danger) 18%, transparent);
 }
 
 .stapler-fab.is-dragover {
   border-style: dashed;
   border-color: var(--accent);
   background: var(--accent-soft);
-  transform: scale(1.04);
+  transform: scale(1.02);
 }
 
-.stapler-fab-label {
+.stapler-fab-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stapler-fab-text b {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--ink);
   white-space: nowrap;
 }
 
-.stapler-fab-kbd {
-  font-family: var(--f-mono, ui-monospace, SFMono-Regular, monospace);
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 1;
-  padding: 3px 5px;
-  border-radius: 6px;
-  background: var(--sunk);
-  border: 1px solid var(--line);
+.stapler-fab-text small {
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.15;
   color: var(--subtle);
+  white-space: nowrap;
 }
 
 .stapler-fab-rec {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  color: var(--danger);
+  color: var(--danger) !important;
   font-variant-numeric: tabular-nums;
 }
 
@@ -3688,9 +3710,9 @@ header.top {
 }
 
 @keyframes stapler-halo {
-  0%, 100% { opacity: 0; transform: scale(0.98); }
-  45% { opacity: 0.42; transform: scale(1.04); }
-  75% { opacity: 0; transform: scale(1.09); }
+  0%, 100% { opacity: 0; transform: scale(0.99); }
+  45% { opacity: 0.28; transform: scale(1.02); }
+  75% { opacity: 0; transform: scale(1.045); }
 }
 
 @keyframes stapler-hop {
@@ -7081,7 +7103,7 @@ main.pagewide > * {
     font-size: 10px;
   }
   .office-composer {
-    width: calc(100% - 72px);
+    width: calc(100% - 64px);
     padding: 7px 8px;
     gap: 6px;
   }
@@ -7098,17 +7120,25 @@ main.pagewide > * {
     padding: 8px 11px;
     font-size: 12px;
   }
-  .stapler-fab-kbd {
-    display: none;
-  }
-  .office-shell .stapler-fab:not(.is-recording):not(.is-dragover) .stapler-fab-label {
+  .office-shell .stapler-fab:not(.is-recording):not(.is-dragover) .stapler-fab-text {
     display: none;
   }
   .office-shell .stapler-fab:not(.is-recording):not(.is-dragover) {
-    padding: 6px;
+    width: 54px;
+    min-height: 58px;
+    justify-content: center;
+    padding: 8px;
+  }
+  .office-shell .stapler-fab.is-recording,
+  .office-shell .stapler-fab.is-dragover {
+    width: auto;
   }
   .stapler-root {
     right: 12px;
+    bottom: 14px;
+  }
+  .office-shell .stapler-root {
+    right: 14px;
     bottom: 14px;
   }
   .mf-txt small {
