@@ -33,7 +33,7 @@ function load() {
     const art = new Image(); art.src = '/art/office-reference.png'; await art.decode();
     (window as unknown as { MDOffice: Vendor }).MDOffice.campusArt = art;
     // Optional Phase 03 Retina workstation & Stardew Valley scene adapters.
-    for (const extra of ['/retina-workstation.js', '/office-harvest.js?v=9']) {
+    for (const extra of ['/retina-workstation.js', '/office-harvest.js?v=10']) {
       await new Promise<void>(resolve => {
         const script = document.createElement('script');
         script.src = extra;
@@ -167,6 +167,21 @@ export default function ReferenceOffice({
   const coworkers = visibleHumans.slice(1);
   const { coworkerSeats, agentSeats } = floorSeats(visibleHumans.length);
 
+  // Two real break destinations: Kitchen Pantry (x=7, y=7) & Dedicated Coffee Machine Bar (x=35, y=5)
+  const breakSpotCursorRef = useRef(0);
+  const getBreakCoffeeSpots = () => {
+    const spots = OFFICE_PLAN.errands.filter(e => e.kind === 'coffee');
+    if (spots.length >= 2) {
+      return spots.map(e => ({
+        ...e,
+        isCoffeeBar: e.x >= 30,
+        label: e.x >= 30 ? 'Pulling an espresso at the coffee bar ☕' : 'Grabbing a brew in the kitchen 🍳',
+      }));
+    }
+    const fallback = spots[0] ?? OFFICE_PLAN.lunch;
+    return [{ ...fallback, face: 'up', kind: 'coffee', isCoffeeBar: false, label: 'Grabbing a quick coffee ☕' }];
+  };
+
   const [letter, setLetter] = useState<string | null>(null);
   const [ack, setAck] = useState('');
   const [error, setError] = useState('');
@@ -257,16 +272,17 @@ export default function ReferenceOffice({
       if (!a || a.busy || a.state === 'held' || a.huddleHold || a.reviewHold) return;
       const index = latest.current.desks.findIndex(d => d.agentId === id);
       if (index >= 0) setPage(Math.floor(index / agentSeats.length));
-      const coffeeSpot = OFFICE_PLAN.errands.find(e => e.kind === 'coffee') ?? OFFICE_PLAN.lunch;
+      const spots = getBreakCoffeeSpots();
+      const chosen = spots[breakSpotCursorRef.current++ % spots.length];
       a.hidden = false;
-      const path = s.path(a.x, a.y, coffeeSpot.x, coffeeSpot.y);
+      const path = s.path(a.x, a.y, chosen.x, chosen.y);
       if (path && path.length) {
         a.state = 'walk';
         a.path = path;
         a.then = 'errand';
-        a.target = { x: coffeeSpot.x, y: coffeeSpot.y, face: 'up', kind: 'coffee' };
+        a.target = { x: chosen.x, y: chosen.y, face: chosen.face || 'up', kind: 'coffee' };
       }
-      showTransient({ actorId: id, tone: 'coffee', badge: 'Break', text: 'Grabbing a quick coffee ☕' }, 3400, 'coffee');
+      showTransient({ actorId: id, tone: 'coffee', badge: chosen.isCoffeeBar ? 'Coffee Bar' : 'Kitchen', text: chosen.label }, 3400, 'coffee');
     };
     window.addEventListener('kantor:letter', receive);
     window.addEventListener('kantor:celebrate', celebrate);
@@ -445,25 +461,32 @@ export default function ReferenceOffice({
     prevCoffee.current = coffeeTick;
     const s = scene.current;
     if (!s) return;
-    const coffeeSpot = OFFICE_PLAN.errands.find(e => e.kind === 'coffee') ?? OFFICE_PLAN.lunch;
+    const spots = getBreakCoffeeSpots();
+    const usedPerSpot = spots.map(() => 0);
     let sent = 0;
     for (const d of shownRef.current) {
-      if (sent >= 3) break;
+      if (sent >= 4) break;
       const a = s.get(d.agentId);
       if (!a || a.busy || a.reviewHold || a.huddleHold || a.state !== 'seat') continue;
       a.hidden = false;
-      const target = { x: coffeeSpot.x + (sent % 2), y: coffeeSpot.y + Math.floor(sent / 2), face: 'up', kind: 'coffee' };
-      const path = s.path(a.x, a.y, target.x, target.y) ?? s.path(a.x, a.y, coffeeSpot.x, coffeeSpot.y);
+      // Alternate across Kitchen Pantry & Coffee Machine Bar so both break zones come alive!
+      const spotIdx = (breakSpotCursorRef.current + sent) % spots.length;
+      const chosen = spots[spotIdx];
+      const slot = usedPerSpot[spotIdx]++;
+      const offsetX = slot === 0 ? 0 : (slot % 2 === 1 ? -1 : 1);
+      const target = { x: chosen.x + offsetX, y: chosen.y, face: chosen.face || 'up', kind: 'coffee' };
+      const path = s.path(a.x, a.y, target.x, target.y) ?? s.path(a.x, a.y, chosen.x, chosen.y);
       if (path && path.length) {
         a.state = 'walk';
         a.path = path;
         a.then = 'errand';
         a.target = target;
-        showTransient({ actorId: d.agentId, tone: 'coffee', badge: 'Break', text: 'Grabbing a quick coffee ☕' }, 3200, 'coffee');
+        showTransient({ actorId: d.agentId, tone: 'coffee', badge: chosen.isCoffeeBar ? 'Coffee Bar' : 'Kitchen', text: chosen.label }, 3200, 'coffee');
         sent++;
       }
     }
-    setAck(sent > 0 ? `Coffee break · ${sent} agent${sent > 1 ? 's' : ''} grabbing a cup` : 'Everyone is busy at their desks right now');
+    breakSpotCursorRef.current += Math.max(1, sent);
+    setAck(sent > 0 ? `Break time · ${sent} agent${sent > 1 ? 's' : ''} heading to kitchen & coffee bar` : 'Everyone is busy at their desks right now');
   }, [coffeeTick]);
 
   // Pointer drag & drop across the canvas stage
@@ -523,11 +546,12 @@ export default function ReferenceOffice({
         s.drop(dr.agentId);
         if (dr.zone.kind === 'coffee') {
           const a = s.get(dr.agentId);
-          const coffeeSpot = OFFICE_PLAN.errands.find(e => e.kind === 'coffee');
-          if (a && coffeeSpot) {
-            const p = s.path(a.x, a.y, coffeeSpot.x, coffeeSpot.y);
-            if (p) { a.state = 'walk'; a.path = p; a.then = 'errand'; a.target = coffeeSpot; }
-            showTransient({ actorId: dr.agentId, tone: 'coffee', badge: 'Break', text: 'Coffee break ☕' }, 3200, 'coffee');
+          const spots = getBreakCoffeeSpots();
+          const barSpot = spots.find(sp => sp.isCoffeeBar) ?? spots[0];
+          if (a && barSpot) {
+            const p = s.path(a.x, a.y, barSpot.x, barSpot.y);
+            if (p) { a.state = 'walk'; a.path = p; a.then = 'errand'; a.target = { x: barSpot.x, y: barSpot.y, face: barSpot.face || 'up', kind: 'coffee' }; }
+            showTransient({ actorId: dr.agentId, tone: 'coffee', badge: 'Coffee Bar', text: barSpot.label }, 3200, 'coffee');
           }
         } else if (dr.zone.kind === 'desk') {
           s.bubble(dr.agentId, 'mail', 3);
@@ -818,15 +842,20 @@ export default function ReferenceOffice({
       const clockTimer = setInterval(() => { if (!s.running && !document.hidden) s.draw(); }, 30000);
       const lunchTimer = setInterval(() => {
         if (!latest.current.lunch || document.hidden) return;
-        for (const d of latest.current.desks) {
+        const breakSpots = [
+          ...OFFICE_PLAN.errands.filter(e => e.kind === 'coffee'),
+          { ...OFFICE_PLAN.lunch, face: 'down', kind: 'coffee' },
+        ];
+        latest.current.desks.forEach((d, idx) => {
           const a = s.get(d.agentId);
           if (a && ['home', 'ready', 'break'].includes(d.state) && a.state === 'seat' && !a.huddleHold && !a.reviewHold) {
-            const target = { ...OFFICE_PLAN.lunch, face: 'down', kind: 'coffee' };
+            const spot = breakSpots[idx % breakSpots.length] ?? { ...OFFICE_PLAN.lunch, face: 'down', kind: 'coffee' };
+            const target = { x: spot.x, y: spot.y, face: spot.face || 'up', kind: 'coffee' };
             const path = s.path(a.x, a.y, target.x, target.y);
-            if (!path) continue;
+            if (!path) return;
             a.hidden = false; a.state = 'walk'; a.path = path; a.then = 'errand'; a.target = target;
           }
-        }
+        });
       }, 15000);
       cleanup = () => { s.stop(); clearInterval(clockTimer); clearInterval(lunchTimer); document.removeEventListener('visibilitychange', visibility); reduced.removeEventListener('change', visibility); scene.current = null; };
     }).catch(e => { if (alive) setError(e.message); });

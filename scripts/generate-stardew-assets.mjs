@@ -804,9 +804,33 @@ function generateFarmhouseBackground(laneCanvas) {
   for (let rx = 0; rx < W; rx += 192) {
     c.blit({ w: laneCanvas.w, h: laneCanvas.h, rgba: laneCanvas.buf }, 0, 0, 192, 64, rx, 26 * S);
   }
-  paintStardewDirtRoad(c, 21, 24, 4, 2, 509);
-  // Stepping stones leading up to front porch from dirt2.png
-  c.blit(SHEETS.dirt2, 0, 0, 32, 64, 22 * S, 25 * S, { grade: GRADE.stardewDirt });
+  // Welcoming Limestone Flagstone Front Porch Landing & Entry Steps (x=21..24, y=25) connecting door to lane cleanly!
+  const porchX = 21 * S + 8, porchY = 25 * S - 2, porchW = 4 * S - 16, porchH = S + 6;
+  c.rect(porchX + 2, porchY + 4, porchW, porchH, SHADOW_SOFT);
+  c.borderedRoundRect(porchX, porchY, porchW, porchH, 4, hex("#cbbba4"), hex("#6f5b47"), 2);
+  // Hand-laid warm limestone flagstones with crisp grout joints & sunlit top bevel
+  for (let row = 0; row < 2; row++) {
+    const sy = porchY + 3 + row * 16;
+    const cols = row === 0 ? [0, 34, 68, 96] : [0, 24, 58, 86];
+    for (let i = 0; i < cols.length; i++) {
+      const sx = porchX + 3 + cols[i];
+      const sw = (i < cols.length - 1 ? cols[i + 1] - cols[i] : (porchW - 6) - cols[i]) - 2;
+      const sh = row === 0 ? 14 : 15;
+      c.box(sx, sy, sw, sh, (i + row) % 2 === 0 ? hex("#dfd1bc") : hex("#d4c4ac"), hex("#96836c"), 1);
+      c.rect(sx + 1, sy + 1, sw - 2, 2, hex("#efe5d5"));
+    }
+  }
+  // Twin Terracotta Porch Planters with Blooming Marigolds flanking the stone entrance steps!
+  for (const fx of [21 * S - 4, 24 * S + 16]) {
+    const fy = 25 * S + 4;
+    c.rect(fx + 2, fy + 16, 18, 6, SHADOW_SOFT);
+    c.borderedRoundRect(fx + 2, fy + 10, 16, 12, 3, hex("#c46d45"), INK, 1);
+    c.rect(fx + 1, fy + 8, 18, 4, hex("#d98055"));
+    c.circle(fx + 10, fy + 6, 7, hex("#479144"));
+    c.circle(fx + 7, fy + 5, 3, hex("#ffd54f")); // marigold bloom
+    c.circle(fx + 13, fy + 4, 3, hex("#ff9e44"));
+    c.circle(fx + 10, fy + 8, 2.5, hex("#fff199"));
+  }
 
   // STEP C: Iconic Stardew Duck Pond in North-East meadow (x=37..39, y=0..1) — fully unclipped inside bounds!
   c.blit(SHEETS.watergrass, 0, 64, 96, 96, 37 * S, 2, { dw: 96, dh: 60, grade: GRADE.stardewWater });
@@ -951,7 +975,7 @@ function generateFarmhouseBackground(laneCanvas) {
   }
 
   // Real LPC Multipane Cottage Windows (house.png) along North & South farmhouse walls!
-  for (const tx of [3, 12, 19, 31, 40, 44]) {
+  for (const tx of [2, 12, 19, 31, 40, 44]) {
     c.blit(SHEETS.house, 256, 8, 32, 40, tx * S, 2 * S - 2, { dw: 32, dh: 34, grade: GRADE.stardewWindow });
     // Tiny windowsill flowerbox!
     c.box(tx * S + 2, 2 * S + 26, 28, 6, hex("#8a4f28"), INK, 1);
@@ -967,7 +991,7 @@ function generateFarmhouseBackground(laneCanvas) {
   for (const [tx, bg, acc] of [
     [15, hex("#7dc2e8"), hex("#55a846")], // Pelican Valley hill painting
     [24, hex("#f7e7ba"), hex("#54b350")], // Cute little emerald Junimo portrait!
-    [35, hex("#f2b66d"), hex("#c94b3b")], // Sunset barn painting
+    [30, hex("#f2b66d"), hex("#c94b3b")], // Sunset barn painting (moved cleanly clear of Coffee Bar!)
   ]) {
     const px = tx * S + 4, py = 2 * S + 10;
     c.box(px, py, 24, 16, bg, hex("#6b3c1c"), 2);
@@ -983,21 +1007,43 @@ function generateFarmhouseBackground(laneCanvas) {
   }
   c.rect(42 * S + 24, 24 * S + 21, 16, 3, hex("#4b525c")); // garage door handle
 
-  // Front Farmhouse Entrance Doorway (x=22..23, y=24) — Wide-open foyer with woven welcome mat & porch steps!
-  c.blit(SHEETS.bridges, 0, 96, 64, 32, 22 * S, 24 * S + 10, { grade: GRADE.stardewWood });
-  // Woven welcome mat inside grand unobstructed front foyer
-  c.borderedRoundRect(22 * S + 6, 23 * S + 6, 52, 22, 4, hex("#c89352"), hex("#6b401e"), 2);
-  c.rect(22 * S + 12, 23 * S + 12, 40, 10, hex("#e3b97c"));
-  // Flanking brass porch torches/lanterns from lights.png
-  c.blit(SHEETS.lights, 0, 0, 32, 32, 21 * S + 8, 24 * S - 6);
-  c.blit(SHEETS.lights, 0, 0, 32, 32, 24 * S - 8, 24 * S - 6);
-
-  // Iconic Stardew Valley Shipping Bin (real chests.png!) + Farmhouse Mailbox right beside front porch!
-  c.blit(SHEETS.chests, 0, 0, 32, 32, 20 * S - 6, 25 * S - 6, { dw: 36, dh: 34, grade: GRADE.stardewWood });
+  // IMAGE 2: Grand Cozy Farmhouse Studio Main Entrance (x=22..23, y=24) — Double Cedar & Mullioned-Glass Doors + Brass Carriage Lanterns!
+  const doorX = 22 * S, doorY = 24 * S;
+  // Crisp warm limestone & cedar threshold sill bridging foyer floor to stone porch
+  c.box(doorX, doorY + S - 8, 2 * S, 10, hex("#bfa98e"), hex("#5e4936"), 1);
+  c.rect(doorX + 2, doorY + S - 6, 2 * S - 4, 3, hex("#e3d4be"));
+  // Carved timber entrance header beam & solid left/right doorposts
+  c.box(doorX - 4, doorY, 2 * S + 8, 8, hex("#7d4520"), INK, 2);
+  c.rect(doorX - 2, doorY + 2, 2 * S + 4, 2, hex("#b36e3d"));
+  c.box(doorX - 4, doorY + 6, 8, S - 6, hex("#8f5228"), INK, 2);
+  c.box(doorX + 2 * S - 4, doorY + 6, 8, S - 6, hex("#8f5228"), INK, 2);
+  // Open/ajar double cedar-and-glass French studio door leaves tucked cleanly along inner jambs
+  for (const isRight of [false, true]) {
+    const lx = isRight ? doorX + 2 * S - 14 : doorX + 4;
+    c.box(lx, doorY + 6, 10, S - 10, hex("#9c5d30"), INK, 1);
+    c.box(lx + 2, doorY + 9, 6, 9, hex("#cde6f0"), hex("#5e361b"), 1); // upper glass mullion pane
+    c.rect(lx + 3, doorY + 10, 4, 2, hex("#eef9fc"));
+    c.rect(lx + (isRight ? 1 : 7), doorY + 20, 2, 4, hex("#e8be5a")); // brushed brass lever handle!
+  }
+  // Flanking Symmetrical Warm Brass Carriage Wall Lanterns on South Exterior Wall (clear of doorposts!)
+  for (const lx of [21 * S + 10, 24 * S + 10]) {
+    const ly = 24 * S + 8;
+    c.rect(lx + 4, ly - 1, 6, 3, hex("#2f353d")); // wrought-iron wall mount cap
+    c.box(lx + 2, ly + 2, 10, 14, hex("#ffd97d"), hex("#2f353d"), 2); // glowing golden lantern glass
+    c.rect(lx + 4, ly + 4, 6, 9, hex("#fff3bd"));
+    c.rect(lx + 6, ly + 6, 2, 5, hex("#ffffff"));
+    c.rect(lx + 4, ly + 16, 6, 2, hex("#2f353d")); // brass finial base
+  }
+  // Woven Coir & Forest-Sage Bordered Welcome Mat inside Grand Foyer (x=22..23, y=23)
+  c.borderedRoundRect(22 * S + 6, 23 * S + 6, 52, 20, 4, hex("#597d5e"), hex("#324a36"), 2);
+  c.borderedRoundRect(22 * S + 10, 23 * S + 9, 44, 14, 2, hex("#cca066"), hex("#875c2e"), 1);
+  c.rect(22 * S + 15, 23 * S + 14, 34, 4, hex("#e3be8a"));
+  // Iconic Stardew Valley Shipping Bin (real chests.png!) + Farmhouse Mailbox flanking the stone porch!
+  c.blit(SHEETS.chests, 0, 0, 32, 32, 20 * S - 6, 25 * S - 4, { dw: 36, dh: 34, grade: GRADE.stardewWood });
   // Little Stardew wooden mailbox at x=25, y=25
-  c.box(25 * S + 8, 25 * S + 10, 6, 18, hex("#7d4824"), INK, 1);
-  c.box(25 * S + 3, 25 * S + 2, 16, 12, hex("#c8a878"), INK, 2);
-  c.rect(25 * S + 15, 25 * S + 4, 3, 6, hex("#d9443e")); // red mail flag!
+  c.box(25 * S + 10, 25 * S + 10, 6, 18, hex("#7d4824"), INK, 1);
+  c.box(25 * S + 5, 25 * S + 2, 16, 12, hex("#c8a878"), INK, 2);
+  c.rect(25 * S + 17, 25 * S + 4, 3, 6, hex("#d9443e")); // red mail flag!
 
   // STEP G: Paint EVERY Interior Prop in OFFICE_PLAN!
   // 1) FOUNDER / CEO EXECUTIVE SUITE (x=2..9, y=17..23) — Authoritative Executive Suite (ZERO bedroom feel!)
@@ -1071,90 +1117,118 @@ function generateFarmhouseBackground(laneCanvas) {
     const px = p.x * S, py = p.y * S, pw = p.w * S, ph = p.h * S;
 
     if (p.k === "kitchen") {
-      // IMAGE 1: Modern Cozy Studio Kitchen & Espresso Pantry (x=2..8, y=4..6)!
-      // Sleek matte stainless-steel French-door Refrigerator on left (px+2..px+46, py-16..py+68)
-      c.rect(px + 6, py + 4, 46, 70, SHADOW);
-      c.borderedRoundRect(px + 2, py - 14, 46, 84, 4, hex("#d7dde2"), INK, 2);
-      c.rect(px + 6, py - 10, 38, 12, hex("#eef2f5")); // crisp top face
-      c.rect(px + 24, py + 4, 2, 46, hex("#8d969f")); // French door split
-      c.rect(px + 4, py + 50, 42, 2, hex("#8d969f")); // bottom freezer drawer seam
-      c.rect(px + 19, py + 14, 3, 22, hex("#5d6670")); // left brushed steel handle
-      c.rect(px + 28, py + 14, 3, 22, hex("#5d6670")); // right brushed steel handle
-      c.box(px + 9, py + 16, 8, 14, hex("#363e47"), hex("#8c96a0"), 1); // water/ice dispenser!
-      c.rect(px + 11, py + 18, 4, 3, hex("#75d4f5")); // blue LED display
+      // IMAGE 1: Architect-Grade Modern Cozy Studio Kitchen (x=2..9, y=3..10 -> 64..320 x 96..320)
+      // Anchored 100% FLUSH against North Wall (y=3) & West/East Walls — ZERO floating gap behind fridge or counters!
+      const kx = 2 * S, ky = 3 * S; // room NW corner = (64, 96)
 
-      // Continuous Modern Light-Oak Cabinetry with Crisp White Quartz Countertop (px+52..px+222)
-      const cx0 = px + 52, cw = pw - 54;
-      c.rect(cx0 + 2, py + 32, cw, 44, SHADOW);
-      // Warm light-oak base cabinets
-      c.box(cx0, py + 24, cw, 48, hex("#b88a5a"), INK, 2);
-      for (let bx = cx0 + 6; bx < cx0 + cw - 12; bx += 28) {
-        c.box(bx, py + 48, 24, 20, hex("#a37548"), hex("#78522d"), 1);
-        c.rect(bx + 8, py + 52, 8, 2, hex("#343940")); // sleek matte-black pull
+      // A) Wall-Mounted Range Hood & Floating Oak Pantry Shelves cleanly INSIDE North Wall plaster band (y=2, Y=74..94)!
+      // Matte-black & stainless chimney range hood right above induction cooktop
+      c.box(kx + 58, 2 * S + 12, 48, 19, hex("#363d46"), INK, 2);
+      c.rect(kx + 62, 2 * S + 15, 40, 4, hex("#697380"));
+      c.rect(kx + 64, 2 * S + 27, 36, 2, hex("#ffebb8")); // warm under-hood LED bar!
+      // Floating light-oak wall shelf above sink & counter with ceramic mugs, canisters & trailing herb!
+      c.box(kx + 124, 2 * S + 22, 118, 6, hex("#c29362"), INK, 1);
+      for (const [mx, col] of [[130, "#f5efe4"], [142, "#6a9d76"], [154, "#e59a5c"], [168, "#527c96"], [182, "#f5efe4"], [198, "#d47e52"], [210, "#f5efe4"]]) {
+        c.box(kx + mx, 2 * S + 13, 8, 9, hex(col), INK, 1);
       }
-      // Crisp white quartz countertop slab
-      c.box(cx0, py + 22, cw, 26, hex("#f6f3ed"), INK, 2);
-      c.rect(cx0 + 2, py + 24, cw - 4, 4, hex("#ffffff"));
+      c.circle(kx + 230, 2 * S + 15, 6, hex("#52a44c")); // cute trailing kitchen pothos!
+      c.rect(kx + 226, 2 * S + 19, 8, 4, hex("#c96d46"));
 
-      // Modern Overhead Floating Light-Oak Wall Shelves & Range Hood along North Wall (py-20..py+14)
-      // Sleek matte-black & stainless range hood above induction stove
-      c.box(cx0 + 8, py - 24, 46, 22, hex("#383e46"), INK, 2);
-      c.rect(cx0 + 12, py - 20, 38, 4, hex("#67717d"));
-      c.rect(cx0 + 14, py - 6, 34, 2, hex("#ffebb8")); // warm under-hood LED strip!
-      // Floating oak pantry shelves on right with ceramic mugs, matcha canisters & trailing herb plant
-      c.box(cx0 + 82, py - 18, 82, 8, hex("#c29362"), INK, 1);
-      c.box(cx0 + 82, py - 2, 82, 8, hex("#c29362"), INK, 1);
-      for (const [mx, col] of [[88, "#f5efe4"], [99, "#6a9d76"], [110, "#e59a5c"], [124, "#527c96"], [138, "#f5efe4"]]) {
-        c.box(cx0 + mx, py - 26, 8, 9, hex(col), INK, 1);
+      // B) Sleek Brushed-Stainless Side-by-Side Refrigerator flush in NW corner (X=65..111, Y=96..158)
+      c.rect(kx + 4, ky + 6, 46, 62, SHADOW);
+      c.borderedRoundRect(kx + 1, ky, 46, 64, 4, hex("#d7dde2"), INK, 2);
+      c.rect(kx + 5, ky + 3, 38, 10, hex("#eef2f5")); // crisp top crown
+      c.rect(kx + 23, ky + 14, 2, 36, hex("#8d969f")); // side-by-side seam
+      c.rect(kx + 3, ky + 50, 42, 2, hex("#8d969f")); // freezer drawer seam
+      c.rect(kx + 18, ky + 20, 3, 20, hex("#5d6670")); // left brushed steel handle
+      c.rect(kx + 27, ky + 20, 3, 20, hex("#5d6670")); // right brushed steel handle
+      c.box(kx + 8, ky + 22, 8, 13, hex("#363e47"), hex("#8c96a0"), 1); // chilled water/ice dispenser
+      c.rect(kx + 10, ky + 24, 4, 3, hex("#75d4f5")); // crisp LED readout
+      // Compact matte-black recycling/compost bin tucked cleanly against West Wall just south of fridge!
+      c.rect(kx + 4, ky + 72, 18, 22, SHADOW_SOFT);
+      c.borderedRoundRect(kx + 2, ky + 70, 18, 22, 3, hex("#353c45"), INK, 1);
+      c.rect(kx + 5, ky + 74, 12, 4, hex("#56606d"));
+
+      // C) Seamless Modern Nordic L-Shaped Oak & White-Quartz Kitchenette flush against North (y=3) & East (x=9) Walls!
+      // North run (X=114..318, Y=96..138 -> flush to East Wall!)
+      const cx0 = kx + 50, cw = 256 - 52; // width 204px -> right edge = 318px!
+      c.rect(cx0 + 2, ky + 8, cw, 44, SHADOW);
+      c.box(cx0, ky + 2, cw, 44, hex("#b88a5a"), INK, 2); // oak base cabinetry
+      for (let bx = cx0 + 6; bx < cx0 + cw - 34; bx += 28) {
+        c.box(bx, ky + 26, 24, 17, hex("#a37548"), hex("#78522d"), 1);
+        c.rect(bx + 8, ky + 30, 8, 2, hex("#343940")); // matte-black pull
       }
-      c.circle(cx0 + 154, py - 22, 6, hex("#52a44c")); // cute trailing kitchen plant!
-      c.box(cx0 + 149, py - 10, 10, 9, hex("#d47e52"), INK, 1);
+      // East L-Return Breakfast & Pantry Counter along East Wall (X=284..318, Y=136..196 -> clear of doorway y=8..9!)
+      const retX = kx + 256 - 36, retY = ky + 42, retW = 34, retH = 56;
+      c.rect(retX - 3, retY + 4, retW + 3, retH, SHADOW);
+      c.box(retX, retY, retW, retH, hex("#b88a5a"), INK, 2);
+      c.box(retX + 2, retY + 2, retW - 4, retH - 12, hex("#f6f3ed"), hex("#a8a296"), 1); // quartz return top
+      c.rect(retX + 4, retY + retH - 8, retW - 8, 6, hex("#a37548"));
+      c.rect(retX + 12, retY + retH - 6, 10, 2, hex("#343940"));
 
-      // 4-Burner Black Glass Induction Cooktop (cx0+8..cx0+54)
-      c.box(cx0 + 8, py + 26, 46, 18, hex("#23272e"), hex("#545b66"), 1);
-      c.ring(cx0 + 20, py + 35, 6, 4, hex("#e85d44")); // active glowing induction ring!
-      c.ring(cx0 + 38, py + 35, 5, 3, hex("#4c535e"));
-      c.circle(cx0 + 20, py + 35, 4, hex("#c8ced6")); // sleek stainless pour-over kettle!
+      // Continuous crisp white quartz countertop slab across North run + seamless L-corner turn!
+      c.box(cx0, ky, cw, 25, hex("#f6f3ed"), INK, 2);
+      c.rect(cx0 + 2, ky + 2, cw - 4, 4, hex("#ffffff"));
+      c.rect(retX + 2, ky + 22, retW - 4, 24, hex("#f6f3ed")); // seamless white quartz L-corner!
+      c.rect(retX, ky + 25, 2, 20, INK); // crisp inner L-corner edge
 
-      // Under-mount Brushed Stainless Sink + Gooseneck Chrome Faucet (cx0+64..cx0+104)
-      c.box(cx0 + 64, py + 26, 36, 18, hex("#adb6bf"), hex("#5c6570"), 2);
-      c.rect(cx0 + 68, py + 29, 28, 12, hex("#c7d0d9"));
-      c.circle(cx0 + 82, py + 35, 2, hex("#4c545e")); // drain
-      c.rect(cx0 + 80, py + 20, 4, 9, hex("#3b414a")); // matte-black gooseneck faucet
-      c.rect(cx0 + 80, py + 20, 9, 3, hex("#3b414a"));
-      c.box(cx0 + 96, py + 24, 6, 8, hex("#d8e6dc"), INK, 1); // hand soap dispenser
+      // 1. 4-Burner Black Glass Induction Cooktop (cx0+8..cx0+56)
+      c.box(cx0 + 8, ky + 4, 46, 17, hex("#23272e"), hex("#545b66"), 1);
+      c.ring(cx0 + 20, ky + 12, 5.5, 3.5, hex("#e85d44")); // active glowing induction burner!
+      c.ring(cx0 + 38, ky + 12, 4.5, 3, hex("#4c535e"));
+      c.circle(cx0 + 20, ky + 12, 3.5, hex("#d4935a")); // warm copper sauté pan / kettle!
 
-      // Commercial Boutique Espresso Machine & Grinder Station (cx0+112..cx0+164)
-      c.box(cx0 + 114, py + 12, 34, 28, hex("#2d323a"), INK, 2);
-      c.rect(cx0 + 118, py + 14, 26, 7, hex("#c9d1d9")); // chrome cup-warmer tray
-      c.rect(cx0 + 120, py + 24, 22, 8, hex("#9aa4b0")); // chrome grouphead
-      c.rect(cx0 + 122, py + 34, 8, 4, hex("#f7f2e8")); // espresso cup
-      c.rect(cx0 + 132, py + 34, 8, 4, hex("#f7f2e8")); // espresso cup
-      c.box(cx0 + 152, py + 18, 12, 22, hex("#404752"), INK, 2); // coffee grinder
-      c.circle(cx0 + 158, py + 16, 5, hex("#5c3a22")); // coffee bean hopper!
+      // 2. Walnut Prep Cutting Board + Undermount Brushed-Stainless Sink & Gooseneck Faucet (cx0+62..cx0+120)
+      c.box(cx0 + 60, ky + 6, 14, 13, hex("#b87c4b"), hex("#6e4624"), 1); // walnut cutting board
+      c.box(cx0 + 78, ky + 4, 36, 17, hex("#adb6bf"), hex("#5c6570"), 2); // stainless sink
+      c.rect(cx0 + 82, ky + 7, 28, 11, hex("#c7d0d9"));
+      c.circle(cx0 + 96, ky + 12, 2, hex("#4c545e"));
+      c.rect(cx0 + 94, ky + 1, 4, 7, hex("#3b414a")); // matte-black faucet
+      c.box(cx0 + 116, ky + 5, 5, 7, hex("#7ab38e"), INK, 1); // soap pump
+
+      // 3. Built-In Toaster Oven / Microwave + Pantry Espresso Setup on NE & East Return (cx0+128..retX+28)
+      c.box(cx0 + 128, ky + 4, 28, 17, hex("#2d323a"), INK, 1); // sleek matte-black microwave/oven
+      c.rect(cx0 + 131, ky + 7, 17, 10, hex("#5d6875"));
+      c.rect(cx0 + 150, ky + 8, 3, 8, hex("#b5bec7"));
+      // Compact Pantry Drip Coffee Maker + Mug Tray + Fruit Bowl along East L-Return!
+      c.box(retX + 6, retY + 4, 22, 18, hex("#30363f"), INK, 1); // pantry drip brewer
+      c.rect(retX + 9, retY + 7, 16, 6, hex("#b8c2cc"));
+      c.circle(retX + 17, retY + 17, 4, hex("#5a351d")); // fresh brewed pot
+      c.circle(retX + 17, retY + 32, 8, hex("#f7f4ec")); // ceramic fruit bowl!
+      c.circle(retX + 14, retY + 31, 3, hex("#e86a48")); // apple
+      c.circle(retX + 20, retY + 31, 3, hex("#f2c249")); // lemon
+      c.circle(retX + 17, retY + 35, 3, hex("#74b856")); // pear
+
+      // D) Warm Terracotta Olive/Herb Planter in Kitchen South-West Corner (x=2, y=10)
+      c.circle(kx + 18, 10 * S + 16, 10, hex("#c26a43"));
+      c.ring(kx + 18, 10 * S + 16, 10, 8, hex("#7d3d22"));
+      c.circle(kx + 14, 10 * S + 11, 6, hex("#478f4a"));
+      c.circle(kx + 22, 10 * S + 12, 6, hex("#5ca856"));
+      c.circle(kx + 18, 10 * S + 7, 5, hex("#78c26b"));
     } else if (p.k === "dining") {
-      // Modern Light-Oak Studio Cafe Dining Table & Sage Cushioned Chairs (x=4..7, y=8..9)!
-      c.rect(px + 6, py + 12, pw - 12, ph - 8, SHADOW);
+      // Modern Light-Oak Studio Cafe Dining Table & 4 Sculpted Sage Chairs (centered cleanly in Kitchen south half!)
+      const dx = px - 8, dy = py - 8, dw = pw - 4, dh = ph - 4;
+      c.rect(dx + 6, dy + 12, dw - 12, dh - 8, SHADOW);
       // 4 Modern Scandinavian Dining Chairs (2 north, 2 south)
-      for (const ox of [20, pw - 44]) {
+      for (const ox of [22, dw - 46]) {
         // North chair (facing south)
-        c.borderedRoundRect(px + ox, py - 10, 24, 18, 4, hex("#689472"), INK, 2);
-        c.rect(px + ox + 4, py - 8, 16, 4, hex("#89b592"));
+        c.borderedRoundRect(dx + ox, dy - 10, 24, 18, 4, hex("#689472"), INK, 2);
+        c.rect(dx + ox + 4, dy - 8, 16, 4, hex("#89b592"));
         // South chair (facing north)
-        c.borderedRoundRect(px + ox, py + ph - 10, 24, 18, 4, hex("#689472"), INK, 2);
-        c.rect(px + ox + 3, py + ph + 2, 18, 4, hex("#496e52"));
+        c.borderedRoundRect(dx + ox, dy + dh - 10, 24, 18, 4, hex("#689472"), INK, 2);
+        c.rect(dx + ox + 3, dy + dh + 2, 18, 4, hex("#496e52"));
       }
       // Sleek light-oak rounded tabletop
-      c.borderedRoundRect(px + 6, py + 4, pw - 12, ph - 12, 6, hex("#d6a974"), INK, 2);
-      c.rect(px + 10, py + 7, pw - 20, 4, hex("#e8c392"));
+      c.borderedRoundRect(dx + 6, dy + 4, dw - 12, dh - 12, 6, hex("#d6a974"), INK, 2);
+      c.rect(dx + 10, dy + 7, dw - 20, 4, hex("#e8c392"));
       // Minimalist linen runner + pour-over coffee carafe + pastry plate + bud vase
-      c.rect(px + Math.floor(pw / 2) - 14, py + 6, 28, ph - 16, hex("#f4efe4"));
-      c.circle(px + Math.floor(pw / 2), py + 20, 6, hex("#5a3924")); // glass coffee carafe
-      c.circle(px + Math.floor(pw / 2), py + 20, 3, hex("#966341"));
-      c.circle(px + Math.floor(pw / 2) - 24, py + 24, 6, hex("#fbf8f2")); // ceramic plate
-      c.circle(px + Math.floor(pw / 2) - 24, py + 24, 3, hex("#d99a54")); // croissant!
-      c.circle(px + Math.floor(pw / 2) + 22, py + 22, 4, hex("#7ab86b")); // tiny bud vase
-      c.rect(px + Math.floor(pw / 2) + 21, py + 17, 3, 3, hex("#ffe066"));
+      c.rect(dx + Math.floor(dw / 2) - 14, dy + 6, 28, dh - 16, hex("#f4efe4"));
+      c.circle(dx + Math.floor(dw / 2), dy + 22, 6, hex("#5a3924")); // glass coffee carafe
+      c.circle(dx + Math.floor(dw / 2), dy + 22, 3, hex("#966341"));
+      c.circle(dx + Math.floor(dw / 2) - 24, dy + 24, 6, hex("#fbf8f2")); // ceramic plate
+      c.circle(dx + Math.floor(dw / 2) - 24, dy + 24, 3, hex("#d99a54")); // croissant!
+      c.circle(dx + Math.floor(dw / 2) + 22, dy + 22, 4, hex("#7ab86b")); // tiny bud vase
+      c.rect(dx + Math.floor(dw / 2) + 21, dy + 17, 3, 3, hex("#ffe066"));
     } else if (p.k === "bath") {
       // MODERN ARCHITECT-GRADE BOUTIQUE STUDIO RESTROOM (interior x=2..9, y=12..15 -> 64..320 x 384..512)
       // Every fixture is flush against a real plumbing wall, with the single north entrance (x=8..9, y=11 -> 256..320) 100% unobstructed!
@@ -1298,62 +1372,132 @@ function generateFarmhouseBackground(laneCanvas) {
       c.circle(tx + 11, ty + 48, 4, hex("#ffffff")); // espresso cup
       c.circle(tx + 11, ty + 48, 2, hex("#4a2915"));
     } else if (p.k === "lounge") {
-      // IMAGE 1: Realistic 3/4 Top-Down Breakout Lounge — Smart TV on NORTH facing SOUTH into the room, Plush Sofa on SOUTH facing NORTH toward the TV!
-      // 1) Large ornate crimson & gold woven Stardew rug!
-      paintStardewCarpet(c, px + 44, py + 24, pw - 72, ph - 40);
-      // 2) Brick Hearth Fireplace along left wall (x=11..12, y=19..22 — aligned with live firelight!)
-      paintStardewHearth(c, px + 4, py + 34, 48, 86);
-      // 3) Sleek Walnut TV Media Console + Wide Flat-Screen Smart TV at NORTH side facing SOUTH toward sofa!
-      const tvX = px + 96, tvY = py + 12, tvW = 116, tvH = 26;
+      // IMAGE 5: Harmonious Cozy Studio Breakout Lounge (x=11..20, y=18..23 -> 352..672 x 576..768)
+      // Every seating piece sits cleanly INSIDE the woven terracotta lounge rug, hearth flush on West wall, zero overhang!
+      // 1) Refined Woven Terracotta & Warm-Cream Studio Lounge Rug anchoring the conversation circle
+      paintStardewCarpet(c, px + 60, py + 24, 232, 152);
+      // 2) Brick Hearth Fireplace flush against West Wall (x=11, y=19.2..21.8 — zero overlap with rug!)
+      paintStardewHearth(c, px + 4, py + 38, 46, 82);
+      // Stacked birch firewood basket tucked neatly below hearth + SW corner lush Monstera & brass floor lamp
+      c.borderedRoundRect(px + 10, py + 126, 32, 18, 4, hex("#8f5d34"), INK, 1);
+      for (const lx of [15, 22, 29, 35]) {
+        c.circle(px + lx, py + 135, 3.5, hex("#d4b48c"));
+        c.circle(px + lx, py + 135, 1.5, hex("#8c6239"));
+      }
+      // Warm brass floor lamp tucked cleanly beside the SW corner plant (x=11, y=23 prop)
+      c.circle(px + 42, py + 170, 6, hex("#d4aa52")); // warm brass floor lamp shade
+      c.circle(px + 42, py + 170, 3.5, hex("#fff1bd"));
+
+      // 3) North Media Console & Smart TV centered over conversation pit (facing SOUTH toward sofa!)
+      const tvX = px + 114, tvY = py + 12, tvW = 118, tvH = 24;
       c.rect(tvX + 4, tvY + 14, tvW, 20, SHADOW);
-      // Low-profile mid-century walnut media console
+      // Sleek mid-century walnut media console
       c.borderedRoundRect(tvX, tvY + 10, tvW, 22, 3, hex("#6e4428"), INK, 2);
       c.rect(tvX + 4, tvY + 12, tvW - 8, 5, hex("#96613c"));
       c.box(tvX + 6, tvY + 20, 30, 8, hex("#54331d"), hex("#382011"), 1);
       c.box(tvX + tvW - 36, tvY + 20, 30, 8, hex("#54331d"), hex("#382011"), 1);
-      c.box(tvX + 42, tvY + 19, 32, 6, hex("#252a32"), INK, 1); // matte-black soundbar facing room!
-      c.rect(tvX + 56, tvY + 21, 4, 2, hex("#68e38a")); // green power LED
-      // Wide Flat-Screen Smart TV facing SOUTH into the lounge (crisp dark bezel + vivid glowing display!)
+      c.box(tvX + 42, tvY + 19, 34, 6, hex("#252a32"), INK, 1); // matte-black soundbar
+      c.rect(tvX + 57, tvY + 21, 4, 2, hex("#68e38a"));
+      // Wide Flat-Screen Smart TV facing SOUTH into lounge
       c.borderedRoundRect(tvX + 12, tvY - 12, tvW - 24, 25, 3, hex("#1c222b"), INK, 2);
-      c.rect(tvX + 16, tvY - 8, tvW - 32, 17, hex("#4aa4d8")); // sunlit sky
-      c.rect(tvX + 16, tvY + 2, tvW - 32, 7, hex("#54ad4e")); // valley hills
-      c.circle(tvX + 30, tvY - 3, 3, hex("#ffe675")); // warm sun
-      c.rect(tvX + 58, tvY - 3, 14, 8, hex("#c9543e")); // cozy cottage on TV!
+      c.rect(tvX + 16, tvY - 8, tvW - 32, 17, hex("#4aa4d8"));
+      c.rect(tvX + 16, tvY + 2, tvW - 32, 7, hex("#54ad4e"));
+      c.circle(tvX + 30, tvY - 3, 3, hex("#ffe675"));
+      c.rect(tvX + 58, tvY - 3, 14, 8, hex("#c9543e"));
       c.rect(tvX + 61, tvY - 1, 4, 3, hex("#ffe99c"));
-      c.line(tvX + 20, tvY - 7, tvX + 30, tvY + 7, 2, hex("#ffffff", 90)); // subtle glass sheen
-      c.rect(tvX + Math.floor(tvW / 2) - 5, tvY + 11, 10, 5, hex("#2e343d")); // stand neck
-      // 4) Modern Walnut Coffee Table centered between TV & South Sofa!
-      c.rect(px + 106, py + 76, 96, 34, SHADOW);
-      c.borderedRoundRect(px + 104, py + 70, 96, 36, 5, hex("#8f5932"), INK, 2);
-      c.rect(px + 108, py + 73, 88, 4, hex("#b87a4a"));
-      c.circle(px + 124, py + 86, 5, hex("#f7f2e8")); // coffee mug
-      c.circle(px + 124, py + 86, 3, hex("#5c351c"));
-      c.borderedRoundRect(px + 144, py + 80, 22, 12, 3, hex("#2c323b"), INK, 1); // game controller!
-      c.rect(px + 148, py + 84, 4, 4, hex("#68d67a"));
-      c.rect(px + 158, py + 84, 4, 4, hex("#ff7070"));
-      c.circle(px + 182, py + 87, 5, hex("#f7f2e8")); // snack plate
-      c.circle(px + 182, py + 87, 2.5, hex("#e5a44c"));
-      // 5) Plush 3-Seater Sage Sofa at SOUTH side facing NORTH directly toward the TV + East Loveseat facing WEST!
-      paintStardewSofa(c, px + 88, py + ph - 50, 132, 38, "north");
-      paintStardewSofa(c, px + pw - 50, py + 54, 40, 74, "west");
+      c.line(tvX + 20, tvY - 7, tvX + 30, tvY + 7, 2, hex("#ffffff", 90));
+      c.rect(tvX + Math.floor(tvW / 2) - 5, tvY + 11, 10, 5, hex("#2e343d"));
+      // Flanking accent plant (left of TV) & mini walnut vinyl/magazine side table (right of TV)
+      c.circle(tvX - 20, tvY + 22, 8, hex("#d98055")); // terracotta pot
+      c.circle(tvX - 20, tvY + 17, 6, hex("#54a852"));
+      c.circle(tvX - 24, tvY + 21, 4, hex("#3e873e"));
+      c.borderedRoundRect(tvX + tvW + 10, tvY + 12, 22, 20, 3, hex("#8f5932"), INK, 1); // vinyl/book side stand
+      c.rect(tvX + tvW + 14, tvY + 15, 14, 10, hex("#f4efe4"));
+      c.rect(tvX + tvW + 16, tvY + 17, 10, 2, hex("#c95b42"));
+
+      // 4) Balanced Conversation Grouping — ALL tucked cleanly INSIDE the lounge rug!
+      // Natural Oak Rounded Coffee Table centered between TV, South Sofa, West Pouf & East Loveseat
+      const ctX = px + 122, ctY = py + 72, ctW = 102, ctH = 36;
+      c.rect(ctX + 2, ctY + 6, ctW, ctH, SHADOW);
+      c.borderedRoundRect(ctX, ctY, ctW, ctH, 6, hex("#96613a"), INK, 2);
+      c.rect(ctX + 4, ctY + 3, ctW - 8, 4, hex("#bd8152"));
+      // Coffee mugs on coasters, open studio art book & game controller
+      c.circle(ctX + 18, ctY + 18, 5, hex("#f7f2e8"));
+      c.circle(ctX + 18, ctY + 18, 3, hex("#5c351c"));
+      c.box(ctX + 34, ctY + 10, 22, 16, hex("#faf4e6"), hex("#6b4c32"), 1); // open studio art book
+      c.rect(ctX + 44, ctY + 11, 2, 14, hex("#c9bca6"));
+      c.rect(ctX + 37, ctY + 14, 5, 6, hex("#68a383"));
+      c.borderedRoundRect(ctX + 64, ctY + 12, 20, 12, 3, hex("#2c323b"), INK, 1); // game controller
+      c.rect(ctX + 68, ctY + 16, 3, 3, hex("#68d67a"));
+      c.rect(ctX + 76, ctY + 16, 3, 3, hex("#ff7070"));
+      c.circle(ctX + 91, ctY + 18, 4.5, hex("#f7f2e8")); // second mug
+      c.circle(ctX + 91, ctY + 18, 2.5, hex("#6b3f22"));
+
+      // Cozy Woven Round Pouf / Ottoman near Fireplace on West side of rug (balances East loveseat!)
+      c.circle(px + 86, py + 92, 13, SHADOW_SOFT);
+      c.circle(px + 84, py + 90, 12, hex("#d4a46a"));
+      c.ring(px + 84, py + 90, 12, 10, INK);
+      c.circle(px + 84, py + 90, 7, hex("#e8c390"));
+
+      // Plush 3-Seater Sage Sofa at SOUTH side facing NORTH toward TV + Cream & Terracotta Throw Pillows!
+      paintStardewSofa(c, px + 106, py + 134, 134, 36, "north");
+      c.borderedRoundRect(px + 122, py + 140, 14, 12, 3, hex("#f2e7d3"), hex("#8c7352"), 1); // cream throw pillow
+      c.borderedRoundRect(px + 210, py + 140, 14, 12, 3, hex("#d46d4c"), hex("#78321d"), 1); // terracotta pillow
+
+      // Matching 2-Seater Sage Loveseat tucked INWARD on East side of rug (strictly inside rug right edge!)
+      paintStardewSofa(c, px + 248, py + 52, 38, 72, "west");
+      c.borderedRoundRect(px + 258, py + 66, 12, 14, 3, hex("#f2e7d3"), hex("#8c7352"), 1); // cozy accent pillow
     } else if (p.k === "meeting") {
-      // IMAGE 5: Relocated Modern-Cozy Community Standup Conference Table (x=30..33, y=12..13 — clear of front door!)
+      // IMAGE 3: Proper Modern Studio Conference Table & 6 Sculpted Ergonomic Chairs (x=30..33, y=12..13)!
       c.rect(px + 4, py + 10, pw - 8, ph - 8, SHADOW);
-      // 6 ergonomic conference chairs tucked north & south
-      for (const ox of [14, 50, 86]) {
-        c.blit(SHEETS.country, 64, 0, 32, 32, px + ox, py - 12, { grade: GRADE.stardewWood });
-        c.blit(SHEETS.country, 64, 32, 32, 32, px + ox, py + ph - 16, { grade: GRADE.stardewWood });
+      // 6 Modern Scandinavian Walnut-and-Sage Ergonomic Meeting Chairs (3 north, 3 south)
+      for (const ox of [16, 52, 88]) {
+        // North chairs facing south
+        c.rect(px + ox + 2, py - 10, 24, 18, SHADOW_SOFT);
+        c.borderedRoundRect(px + ox, py - 12, 24, 18, 5, hex("#5e8767"), INK, 2); // sage upholstered seat
+        c.rect(px + ox + 3, py - 12, 18, 6, hex("#6b4428")); // curved walnut backrest!
+        c.rect(px + ox + 4, py - 11, 16, 2, hex("#9c6b43"));
+        // South chairs facing north
+        c.rect(px + ox + 2, py + ph - 8, 24, 18, SHADOW_SOFT);
+        c.borderedRoundRect(px + ox, py + ph - 10, 24, 18, 5, hex("#5e8767"), INK, 2);
+        c.rect(px + ox + 3, py + ph + 2, 18, 6, hex("#6b4428")); // curved walnut backrest!
+        c.rect(px + ox + 4, py + ph + 3, 16, 2, hex("#9c6b43"));
       }
-      // Sleek oak conference table with warm beveled top & center cable hub
-      c.borderedRoundRect(px + 2, py + 6, pw - 4, ph - 14, 6, hex("#c28a52"), INK, 2);
-      c.rect(px + 6, py + 9, pw - 12, 4, hex("#dfa96e"));
-      c.box(px + Math.floor(pw / 2) - 22, py + 24, 44, 10, hex("#3c434d"), hex("#22262c"), 1); // recessed power/HDMI hub!
-      // Presentation tablet/notebook + coffee cups
-      c.box(px + 22, py + 16, 18, 13, hex("#fbf4e2"), hex("#6b4a2e"), 1);
-      c.box(px + pw - 42, py + 28, 18, 12, hex("#384252"), INK, 1);
-      c.rect(px + pw - 40, py + 30, 14, 8, hex("#7db5e8")); // glowing tablet chart
-      c.circle(px + 48, py + 18, 3, hex("#f7f2e8"));
-      c.circle(px + pw - 20, py + 18, 3, hex("#f7f2e8"));
+      // Sleek Chamfered Warm-Walnut Conference Table with subtle woodgrain & central power/HDMI hub!
+      c.borderedRoundRect(px + 2, py + 6, pw - 4, ph - 14, 8, hex("#a87243"), INK, 2);
+      c.rect(px + 8, py + 8, pw - 16, 4, hex("#cca06e")); // warm sunlit top bevel
+      for (let gy = py + 18; gy < py + ph - 12; gy += 12) {
+        c.rect(px + 6, gy, pw - 12, 1, hex("#8a582e", 140)); // fine woodgrain planking
+      }
+      // Centered recessed matte-black power & HDMI cable grommet trough
+      const hubX = px + Math.floor(pw / 2) - 22, hubY = py + 26;
+      c.box(hubX, hubY, 44, 10, hex("#2b313a"), hex("#14171c"), 1);
+      c.rect(hubX + 6, hubY + 3, 6, 4, hex("#65707d")); // power socket
+      c.rect(hubX + 18, hubY + 3, 8, 4, hex("#65707d")); // HDMI hub
+      c.rect(hubX + 32, hubY + 3, 6, 4, hex("#65707d"));
+      // Realistic Open Silver Laptops, Strategy Notebook, Succulent Centerpiece & Coffee Mugs on Coasters!
+      // Laptop 1 (north-left seat)
+      c.box(px + 14, py + 11, 18, 12, hex("#303845"), INK, 1);
+      c.rect(px + 16, py + 13, 14, 8, hex("#8bc4f2")); // crisp glowing screen
+      c.rect(px + 14, py + 22, 18, 3, hex("#cfd6de")); // silver keyboard deck
+      // Laptop 2 (south-right seat)
+      c.box(px + pw - 34, py + 34, 18, 12, hex("#303845"), INK, 1);
+      c.rect(px + pw - 32, py + 36, 14, 8, hex("#93d1b2")); // analytics screen
+      c.rect(px + pw - 34, py + 31, 18, 3, hex("#cfd6de"));
+      // Open Spiral Notebook + Pen (south-left)
+      c.box(px + 18, py + 34, 16, 12, hex("#faf4e6"), hex("#6b4a2e"), 1);
+      c.rect(px + 21, py + 37, 10, 2, hex("#a89882"));
+      c.rect(px + 21, py + 41, 8, 2, hex("#a89882"));
+      c.rect(px + 35, py + 36, 2, 9, hex("#343c47")); // pen
+      // Minimalist succulent + coffee mugs on cork coasters
+      c.circle(px + pw - 22, py + 17, 5, hex("#f2efe9"));
+      c.circle(px + pw - 22, py + 17, 3.5, hex("#58a856")); // cute tabletop succulent
+      c.circle(px + 44, py + 16, 4, hex("#c29362")); // cork coaster
+      c.circle(px + 44, py + 16, 3, hex("#faf7f0")); // mug
+      c.circle(px + 44, py + 16, 1.5, hex("#5a351c"));
+      c.circle(px + pw - 44, py + 40, 4, hex("#c29362"));
+      c.circle(px + pw - 44, py + 40, 3, hex("#faf7f0"));
+      c.circle(px + pw - 44, py + 40, 1.5, hex("#5a351c"));
     } else if (p.k === "board") {
       // Iconic Stardew Valley Pelican Town "Help Wanted" Bulletin Board!
       paintHelpWantedBoard(c, px, py, pw, ph);
@@ -1384,13 +1528,57 @@ function generateFarmhouseBackground(laneCanvas) {
       c.line(sx + 10, sy + 24, sx + 22, sy + 42, 2, hex("#ffffff", 45));
       c.rect(sx + sw - 9, sy + 52, 2, 16, hex("#d9b15f"));
     } else if (p.k === "coffee") {
-      // Cozy Stardew Coffee & Tea Sideboard (x=34..36, y=3..4)!
-      c.rect(px + 4, py + 14, pw - 8, ph - 10, SHADOW);
-      c.blit(SHEETS.cabinets, 96, 266, 64, 38, px + 2, py + 10, { dw: pw - 4, dh: ph - 14, grade: GRADE.stardewWood });
-      c.box(px + 14, py + 4, 18, 16, hex("#c86e3c"), INK, 2);
-      c.rect(px + 18, py + 7, 6, 4, hex("#f0a672"));
-      c.blit(SHEETS.cabinets, 128, 64, 32, 32, px + 44, py + 4);
-      c.blit(SHEETS.cabinets, 160, 64, 32, 32, px + 68, py + 8);
+      // IMAGE 4: Dedicated Modern Studio Espresso & Coffee Machine Bar (x=34..36, y=3..4 -> flush against North Wall!)
+      // A) Wall-Mounted Café Chalkboard Menu & Floating Mug Shelf on North Wall Plaster Face (y=2, Y=74..94)
+      c.box(px + 6, 2 * S + 11, 36, 19, hex("#293036"), hex("#7d4f2b"), 2); // framed cafe chalkboard
+      c.rect(px + 10, 2 * S + 15, 16, 2, hex("#f5efe2")); // "COFFEE" chalk header
+      c.rect(px + 10, 2 * S + 20, 22, 1, hex("#b7c4cc"));
+      c.rect(px + 10, 2 * S + 24, 18, 1, hex("#b7c4cc"));
+      c.rect(px + 32, 2 * S + 17, 5, 6, hex("#f2c879")); // tiny chalk cup doodle
+      c.box(px + 48, 2 * S + 22, 42, 6, hex("#c29362"), INK, 1); // floating oak mug shelf
+      for (const [mx, col] of [[52, "#f7f4ec"], [62, "#6c9e79"], [72, "#e08d55"], [81, "#f7f4ec"]]) {
+        c.box(px + mx, 2 * S + 14, 7, 8, hex(col), INK, 1);
+      }
+
+      // B) Modern Fluted-Walnut & White-Quartz Espresso Bar Credenza flush against North Wall (y=3, Y=96..148)
+      c.rect(px + 4, py + 6, pw - 6, 52, SHADOW);
+      c.box(px + 2, py + 2, pw - 4, 48, hex("#7d4e2d"), INK, 2); // warm walnut bar body
+      // Vertical fluted walnut slats + brushed brass handles along front face
+      for (let bx = px + 6; bx < px + pw - 8; bx += 22) {
+        c.box(bx, py + 28, 18, 19, hex("#683e22"), hex("#472915"), 1);
+        c.rect(bx + 5, py + 31, 8, 2, hex("#e3b95d"));
+      }
+      // Crisp white Carrara marble bar countertop
+      c.box(px + 2, py, pw - 4, 28, hex("#f7f5f0"), INK, 2);
+      c.rect(px + 4, py + 2, pw - 8, 4, hex("#ffffff"));
+
+      // C) Hero Commercial Dual-Group Espresso Machine (px+8..px+46, py-2..py+25)
+      c.box(px + 8, py - 2, 38, 26, hex("#262b33"), INK, 2); // matte-charcoal & steel body
+      c.rect(px + 11, py, 32, 7, hex("#cfd6de")); // brushed chrome cup-warmer tray
+      c.rect(px + 14, py + 1, 6, 5, hex("#faf7f0")); // stacked porcelain demitasse cup 1
+      c.rect(px + 22, py + 1, 6, 5, hex("#faf7f0")); // stacked porcelain demitasse cup 2
+      c.rect(px + 12, py + 9, 30, 8, hex("#9aa5b1")); // stainless dual grouphead face
+      c.rect(px + 16, py + 11, 8, 4, hex("#2b313a")); // grouphead 1
+      c.rect(px + 30, py + 11, 8, 4, hex("#2b313a")); // grouphead 2
+      c.rect(px + 18, py + 15, 4, 3, hex("#d49e52")); // brass portafilter handle 1
+      c.rect(px + 32, py + 15, 4, 3, hex("#d49e52")); // brass portafilter handle 2
+      c.rect(px + 11, py + 18, 32, 5, hex("#cfd6de")); // stainless drip grate
+      c.rect(px + 17, py + 18, 6, 4, hex("#ffffff")); // fresh espresso cup 1
+      c.rect(px + 31, py + 18, 6, 4, hex("#ffffff")); // fresh espresso cup 2
+      c.rect(px + 40, py + 11, 2, 9, hex("#dce3eb")); // chrome steam wand!
+
+      // D) Conical Burr Coffee Grinder + Bean Hopper (px+50..px+64)
+      c.box(px + 50, py + 4, 14, 20, hex("#3a414d"), INK, 2);
+      c.circle(px + 57, py + 3, 5.5, hex("#59351c")); // roasted coffee bean hopper!
+      c.circle(px + 57, py + 3, 3, hex("#85522d"));
+
+      // E) Glass Pastry Dome (Croissants!) + Syrup Bottles & Mug Stack (px+68..px+90)
+      c.circle(px + 78, py + 15, 9, hex("#dcebf0")); // glass pastry cloche dome
+      c.ring(px + 78, py + 15, 9, 7.5, hex("#7d949e"));
+      c.circle(px + 76, py + 15, 3.5, hex("#d9944a")); // flaky croissant!
+      c.circle(px + 81, py + 17, 3, hex("#c97e38"));
+      c.box(px + 68, py + 2, 4, 7, hex("#b86b35"), INK, 1); // caramel syrup bottle
+      c.box(px + 74, py + 2, 4, 7, hex("#5f9473"), INK, 1); // vanilla/matcha syrup
     } else if (p.k === "shelf") {
       // IMAGE 4: Modern Garage Steel Mechanic Workbench & Tool Pegboard (x=40..44, y=4..6)!
       c.rect(px + 4, py + 24, pw - 8, ph - 18, SHADOW);
