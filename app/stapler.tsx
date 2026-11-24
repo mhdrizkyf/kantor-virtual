@@ -575,18 +575,24 @@ export default function Stapler({ ws }: { ws: string }) {
         onDrop={handleFabDrop}
       >
         <StaplerFace mood={mood} size="md" />
-        <span className="stapler-fab-label">
+        <span className="stapler-fab-text">
           {recording ? (
-            <span className="stapler-fab-rec"><i /> REC {formatClock(seconds)}</span>
+            <>
+              <b className="stapler-fab-rec"><i /> REC {formatClock(seconds)}</b>
+              <small>Click to review</small>
+            </>
           ) : fabDragOver ? (
-            "Drop to attach"
+            <>
+              <b>Drop file</b>
+              <small>Attach to Stapler</small>
+            </>
           ) : (
-            "Stapler"
+            <>
+              <b>Stapler</b>
+              <small>Capture · ⌥⇧S</small>
+            </>
           )}
         </span>
-        {!open && !recording && !fabDragOver && (
-          <kbd className="stapler-fab-kbd" aria-hidden="true">⌥⇧S</kbd>
-        )}
       </button>
 
       {open && (
