@@ -1156,63 +1156,115 @@ function generateFarmhouseBackground(laneCanvas) {
       c.circle(px + Math.floor(pw / 2) + 22, py + 22, 4, hex("#7ab86b")); // tiny bud vase
       c.rect(px + Math.floor(pw / 2) + 21, py + 17, 3, 3, hex("#ffe066"));
     } else if (p.k === "bath") {
-      // IMAGE 2: Modern Boutique Studio Restroom / Toilet (x=2..8, y=12..14)!
-      // A) Left half (x=2..3, y=13..14): Modern Frameless Glass Walk-In Rain Shower!
-      const sw = 62, sh = 60;
-      c.box(px + 2, py + 2, sw, sh, hex("#d5e2df"), hex("#47545c"), 2);
-      // Warm slatted teak shower floor duckboard + chrome linear drain
-      for (let sy = py + 8; sy < py + sh - 8; sy += 8) {
-        c.rect(px + 8, sy, sw - 16, 5, hex("#c29362"));
-        c.rect(px + 8, sy, sw - 16, 1, hex("#dbb07e"));
+      // MODERN ARCHITECT-GRADE BOUTIQUE STUDIO RESTROOM (interior x=2..9, y=12..15 -> 64..320 x 384..512)
+      // Every fixture is flush against a real plumbing wall, with the single north entrance (x=8..9, y=11 -> 256..320) 100% unobstructed!
+      const rx = 2 * S, ry = 12 * S; // room NW corner = (64, 384)
+
+      // Subtle warm oak threshold strip across the single north bathroom doorway (x=8..9, y=12 top)
+      c.rect(8 * S + 2, ry - 2, 2 * S - 4, 4, hex("#b38452"));
+      c.rect(8 * S + 2, ry + 2, 2 * S - 4, 2, hex("#805932"));
+
+      // 1) WET ZONE — Corner Walk-In Glass Rain Shower flush against West (x=2), North (y=12), & South (y=15) walls!
+      const shX = rx, shY = ry, shW = 68, shH = 4 * S - 2; // 64..132 x 384..510
+      // Recessed cool-slate wet-zone shower tray
+      c.box(shX, shY, shW, shH, hex("#d4e1de"), hex("#5a6a70"), 2);
+      c.rect(shX + 2, shY + 2, shW - 4, 5, hex("#becfd0")); // north curb shadow
+      // Recessed matte-slate shampoo & bodywash wall niche on West Wall
+      c.box(shX + 2, shY + 46, 6, 30, hex("#4b5860"), hex("#2e373d"), 1);
+      c.rect(shX + 4, shY + 50, 3, 7, hex("#e8d5b7")); // shampoo bottle
+      c.rect(shX + 4, shY + 60, 3, 6, hex("#6ea68c")); // eucalyptus wash
+      c.rect(shX + 4, shY + 68, 3, 5, hex("#f5f5f2")); // conditioner
+      // Warm slatted teak shower duckboard centered in wet zone
+      for (let sy = shY + 24; sy <= shY + shH - 22; sy += 9) {
+        c.rect(shX + 12, sy, shW - 22, 6, hex("#c29362"));
+        c.rect(shX + 12, sy, shW - 22, 1, hex("#deb686"));
+        c.rect(shX + 12, sy + 5, shW - 22, 1, hex("#94693d"));
       }
-      c.rect(px + 10, py + sh - 10, sw - 20, 4, hex("#8b969e")); // linear chrome drain
-      // Chrome rain showerhead & frosted glass right divider panel
-      c.circle(px + 24, py + 18, 6, hex("#e3eaee"));
-      c.ring(px + 24, py + 18, 6, 4, hex("#5c6670"));
-      c.rect(px + sw - 2, py + 2, 4, sh, hex("#78b4c4", 190)); // sleek glass partition
+      // Sleek brushed-stainless linear trench drain near south edge
+      c.box(shX + 12, shY + shH - 12, shW - 22, 6, hex("#8d99a2"), hex("#4d565e"), 1);
+      c.rect(shX + 15, shY + shH - 10, shW - 28, 2, hex("#c5cfd6"));
+      // Wall-mounted chrome rainfall showerhead + mixer on North plumbing wall (flush to y=12!)
+      c.rect(shX + 31, shY + 1, 6, 8, hex("#475159")); // shower arm extending from north wall
+      c.rect(shX + 19, shY + 2, 10, 4, hex("#2d3338")); // matte-black thermostatic mixer bar
+      c.circle(shX + 34, shY + 13, 7, hex("#e7eef2")); // overhead rainfall disc
+      c.ring(shX + 34, shY + 13, 7, 5, hex("#59656e"));
+      c.rect(shX + 32, shY + 11, 4, 4, hex("#c8d6de"));
+      // Frameless tinted glass partition (right edge, top 68% solid glass + open bottom walk-in entry!)
+      const glassH = 84;
+      c.rect(shX + shW - 2, shY, 5, glassH, hex("#7cb8c9", 195));
+      c.rect(shX + shW - 2, shY, 1, glassH, hex("#d2f0f7", 220));
+      c.rect(shX + shW + 2, shY, 1, glassH, hex("#3d616e", 210));
+      c.rect(shX + shW - 3, shY + 16, 7, 4, hex("#2f363d")); // matte-black glass clamp
+      c.rect(shX + shW - 3, shY + glassH - 16, 7, 4, hex("#2f363d"));
+      // Plush sage-green shower step-out mat directly outside the open walk-in shower entrance!
+      c.borderedRoundRect(shX + shW + 7, shY + glassH + 6, 26, 32, 4, hex("#7ca38b"), hex("#4c6e59"), 2);
+      c.rect(shX + shW + 12, shY + glassH + 11, 16, 22, hex("#95bba3"));
 
-      // B) Right half of bath prop (x=4..5, y=13..14): Modern Ceramic Flush Toilet (WC)!
-      const tx = px + 74, ty = py + 6;
-      c.rect(tx + 2, ty + 6, 34, 46, SHADOW_SOFT);
-      // Clean porcelain cistern tank against wall
-      c.borderedRoundRect(tx + 4, ty, 28, 13, 3, hex("#f7f9fa"), INK, 2);
-      c.rect(tx + 13, ty + 4, 10, 4, hex("#3c434a")); // matte-black dual-flush plate!
-      // Contoured ceramic oval bowl & soft-close seat
-      c.ellipse(tx + 18, ty + 29, 13, 17, INK);
-      c.ellipse(tx + 18, ty + 29, 11, 15, hex("#ffffff"));
-      c.ellipse(tx + 18, ty + 30, 7.5, 10, hex("#dce5e8"));
-      c.ellipse(tx + 18, ty + 30, 5.5, 7.5, hex("#bfe0eb")); // clean water inside bowl
-      // Wall-mounted matte-black toilet roll holder beside WC
-      c.box(tx + 35, ty + 14, 7, 11, hex("#fafaf7"), INK, 1);
+      // 2) TOILET ZONE — Modern Wall-Backed Flush WC flush against North Plumbing Wall (y=12)!
+      const wcX = rx + 82, wcY = ry + 1; // cistern strictly flush against north wall (y=385)!
+      c.rect(wcX + 2, wcY + 5, 30, 45, SHADOW_SOFT);
+      // Clean porcelain cistern tank flush to North Wall
+      c.borderedRoundRect(wcX + 2, wcY, 28, 12, 3, hex("#f7f9fa"), INK, 2);
+      c.rect(wcX + 11, wcY + 4, 10, 4, hex("#343b42")); // matte-black dual-flush plate
+      c.rect(wcX + 15, wcY + 4, 2, 4, hex("#747f8a"));
+      // Contoured one-piece ceramic oval bowl & soft-close seat
+      c.ellipse(wcX + 16, wcY + 28, 12, 16, INK);
+      c.ellipse(wcX + 16, wcY + 28, 10, 14, hex("#ffffff"));
+      c.ellipse(wcX + 16, wcY + 29, 7, 9.5, hex("#dce5e8"));
+      c.ellipse(wcX + 16, wcY + 29, 5, 7, hex("#bfe0eb"));
+      // Matte-black toilet roll holder & slim covered waste bin beside WC against modesty divider
+      c.box(wcX + 33, wcY + 14, 7, 10, hex("#fafaf7"), INK, 1); // tissue roll
+      c.circle(wcX + 36, wcY + 5, 4, hex("#3c434a")); // compact matte-black pedal bin
+      c.circle(wcX + 36, wcY + 5, 2.5, hex("#59626b"));
+      // Sleek Walnut & Frosted-Glass Modesty Half-Partition separating WC from Vanity!
+      const divX = rx + 125;
+      c.rect(divX + 2, ry + 2, 4, 48, SHADOW_SOFT);
+      c.box(divX, ry, 5, 48, hex("#9c6b43"), hex("#3a2415"), 1);
+      c.rect(divX + 1, ry + 4, 3, 40, hex("#cde3ea", 200));
 
-      // C) Modern Floating Oak Vanity + Backlit LED Mirror mounted cleanly against SOLID North Wall (x=5.6..7.7, y=12)
-      // Strictly LEFT of x=8 (256px) so the single Bathroom entrance doorway (x=8..9, y=11) is 100% unobstructed!
-      const vx = 5 * S + 20, vy = 12 * S + 2, vw = 68, vh = 28; // right edge = 248px (< 256px doorway!)
+      // 3) VANITY ZONE — Floating Oak Vanity + Wall-Mounted Backlit Mirror on Solid North Wall (x=6..7.8, y=12)
+      // Strictly LEFT of x=8 (256px) so the single doorway (x=8..9, y=11) stays 100% wide open!
+      const vx = rx + 134, vy = ry + 1, vw = 54, vh = 27; // x = 198..252 (4px clear left of doorway!)
       c.rect(vx + 2, vy + 5, vw, vh, SHADOW);
-      // Backlit modern vanity mirror flush on solid wall above vanity
-      c.box(vx + 6, vy - 11, vw - 12, 10, hex("#cfe8f0"), hex("#3a424a"), 1);
-      c.rect(vx + 8, vy - 3, vw - 16, 2, hex("#fff5d1")); // warm LED backlight strip!
-      // Oak vanity cabinet + crisp white marble countertop
+      // Backlit LED Vanity Mirror mounted cleanly INSIDE the North Wall plaster face (y=366..381, zero clipping!)
+      c.rect(vx + 4, 11 * S + 13, vw - 8, 17, hex("#fff4cc", 170)); // soft warm LED halo
+      c.box(vx + 6, 11 * S + 15, vw - 12, 13, hex("#cfe8f0"), hex("#2e363e"), 1);
+      c.rect(vx + 8, 11 * S + 17, vw - 16, 3, hex("#eef9fc")); // mirror glass reflection
+      // Floating warm-oak vanity cabinet + crisp white marble countertop
       c.box(vx, vy, vw, vh, hex("#c29463"), INK, 2);
-      c.box(vx + 2, vy + 2, vw - 4, vh - 7, hex("#f6f5f0"), hex("#a8a49c"), 1);
-      // Sleek ceramic vessel basin + matte-black minimalist faucet + soap & folded towel
-      const sinkX = vx + 26;
-      c.circle(sinkX, vy + 13, 9, hex("#4b525a"));
-      c.circle(sinkX, vy + 13, 7, hex("#ffffff"));
-      c.circle(sinkX, vy + 13, 4.5, hex("#d6e4e8"));
-      c.rect(sinkX - 2, vy + 3, 4, 6, hex("#2b3036")); // matte-black faucet
-      c.box(vx + 43, vy + 6, 5, 7, hex("#5e9478"), INK, 1); // hand soap dispenser
-      c.box(vx + 51, vy + 7, 11, 12, hex("#ffffff"), hex("#9ca4ac"), 1); // folded spa towel
-      c.rect(vx + 53, vy + 11, 7, 2, hex("#dce2e6"));
-      // Soft woven sage bath mat directly in front of vanity (clear of doorway path!)
-      c.borderedRoundRect(vx + 8, vy + 36, 52, 20, 4, hex("#7aa188"), hex("#4c6e58"), 2);
-      c.rect(vx + 13, vy + 41, 42, 10, hex("#93b89f"));
-      // Boutique corner snake plant tucked neatly against closed south-east bathroom corner (x=9, y=15)
-      c.circle(9 * S + 16, 15 * S + 18, 8, hex("#f2efe9"));
-      c.ring(9 * S + 16, 15 * S + 18, 8, 6.5, hex("#68635a"));
-      c.rect(9 * S + 12, 15 * S + 6, 3, 12, hex("#448f4c"));
-      c.rect(9 * S + 16, 15 * S + 4, 3, 14, hex("#5cb062"));
-      c.rect(9 * S + 20, 15 * S + 8, 3, 10, hex("#3c7d44"));
+      c.box(vx + 2, vy + 2, vw - 4, vh - 7, hex("#f7f6f1"), hex("#a8a49c"), 1);
+      // Centered ceramic vessel basin + matte-black minimalist faucet + soap & folded towel
+      const sinkX = vx + 22;
+      c.circle(sinkX, vy + 12, 8.5, hex("#4b525a"));
+      c.circle(sinkX, vy + 12, 6.5, hex("#ffffff"));
+      c.circle(sinkX, vy + 12, 4, hex("#d6e4e8"));
+      c.rect(sinkX - 2, vy + 2, 4, 6, hex("#2b3036")); // matte-black faucet
+      c.box(vx + 36, vy + 5, 5, 7, hex("#5e9478"), INK, 1); // botanical hand soap pump
+      c.box(vx + 43, vy + 6, 8, 12, hex("#ffffff"), hex("#9ca4ac"), 1); // folded hand towel
+      c.rect(vx + 45, vy + 10, 4, 2, hex("#dce2e6"));
+      // Soft woven vanity runner mat centered directly in front of sink (clear of doorway!)
+      c.borderedRoundRect(vx + 4, vy + 33, vw - 8, 16, 4, hex("#80a68e"), hex("#4d6e59"), 2);
+      c.rect(vx + 9, vy + 37, vw - 18, 8, hex("#9bc0a8"));
+
+      // 4) EAST-WALL TOWEL RAIL & SOUTH-EAST SPA CORNER (strictly south of entry foyer y=12..13.5!)
+      // Wall-mounted matte-black heated towel bar flush against East Wall (x=9 right edge)
+      const trX = 10 * S - 15, trY = 13 * S + 24;
+      c.rect(trX + 1, trY + 2, 13, 34, SHADOW_SOFT);
+      c.box(trX + 9, trY, 4, 34, hex("#2d333a"), INK, 1); // vertical wall bracket
+      c.box(trX, trY + 4, 11, 11, hex("#f4f1ea"), hex("#8c887e"), 1); // folded warm cream towel
+      c.rect(trX + 2, trY + 7, 7, 2, hex("#dfd9cc"));
+      c.box(trX, trY + 19, 11, 11, hex("#83a890"), hex("#4b6b57"), 1); // folded sage spa towel
+      c.rect(trX + 2, trY + 22, 7, 2, hex("#a1c4ad"));
+
+      // Chic South-East Corner: woven seagrass towel basket + stoneware snake plant!
+      c.circle(8 * S + 26, 15 * S + 18, 9, hex("#c9a370")); // woven seagrass laundry/towel basket
+      c.ring(8 * S + 26, 15 * S + 18, 9, 7, hex("#7d5b34"));
+      c.circle(8 * S + 26, 15 * S + 18, 5, hex("#f4efe4")); // rolled cream spa towel inside
+      c.circle(9 * S + 18, 15 * S + 18, 8.5, hex("#f2efe9")); // stoneware pot
+      c.ring(9 * S + 18, 15 * S + 18, 8.5, 6.5, hex("#68635a"));
+      c.rect(9 * S + 14, 15 * S + 5, 3, 13, hex("#448f4c"));
+      c.rect(9 * S + 18, 15 * S + 3, 3, 15, hex("#5cb062"));
+      c.rect(9 * S + 22, 15 * S + 7, 3, 11, hex("#3c7d44"));
     } else if (p.k === "bed") {
       // FOUNDER / CEO VIP COGNAC-LEATHER CHESTERFIELD SOFA & MARBLE COFFEE CORNER (x=2..3, y=19..22 — ZERO BED!)
       // 1) Sleek Dark-Marble Round Side Table + Warm Brass Executive Floor Lamp at NW of sofa (x=2, y=18.4)
