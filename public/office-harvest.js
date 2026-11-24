@@ -12,11 +12,14 @@
   if (!O) return;
 
   var ASSET_BASE = '/art/stardew-v1/';
-  var ASSET_VER = '?v=2';
+  var ASSET_VER = '?v=3';
   var ASSETS = {
     bg: { uri: ASSET_BASE + 'farmhouse-bg@2x.png', w: 768, h: 448 },
     meadow: { uri: ASSET_BASE + 'meadow-tile@2x.png', w: 96, h: 96 },
     lane: { uri: ASSET_BASE + 'lane-tile@2x.png', w: 96, h: 32 },
+    treeOak: { uri: ASSET_BASE + 'tree-oak@2x.png', w: 48, h: 70 },
+    treePine: { uri: ASSET_BASE + 'tree-pine@2x.png', w: 48, h: 68 },
+    bush: { uri: ASSET_BASE + 'bush@2x.png', w: 24, h: 20 },
     deskNorth: { uri: ASSET_BASE + 'desk-north@2x.png', w: 36, h: 28 },
     deskSouth: { uri: ASSET_BASE + 'desk-south@2x.png', w: 36, h: 28 },
     chairNorth: { uri: ASSET_BASE + 'chair-north@2x.png', w: 15, h: 13 },
@@ -79,6 +82,13 @@
 
     var meadow = pack.get('meadow');
     var lane = pack.get('lane');
+    var treeOak = pack.get('treeOak');
+    var treePine = pack.get('treePine');
+    var bush = pack.get('bush');
+
+    // Fill with exact uniform Stardew meadow base RGB (#509a3b) so fractional DPI scaling never creates 1px tile seams!
+    g.fillStyle = '#509a3b';
+    g.fillRect(0, 0, cv.width, cv.height);
 
     g.save();
     g.translate(left, top);
@@ -92,19 +102,73 @@
     if (meadow) {
       for (var y = minY; y < maxY; y += 96) {
         for (var x = minX; x < maxX; x += 96) {
-          g.drawImage(meadow.image, x, y, 96, 96);
+          g.drawImage(meadow.image, x, y, 96.5, 96.5);
         }
       }
     }
 
     var roadY = 26 * T;
     if (lane) {
-      for (var ry = roadY; ry < maxY; ry += 32) {
-        for (var rx = minX; rx < maxX; rx += 96) {
-          g.drawImage(lane.image, rx, ry, 96, 32);
+      // Draw the pebbled grass-to-dirt top border ONCE along roadY (exact 96px alignment with farmhouse-bg!)
+      for (var rx = minX; rx < maxX; rx += 96) {
+        g.drawImage(lane.image, rx, roadY, 96.5, 32.5);
+      }
+      // Below roadY + 32, tile ONLY the solid dirt lower half (sy=32, sh=32) so the grass border NEVER repeats!
+      for (var ry = roadY + 32; ry < maxY; ry += 16) {
+        for (var rx2 = minX; rx2 < maxX; rx2 += 96) {
+          g.drawImage(lane.image, 0, 32, 192, 32, rx2, ry, 96.5, 16.5);
         }
       }
     }
+
+    // Scatter lush, 100% UNCLIPPED Pelican Town Oak & Pine forest + berry bushes in the outer meadow margins!
+    // Every prop sits safely outside the [0..768, 0..448] stage rect so ZERO trees are ever cut in half at the stage edge!
+    var stageW = 48 * T;
+    var props = [];
+    // Left forest grove (x < -48 ensures right canopy edge never crosses x = 0!)
+    var leftCols = [-76, -138, -206, -278];
+    var yRows = [-24, 52, 134, 218, 302];
+    for (var li = 0; li < leftCols.length; li++) {
+      for (var yi = 0; yi < yRows.length; yi++) {
+        var lx = leftCols[li] + ((yi * 17 + li * 11) % 21) - 10;
+        var ly = yRows[yi] + ((li * 29 + yi * 13) % 25) - 12;
+        if (lx + 48 < minX || lx > -48) continue;
+        if (ly + 70 > roadY - 8) continue;
+        var seedL = (li * 7 + yi * 5) % 5;
+        if (seedL === 0 || seedL === 3) props.push({ y: ly + 70, kind: 'oak', x: lx, py: ly });
+        else if (seedL === 1 || seedL === 4) props.push({ y: ly + 68, kind: 'pine', x: lx, py: ly });
+        else props.push({ y: ly + 50, kind: 'bush', x: lx + 12, py: ly + 30 });
+      }
+    }
+    // Right forest grove (x >= stageW + 6 ensures left canopy edge never crosses x = 768!)
+    var rightCols = [stageW + 14, stageW + 76, stageW + 144, stageW + 216];
+    for (var ri = 0; ri < rightCols.length; ri++) {
+      for (var ryi = 0; ryi < yRows.length; ryi++) {
+        var rxp = rightCols[ri] + ((ryi * 19 + ri * 13) % 21) - 8;
+        var ryp = yRows[ryi] + ((ri * 23 + ryi * 17) % 25) - 12;
+        if (rxp > maxX || rxp < stageW + 4) continue;
+        if (ryp + 70 > roadY - 8) continue;
+        var seedR = (ri * 5 + ryi * 3 + 1) % 5;
+        if (seedR === 0 || seedR === 2) props.push({ y: ryp + 70, kind: 'pine', x: rxp, py: ryp });
+        else if (seedR === 1 || seedR === 4) props.push({ y: ryp + 68, kind: 'oak', x: rxp, py: ryp });
+        else props.push({ y: ryp + 50, kind: 'bush', x: rxp + 10, py: ryp + 30 });
+      }
+    }
+    // North forest canopy strip above the farmhouse when tall viewports show extra top meadow (y + 70 <= -4)
+    if (minY < -74) {
+      for (var nx = -20; nx < stageW - 20; nx += 78) {
+        var ny = -78 - ((Math.abs(nx) * 7) % 18);
+        props.push({ y: ny + 70, kind: ((nx / 78) | 0) % 2 === 0 ? 'oak' : 'pine', x: nx, py: ny });
+      }
+    }
+    // Y-sort forest props for crisp top-down overlap depth
+    props.sort(function (a, b) { return a.y - b.y; });
+    for (var pi = 0; pi < props.length; pi++) {
+      var pr = props[pi];
+      var asset = pr.kind === 'oak' ? treeOak : pr.kind === 'pine' ? treePine : bush;
+      if (asset) g.drawImage(asset.image, Math.round(pr.x), Math.round(pr.py), asset.w, asset.h);
+    }
+
     g.restore();
 
     var wash = phaseWashColor(phase);

@@ -391,34 +391,73 @@ const SHADOW_SOFT = hex("#23150e", 42);
 
 /* ---------- Reusable Stardew Nature & Interior Compositing Helpers ---------- */
 
-function paintStardewGrassArea(c, tx0, ty0, tw, th, seed = 101) {
+// Exact base RGB of graded LPC grass center pixel so stage & surroundings match pixel-for-pixel!
+const MEADOW_BASE = hex("#509a3b");
+
+/**
+ * Blit only the organic grass-tuft pixels from Sharm's grass.png (excluding the flat background color)
+ * so there are ZERO hard 32x32 tile borders or grid lines anywhere!
+ */
+function blitGrassTuftsOnly(c, srcX, srcY, dx, dy) {
+  const sheet = SHEETS.grass;
+  // Sample the tile's own corner pixel as its flat background reference
+  const bgI = (srcY * sheet.w + srcX) * 4;
+  const bgR = sheet.rgba[bgI], bgG = sheet.rgba[bgI + 1], bgB = sheet.rgba[bgI + 2];
+  for (let y = 0; y < 32; y++) {
+    for (let x = 0; x < 32; x++) {
+      const si = ((srcY + y) * sheet.w + (srcX + x)) * 4;
+      const a = sheet.rgba[si + 3];
+      if (a < 20) continue;
+      const dr = Math.abs(sheet.rgba[si] - bgR);
+      const dg = Math.abs(sheet.rgba[si + 1] - bgG);
+      const db = Math.abs(sheet.rgba[si + 2] - bgB);
+      if (dr + dg + db < 10) continue; // skip flat tile bg -> 100% seamless!
+      const px = GRADE.stardewGrass(sheet.rgba[si], sheet.rgba[si + 1], sheet.rgba[si + 2], a);
+      c.set(dx + x, dy + y, px);
+    }
+  }
+}
+
+function paintStardewGrassArea(c, tx0, ty0, tw, th, seed = 101, opts = {}) {
   const r = rng(seed);
-  // Tile real Sharm LPC 32x32 hand-pixeled grass tiles with natural texture variety
+  const keepBorderClean = Boolean(opts.keepBorderClean);
+  // 1) 100% uniform Stardew Spring meadow base (zero tile seams at any DPI!)
+  c.rect(tx0 * S, ty0 * S, tw * S, th * S, MEADOW_BASE);
+  // 2) Organic hand-pixeled grass tufts from real Sharm LPC grass.png row 5 + varied wildflowers
   for (let ty = ty0; ty < ty0 + th; ty++) {
     for (let tx = tx0; tx < tx0 + tw; tx++) {
       const n = r();
-      if (n < 0.56) {
-        c.blit(SHEETS.grass, 32, 96, 32, 32, tx * S, ty * S, { grade: GRADE.stardewGrass });
-      } else if (n < 0.72) {
-        c.blit(SHEETS.grass, 0, 160, 32, 32, tx * S, ty * S, { grade: GRADE.stardewGrass });
-      } else if (n < 0.88) {
-        c.blit(SHEETS.grass, 32, 160, 32, 32, tx * S, ty * S, { grade: GRADE.stardewGrass });
-      } else {
-        c.blit(SHEETS.grass, 64, 160, 32, 32, tx * S, ty * S, { grade: GRADE.stardewGrass });
+      if (n < 0.42) {
+        const vx = Math.floor(r() * 3) * 32;
+        blitGrassTuftsOnly(c, vx, 160, tx * S, ty * S);
       }
-      // Subtle Stardew wildflowers (tulips, dandelions, blue jazz, daisies)
+      // Subtle Stardew wildflowers (daisies, buttercups, pink tulips, blue jazz)
       const f = r();
-      if (f < 0.24) {
-        const fx = tx * S + 6 + Math.floor(r() * 18);
-        const fy = ty * S + 8 + Math.floor(r() * 16);
+      if (f < 0.2) {
+        const pad = keepBorderClean ? 8 : 6;
+        const fx = tx * S + pad + Math.floor(r() * (32 - pad * 2 - 4));
+        const fy = ty * S + pad + Math.floor(r() * (32 - pad * 2 - 4));
         const palette = [hex("#fff4b2"), hex("#ff9ab2"), hex("#9ad8ff"), hex("#fffaf0"), hex("#ffd24d")];
         const col = palette[Math.floor(r() * palette.length)];
-        c.rect(fx + 2, fy + 4, 2, 4, hex("#3c742e"));
+        c.rect(fx + 2, fy + 4, 2, 4, hex("#3a742b"));
         c.rect(fx, fy + 2, 6, 2, col);
         c.rect(fx + 2, fy, 2, 6, col);
         c.rect(fx + 2, fy + 2, 2, 2, hex("#e89a25"));
       }
     }
+  }
+}
+
+/** Paint a cute, compact 100% unclipped Stardew berry/garden bush (never overflows stage bounds!). */
+function paintStardewBush(c, cx, cy, withBerries = true) {
+  c.rect(cx - 12, cy + 5, 24, 5, SHADOW_SOFT);
+  // Sample full rounded oak canopy (0, 0, 96, 88) scaled compactly so top & sides stay organically rounded!
+  c.blit(SHEETS.treetop, 0, 0, 96, 88, cx - 18, cy - 17, { dw: 36, dh: 28, grade: GRADE.stardewFoliage });
+  if (withBerries) {
+    c.rect(cx - 8, cy - 6, 3, 3, hex("#e3424a"));
+    c.rect(cx + 4, cy - 9, 3, 3, hex("#e3424a"));
+    c.rect(cx + 8, cy - 2, 3, 3, hex("#ff7a82"));
+    c.rect(cx - 2, cy - 2, 3, 3, hex("#ffe26a"));
   }
 }
 
@@ -694,20 +733,23 @@ function paintStardewSofa(c, x, y, w, h, dir = "south") {
 }
 
 /* ---------- 1. Compose Main Stardew Valley Farmhouse Floor (1536x896) ---------- */
-function generateFarmhouseBackground() {
+function generateFarmhouseBackground(laneCanvas) {
   const c = new Canvas(W, H);
 
-  // STEP A: Lush Stardew Spring meadow across the entire 48x28 canvas exterior
-  paintStardewGrassArea(c, 0, 0, PLAN.cols, PLAN.rows, 404);
+  // STEP A: 100% seamless Stardew Spring meadow across the entire 48x28 canvas exterior
+  paintStardewGrassArea(c, 0, 0, PLAN.cols, PLAN.rows, 404, { keepBorderClean: true });
 
-  // STEP B: Pelican Town dirt village road along bottom (y=26..27) + front stone path (x=21..24, y=24..26)
-  paintStardewDirtRoad(c, 0, 26, PLAN.cols, 2, 505);
+  // STEP B: Pelican Town dirt village road along bottom (y=26..27) stamped IDENTICALLY from lane-tile@2x
+  // (1536 / 192 = 8.0 exact tiles -> ZERO seam at x=0 and x=1536 with surroundings!)
+  for (let rx = 0; rx < W; rx += 192) {
+    c.blit({ w: laneCanvas.w, h: laneCanvas.h, rgba: laneCanvas.buf }, 0, 0, 192, 64, rx, 26 * S);
+  }
   paintStardewDirtRoad(c, 21, 24, 4, 2, 509);
   // Stepping stones leading up to front porch from dirt2.png
   c.blit(SHEETS.dirt2, 0, 0, 32, 64, 22 * S, 25 * S, { grade: GRADE.stardewDirt });
 
-  // STEP C: Iconic Stardew Duck Pond in North-East meadow (x=37..39, y=0..1) from real watergrass.png!
-  c.blit(SHEETS.watergrass, 0, 64, 96, 96, 37 * S, -16, { dw: 96, dh: 76, grade: GRADE.stardewWater });
+  // STEP C: Iconic Stardew Duck Pond in North-East meadow (x=37..39, y=0..1) — fully unclipped inside bounds!
+  c.blit(SHEETS.watergrass, 0, 64, 96, 96, 37 * S, 2, { dw: 96, dh: 60, grade: GRADE.stardewWater });
 
   // STEP D: Stardew Valley Tilled Crop Plots & Wooden Farm Fences in North & South gardens!
   paintStardewCropPlot(c, 4 * S, 6, 5, 2, ["parsnip", "cauliflower", "strawberry", "parsnip", "sunflower"]);
@@ -1021,26 +1063,20 @@ function generateFarmhouseBackground() {
     }
   }
 
-  // STEP H: Lush Real LPC Oak & Pine Trees framing the exterior corners & garden edges (drawn last so canopies overlap gracefully!)
-  paintStardewTree(c, 48, 62, "pineA");
-  paintStardewTree(c, 18 * S + 12, 56, "oakA");
-  paintStardewTree(c, 35 * S + 16, 56, "oakB");
-  paintStardewTree(c, 45 * S + 24, 60, "pineB");
-  // Side perimeter trees framing the left & right meadow margins
-  paintStardewTree(c, 8, 12 * S, "oakA");
-  paintStardewTree(c, 8, 22 * S, "pineA");
-  paintStardewTree(c, 47 * S + 24, 11 * S, "oakB");
-  paintStardewTree(c, 47 * S + 24, 21 * S, "pineB");
+  // STEP H: Compact, 100% unclipped Stardew berry bushes & garden stones inside the north yard
+  // (All tall Oak & Pine forest trees are rendered unclipped on the infinite surroundings canvas so ZERO trees are ever sliced at the stage edge!)
+  paintStardewBush(c, 2 * S + 16, 34, true);
+  paintStardewBush(c, 18 * S + 16, 34, false);
+  paintStardewBush(c, 35 * S + 16, 34, true);
+  paintStardewBush(c, 45 * S + 16, 34, true);
 
   return c;
 }
 
-/* ---------- 2. Seamless Pelican Town Meadow Tile (192x192) ---------- */
+/* ---------- 2. Seamless Pelican Town Meadow Tile (192x192 — zero rocks, zero wrap seams!) ---------- */
 function generateMeadowTile() {
   const c = new Canvas(192, 192);
-  paintStardewGrassArea(c, 0, 0, 6, 6, 808);
-  // Subtle clover & pebble accents
-  c.blit(SHEETS.rock, 32, 0, 32, 32, 128, 112, { dw: 24, dh: 24, alpha: 0.85 });
+  paintStardewGrassArea(c, 0, 0, 6, 6, 808, { keepBorderClean: true });
   return c;
 }
 
@@ -1048,6 +1084,30 @@ function generateMeadowTile() {
 function generateLaneTile() {
   const c = new Canvas(192, 64);
   paintStardewDirtRoad(c, 0, 0, 6, 2, 909);
+  return c;
+}
+
+/* ---------- 3b. Unclipped Pelican Town Forest Sprites for Seamless Infinite Surroundings ---------- */
+function generateOakTreeSprite() {
+  // 96x140 (48x70 logical) — full unclipped Stardew Oak tree with trunk.png's organic hand-pixeled ground shadow!
+  const c = new Canvas(96, 140);
+  c.blit(SHEETS.trunk, 0, 0, 96, 96, 0, 42, { grade: GRADE.stardewWood });
+  c.blit(SHEETS.treetop, 0, 0, 96, 96, 0, 2, { grade: GRADE.stardewFoliage });
+  return c;
+}
+
+function generatePineTreeSprite() {
+  // 96x136 (48x68 logical) — full unclipped Stardew Pine tree with trunk & organic ground shadow!
+  const c = new Canvas(96, 136);
+  c.blit(SHEETS.trunk, 96, 0, 96, 96, 0, 40, { grade: GRADE.stardewWood });
+  c.blit(SHEETS.treetop, 0, 96, 96, 128, 0, 0, { grade: GRADE.stardewFoliage });
+  return c;
+}
+
+function generateBushSprite() {
+  // 48x40 (24x20 logical) — full unclipped Stardew berry bush!
+  const c = new Canvas(48, 40);
+  paintStardewBush(c, 24, 24, true);
   return c;
 }
 
@@ -1115,10 +1175,14 @@ function generateHerb() {
 }
 
 /* ---------- Write All 2x Retina Stardew Valley PNGs ---------- */
+const laneCanvas = generateLaneTile();
 const outputs = [
-  ["farmhouse-bg@2x.png", generateFarmhouseBackground()],
+  ["farmhouse-bg@2x.png", generateFarmhouseBackground(laneCanvas)],
   ["meadow-tile@2x.png", generateMeadowTile()],
-  ["lane-tile@2x.png", generateLaneTile()],
+  ["lane-tile@2x.png", laneCanvas],
+  ["tree-oak@2x.png", generateOakTreeSprite()],
+  ["tree-pine@2x.png", generatePineTreeSprite()],
+  ["bush@2x.png", generateBushSprite()],
   ["desk-north@2x.png", generateDesk("north")],
   ["desk-south@2x.png", generateDesk("south")],
   ["chair-north@2x.png", generateChair("north")],
