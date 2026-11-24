@@ -12,7 +12,7 @@
   if (!O) return;
 
   var ASSET_BASE = '/art/stardew-v1/';
-  var ASSET_VER = '?v=6';
+  var ASSET_VER = '?v=7';
   var ASSETS = {
     bg: { uri: ASSET_BASE + 'farmhouse-bg@2x.png', w: 768, h: 448 },
     meadow: { uri: ASSET_BASE + 'meadow-tile@2x.png', w: 96, h: 96 },
