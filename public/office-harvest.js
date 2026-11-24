@@ -1,7 +1,9 @@
-/* Kantor Virtual — Harvest Moon 2x Retina Farmhouse Theme Adapter v1.0.
- * Transforms the 48x28 campus floor into a cozy Harvest Moon / Mineral Town
- * timber farmhouse studio with live hearth embers, rising steam, fluttering
- * butterflies, drifting fireflies, and dynamic Morning/Day/Sunset/Night lighting.
+/* Kantor Virtual — Stardew Valley 2x Retina Farmhouse Theme Adapter v2.0.
+ * Transforms the 48x28 campus floor into a cozy Stardew Valley / Pelican Town
+ * farmhouse studio built from real open-source 32x32 hand-pixeled LPC tilesets,
+ * with drifting spring blossom petals, fluttering butterflies, crackling kitchen
+ * woodstove & lounge brick hearth embers, rising steam, glowing fireflies, and
+ * dynamic Dawn/Midday/Sunset/Night Pelican Town lighting.
  * Preserves 100% of Multica state, pathfinding, hitboxes, laptops, and 12 characters.
  */
 (function (root) {
@@ -9,8 +11,8 @@
   var O = root.MDOffice;
   if (!O) return;
 
-  var ASSET_BASE = '/art/harvest-v1/';
-  var ASSET_VER = '?v=1';
+  var ASSET_BASE = '/art/stardew-v1/';
+  var ASSET_VER = '?v=2';
   var ASSETS = {
     bg: { uri: ASSET_BASE + 'farmhouse-bg@2x.png', w: 768, h: 448 },
     meadow: { uri: ASSET_BASE + 'meadow-tile@2x.png', w: 96, h: 96 },
@@ -131,6 +133,17 @@
     { x: 560, y: 410, sx: 24, sy: 6, f: 0.95, p: 1.2, col: '#fff5b8' },
   ];
 
+  // Signature Stardew Valley Spring cherry-blossom petals drifting gently in the breeze!
+  var PETALS = [
+    { x0: 40, y0: 8, vx: 11, vy: 5.5, p: 0.1, col: '#ffc9da' },
+    { x0: 190, y0: 14, vx: 9, vy: 4.8, p: 1.3, col: '#ffe1eb' },
+    { x0: 360, y0: 6, vx: 12, vy: 5.2, p: 2.6, col: '#ffb8ce' },
+    { x0: 540, y0: 12, vx: 10, vy: 5.0, p: 3.9, col: '#ffe1eb' },
+    { x0: 680, y0: 18, vx: 9.5, vy: 4.6, p: 5.1, col: '#ffc9da' },
+    { x0: 120, y0: 398, vx: 11.5, vy: 4.5, p: 0.8, col: '#ffe1eb' },
+    { x0: 470, y0: 402, vx: 10, vy: 4.9, p: 3.1, col: '#ffb8ce' },
+  ];
+
   function drawWarmGlow(g, cx, cy, r, rgbaCenter) {
     var rg = g.createRadialGradient(cx, cy, 1, cx, cy, r);
     rg.addColorStop(0, rgbaCenter);
@@ -196,16 +209,18 @@
       g.fillRect(Math.round(38.1 * T + pShift), 15, 7, 1);
       g.fillRect(Math.round(38.6 * T - pShift), 19, 5, 1);
 
-      // 2. Cozy crackling hearth embers in the Lounge fireplace (x=11.5*T, y=20.4*T)
+      // 2. Cozy crackling embers in the Lounge brick hearth (x=11.7*T, y=20.7*T) & Kitchen iron woodstove
       var flicker = 0.75 + 0.25 * Math.sin(t * 11) * Math.cos(t * 7);
-      var fx = 11 * T + 6;
-      var fy = 20 * T + 4;
-      g.fillStyle = 'rgba(255, 118, 42, ' + (0.75 * flicker).toFixed(2) + ')';
-      g.fillRect(fx, fy + 2, 5, 16);
-      g.fillStyle = 'rgba(255, 224, 108, ' + (0.9 * flicker).toFixed(2) + ')';
-      g.fillRect(fx + 1, fy + 5 + Math.round(Math.sin(t * 9)), 3, 9);
-      // Warm orange firelight cast onto braided rug
-      drawWarmGlow(g, fx + 12, fy + 10, 26, 'rgba(255, 162, 68, ' + (0.22 * flicker).toFixed(2) + ')');
+      var fx = 11 * T + 10;
+      var fy = 20 * T + 14;
+      g.fillStyle = 'rgba(255, 118, 42, ' + (0.78 * flicker).toFixed(2) + ')';
+      g.fillRect(fx, fy + 2, 7, 9);
+      g.fillStyle = 'rgba(255, 224, 108, ' + (0.92 * flicker).toFixed(2) + ')';
+      g.fillRect(fx + 1, fy + 4 + Math.round(Math.sin(t * 9)), 5, 5);
+      // Warm orange firelight cast onto Persian rug
+      drawWarmGlow(g, fx + 10, fy + 6, 28, 'rgba(255, 162, 68, ' + (0.24 * flicker).toFixed(2) + ')');
+      // Kitchen cast-iron woodstove glow
+      drawWarmGlow(g, 3 * T + 8, 5 * T + 8, 16, 'rgba(255, 148, 56, ' + (0.22 * flicker).toFixed(2) + ')');
 
       // 3. Softly rising steam wisps (Kitchen pot, Hot-Spring Hinoki Tub, Tea Counter)
       var steamSpots = [
@@ -283,6 +298,16 @@
           g.fillRect(Math.round(bx + 1), Math.round(by), 1 + wing, 2);
           g.fillStyle = '#3a2920';
           g.fillRect(Math.round(bx), Math.round(by), 1, 2);
+        }
+        // Signature Stardew Valley Spring blossom petals drifting across the Pelican Town breeze!
+        for (var p = 0; p < PETALS.length; p++) {
+          var pt = PETALS[p];
+          var px = (pt.x0 + t * pt.vx + Math.sin(t * 1.8 + pt.p) * 8) % this.W;
+          var py = (pt.y0 + t * pt.vy) % this.H;
+          if (py > 38 && py < 392) continue; // Keep petals gracefully framed in the exterior garden strips
+          g.fillStyle = pt.col;
+          g.fillRect(Math.round(px), Math.round(py), 2, 1);
+          g.fillRect(Math.round(px + 1), Math.round(py + 1), 1, 1);
         }
       }
 

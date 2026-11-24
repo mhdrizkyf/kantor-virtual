@@ -554,7 +554,7 @@ export default function OfficeView({ office, buildings, attention, people, seen,
               <span className="hlabel">Office world</span>
               <div className="world-seg" role="group" aria-label="Office floor world theme">
                 <button type="button" className="theme-seg-btn" aria-pressed={floorTheme === "harvest"} onClick={() => setFloorTheme("harvest")}>
-                  🌻 Harvest Moon
+                  🌾 Stardew Valley
                 </button>
                 <button type="button" className="theme-seg-btn" aria-pressed={floorTheme === "campus"} onClick={() => setFloorTheme("campus")}>
                   🏢 Studio Campus
@@ -564,10 +564,10 @@ export default function OfficeView({ office, buildings, attention, people, seen,
             {floorTheme === "harvest" && (
               <div className="office-controls-theme">
                 <div className="world-light-head">
-                  <span className="hlabel">Farmhouse sky</span>
+                  <span className="hlabel">Pelican sky</span>
                   <small className="clock">{harvestPhaseLabel(harvestPhase)}</small>
                 </div>
-                <div className="world-light-seg" role="group" aria-label="Harvest Moon time-of-day lighting">
+                <div className="world-light-seg" role="group" aria-label="Stardew Valley time-of-day lighting">
                   {(["auto", "morning", "day", "sunset", "night"] as const).map(mode => (
                     <button
                       key={mode}

@@ -10,7 +10,7 @@ import {
   resolveHarvestPhase,
 } from "../lib/harvest-theme";
 
-test("all Harvest Moon 2x Retina PNG assets exist with exact expected dimensions", () => {
+test("all Stardew Valley 2x Retina PNG assets exist with exact expected dimensions", () => {
   const expected: Record<string, [number, number]> = {
     "farmhouse-bg@2x.png": [1536, 896],
     "meadow-tile@2x.png": [192, 192],
@@ -24,7 +24,7 @@ test("all Harvest Moon 2x Retina PNG assets exist with exact expected dimensions
   };
 
   for (const [file, [w, h]] of Object.entries(expected)) {
-    const buf = readFileSync(resolve(process.cwd(), "public/art/harvest-v1", file));
+    const buf = readFileSync(resolve(process.cwd(), "public/art/stardew-v1", file));
     assert.equal(buf.readUInt32BE(16), w, `${file} width`);
     assert.equal(buf.readUInt32BE(20), h, `${file} height`);
   }
@@ -45,7 +45,7 @@ test("resolveHarvestPhase maps office timezone, open/closed switch, and manual o
   assert.equal(resolveHarvestPhase("auto", "Asia/Jakarta", false, new Date("2026-11-24T05:00:00Z")), "night");
   // Manual overrides ignore clock & office closed state
   assert.equal(resolveHarvestPhase("sunset", "Asia/Jakarta", false, new Date("2026-11-24T05:00:00Z")), "sunset");
-  assert.equal(floorPropLabel("harvest", "board").title, "Town Notice Board");
+  assert.equal(floorPropLabel("harvest", "board").title, "Help Wanted Board");
   assert.equal(floorPropLabel("campus", "board").title, "Task Board");
 });
 

@@ -55,13 +55,13 @@ export function resolveHarvestPhase(
 export function harvestPhaseLabel(phase: HarvestPhase): string {
   switch (phase) {
     case "morning":
-      return "Morning Dew";
+      return "Spring Dawn";
     case "day":
-      return "Sunny Midday";
+      return "Pelican Midday";
     case "sunset":
       return "Golden Hour";
     case "night":
-      return "Cozy Lanterns";
+      return "Lantern Night";
   }
 }
 
@@ -69,13 +69,13 @@ export function floorPropLabel(theme: FloorTheme, kind: FloorPropKind): { title:
   if (theme === "harvest") {
     switch (kind) {
       case "board":
-        return { title: "Town Notice Board", hint: "Open Task Board & project requests" };
+        return { title: "Help Wanted Board", hint: "Open Task Board & Pelican Town requests" };
       case "server":
-        return { title: "Farm Power Cabinet", hint: "Inspect AI Engines & office controls" };
+        return { title: "Junimo Control Cabinet", hint: "Inspect AI Engines & office controls" };
       case "coffee":
-        return { title: "Tea & Coffee Counter", hint: "Send free agents for a warm cup" };
+        return { title: "Farmhouse Coffee Bar", hint: "Send free agents for a warm brew" };
       case "meeting":
-        return { title: "Harvest Standup Table", hint: "Call Team Standup huddle here" };
+        return { title: "Community Standup Table", hint: "Call Team Standup huddle here" };
     }
   }
   switch (kind) {
