@@ -11,6 +11,7 @@ import { Px, Emo, PxText, StateIcon, type PxName } from "../pixel-icon";
 import { GrowText } from "../auto-grow";
 import CharacterFace from "../character-face";
 import CharacterPicker from "../character-picker";
+import WorkflowHubModal from "../workflow-hub-modal";
 
 const LEVEL: Record<Load["level"], { icon: PxName; label: string; tip: string }> = {
   santai: { icon: "dot-on", label: "Free", tip: "no open tasks" },
@@ -298,7 +299,45 @@ export default function TeamView({ team }: { team: Team }) {
   const [task, setTask] = useState<string | null>(null);
   const [chat, setChat] = useState<Mate | null>(null);
   const [recruit, setRecruit] = useState(false);
+  const [hubOpen, setHubOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [instrHealth, setInstrHealth] = useState<{ outdatedCount: number; agents: { agentId: string; name: string; upToDate: boolean; changed: string[] }[] } | null>(null);
+  const [syncingInstr, setSyncingInstr] = useState(false);
+
+  useEffect(() => {
+    if (!team.agents.length) return;
+    fetch(`/api/crew/sync-instructions?ws=${encodeURIComponent(team.workspaceId)}`)
+      .then(r => r.json())
+      .then(j => { if (typeof j.outdatedCount === "number") setInstrHealth(j); })
+      .catch(() => {});
+  }, [team.workspaceId, team.agents.length]);
+
+  async function syncAllInstructions() {
+    setSyncingInstr(true);
+    try {
+      const r = await fetch("/api/crew/sync-instructions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ws: team.workspaceId }),
+      });
+      const j = await r.json();
+      if (!r.ok || j.error) throw new Error(j.error || "Could not sync agent instructions.");
+      const updatedN = (j.updated ?? []).length;
+      const failedN = (j.failed ?? []).length;
+      setToast(
+        updatedN
+          ? `Synced Virtual Office rules for ${updatedN} agent${updatedN === 1 ? "" : "s"}${failedN ? ` (${failedN} failed)` : ""}.`
+          : "All agent instructions are already up to date."
+      );
+      const check = await fetch(`/api/crew/sync-instructions?ws=${encodeURIComponent(team.workspaceId)}`).then(x => x.json()).catch(() => null);
+      if (check && typeof check.outdatedCount === "number") setInstrHealth(check);
+    } catch (e) {
+      setToast(`Sync failed: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setSyncingInstr(false);
+    }
+  }
+
   useEffect(() => { const t = setInterval(() => start(() => router.refresh()), 60_000); return () => clearInterval(t); }, [router]);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 6000); return () => clearTimeout(t); }, [toast]);
 
@@ -309,6 +348,7 @@ export default function TeamView({ team }: { team: Team }) {
         <div className="wrap hbar">
           <div className="brand"><h1><Px name="team" /> Team Members</h1><p className="pdesc">Who works here, how busy they are, and which projects they&apos;re on.</p></div>
           <div className="chiprow">
+            <button className="btn" onClick={() => setHubOpen(true)}><Px name="sparkle" size="0.9em" /> Insights</button>
             <button className="btn primary" onClick={() => setRecruit(true)}><Px name="plus" size="0.9em" /> Add to team</button>
             <span className="clock">{refreshing ? <><span className="spinner sm" /> Refreshing…</> : `${team.humans.length} ${team.humans.length === 1 ? "person" : "people"} · ${team.agents.length} agent${team.agents.length === 1 ? "" : "s"}`}</span>
           </div>
@@ -316,6 +356,17 @@ export default function TeamView({ team }: { team: Team }) {
       </header>
       <main className="wrap pagewide">
         {busy.length > 0 && <div className="note"><span><Px name="busy" /> Could use a hand: {busy.map(m => `${m.name} (${m.load.late ? `${m.load.late} late` : LEVEL[m.load.level].label})`).join(", ")}. Try moving some tasks to someone else.</span></div>}
+        {instrHealth && instrHealth.outdatedCount > 0 && (
+          <div className="note instr-health-bar">
+            <span>
+              <Px name="gear" /> <b>{instrHealth.outdatedCount} agent{instrHealth.outdatedCount === 1 ? "" : "s"}</b> missing latest Virtual Office rules (report format, reminders, drafts):{" "}
+              {instrHealth.agents.filter(a => !a.upToDate).slice(0, 5).map(a => a.name).join(", ")}
+            </span>
+            <button type="button" className="btn sm primary" disabled={syncingInstr} onClick={syncAllInstructions}>
+              {syncingInstr ? <><span className="spinner sm" /> Syncing…</> : <><Px name="refresh" /> Sync all rules</>}
+            </button>
+          </div>
+        )}
         <div className="tabs" style={{ padding: 0 }}>
           {([["all", "Everyone"], ["human", `People (${team.humans.length})`], ["agent", `AI agents (${team.agents.length})`]] as const).map(([k, l]) => (
             <button key={k} className="tab" aria-pressed={tab === k} onClick={() => setTab(k)}>{l}</button>
@@ -342,6 +393,15 @@ export default function TeamView({ team }: { team: Team }) {
         )}
       </main>
       {recruit && <Recruit team={team} onDone={msg => { setRecruit(false); if (msg) { setToast(msg); refresh(); } }} />}
+      {hubOpen && (
+        <WorkflowHubModal
+          ws={team.workspaceId}
+          workspaceName={team.workspace}
+          initialTab="metrics"
+          onOpenTask={id => setTask(id)}
+          onClose={() => setHubOpen(false)}
+        />
+      )}
       {task && <div className="scrim" onClick={() => setTask(null)} />}
       {task && <TaskPanel id={task} ws={team.workspaceId} onClose={() => setTask(null)} onChanged={refresh} />}
       {chat && <div className="scrim" onClick={() => setChat(null)} />}

@@ -1,6 +1,6 @@
 "use client";
 // Task pop-up: the agent's output on the left, "your part" on the right (summary, question cards, instructions, actions).
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { GrowText } from "./auto-grow";
 import { WaPre, WaTask } from "./wa-card";
@@ -20,10 +20,152 @@ import { localAttachmentHref } from "@/lib/attachment-meta";
 
 /** Only the ```taiga and ```whatsapp blocks of a text (they become cards). */
 const actionBlocks = (text: string) => (text.match(/^```(?:taiga|whatsapp|wa)\b[\s\S]*?^```/gim) ?? []).join("\n\n");
-const md = (text: string, ws: string) => <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypePx]} urlTransform={keepMentionUrl}
-  components={{ a: p => mentionLink({ ...p, href: localAttachmentHref(p.href, ws) }), span: PxSpan, pre: WaPre }}>{text}</ReactMarkdown>;
+const REMARK_PLUGINS = [remarkGfm];
+const REHYPE_PLUGINS = [rehypePx];
+const MemoMd = memo(function MemoMd({ text, ws }: { text: string; ws: string }) {
+  const components = useMemo(
+    () => ({ a: (p: React.AnchorHTMLAttributes<HTMLAnchorElement> & { node?: unknown }) => mentionLink({ ...p, href: localAttachmentHref(p.href, ws) }), span: PxSpan, pre: WaPre }),
+    [ws]
+  );
+  return <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS} urlTransform={keepMentionUrl} components={components}>{text}</ReactMarkdown>;
+});
+const md = (text: string, ws: string) => <MemoMd text={text} ws={ws} />;
 const POLL_MS = 4000;
 type Tab = "chat" | "files" | "brief";
+
+/** Memoized left pane so typing in INSTRUCTIONS / QCard / Handoff never re-renders the 16+ messages or Markdown FilePreview. */
+const TaskOutputPane = memo(function TaskOutputPane({
+  d,
+  ws,
+  tab,
+  setTab,
+  pick,
+  setPick,
+  fresh,
+  freshIds,
+  pending,
+  busy,
+  watchUntil,
+  bodyRef,
+  onRunAction,
+  onStartRename,
+}: {
+  d: TaskDetail;
+  ws: string;
+  tab: Tab;
+  setTab: (t: Tab) => void;
+  pick: string | null;
+  setPick: (id: string) => void;
+  fresh: number;
+  freshIds: Set<string>;
+  pending: { text: string; files: string[] } | null;
+  busy: string | null;
+  watchUntil: number;
+  bodyRef: React.RefObject<HTMLDivElement | null>;
+  onRunAction: (action: "stop-extra" | "stop" | "restart") => void;
+  onStartRename: () => void;
+}) {
+  const dg = d.digest;
+  const briefBlocks = useMemo(() => actionBlocks(d.brief), [d.brief]);
+  const lastFilesMsg = useMemo(() => [...d.messages].reverse().find(m => m.files.length > 0)?.id ?? null, [d.messages]);
+  const selectedArtifact = useMemo(
+    () => (d.artifacts.length ? d.artifacts.find(x => x.id === (pick ?? d.artifacts[0].id)) ?? d.artifacts[0] : null),
+    [d.artifacts, pick]
+  );
+
+  return (
+    <section className="tp-out" aria-label="Agent output">
+      <div className="tp-tabs" role="tablist">
+        <button role="tab" aria-selected={tab === "chat"} onClick={() => setTab("chat")}><Px name="chat" /> Conversation <small>{d.messages.length}</small></button>
+        {d.artifacts.length > 0 && <button role="tab" aria-selected={tab === "files"} onClick={() => setTab("files")}><Px name="folder" /> Files <small>{d.artifacts.length}</small>{fresh > 0 && <span className="newbadge">{fresh} new</span>}</button>}
+        {d.brief && <button role="tab" aria-selected={tab === "brief"} onClick={() => setTab("brief")}><Px name="todo" /> Brief</button>}
+      </div>
+      <div className="tp-scroll" ref={bodyRef}>
+        {tab === "chat" && (
+          <div className="thread">
+            {/* Cards an agent put in the brief (Taiga activities, WhatsApp drafts) are shown here too, so they aren't hidden in the Brief tab. */}
+            {briefBlocks && (
+              <div className="msg bot">
+                <div className="from"><span><Px name="todo" /> From the brief</span><span /></div>
+                <div className="md">{md(briefBlocks, ws)}</div>
+              </div>
+            )}
+            {d.messages.length === 0 && !pending && !briefBlocks && <p className="desc">No messages yet. The agent will post results here.</p>}
+            {d.messages.map(m => (
+              <div key={m.id} id={`m-${m.id}`} className={`msg ${m.whoKind === "member" ? "me" : "bot"} ${dg?.messageId === m.id ? "hl" : ""}`}>
+                <div className="from"><span className="from-who">{m.face ? <><CharacterFace face={m.face} size={18} shape="circle" /> </> : null}{m.who}</span><span>{m.when}</span></div>
+                {m.text && <div className="md">{md(m.text, ws)}</div>}
+                {/* The newest files are previewed right here in the conversation, so revisions can be checked without leaving. */}
+                {m.id === lastFilesMsg && m.files.map(f => <FilePreview key={f.id} f={f} />)}
+                {(m.images.length > 0 || (m.files.length > 0 && m.id !== lastFilesMsg)) && (
+                  <div className="minifiles">
+                    {m.images.map(f => <button key={f.id} className="mini-img" onClick={() => { setPick(f.id); setTab("files"); }} title={`View ${f.name}`}><img src={f.url} alt={f.name} /></button>)}
+                    {m.id !== lastFilesMsg && m.files.map(f => <button key={f.id} className="chip" onClick={() => { setPick(f.id); setTab("files"); }}><Px name="clip" /> {f.name}</button>)}
+                  </div>
+                )}
+              </div>
+            ))}
+            {pending && (
+              <div className="msg me sending">
+                <div className="from"><span>You</span><span><span className="spinner sm" /> sending…</span></div>
+                {pending.text && <div className="md">{md(pending.text, ws)}</div>}
+                {pending.files.length > 0 && <div className="chips">{pending.files.map(f => <span key={f} className="chip"><Px name="clip" /> {f}</span>)}</div>}
+              </div>
+            )}
+            {d.live.state !== "idle" && (
+              <div className={`live live-${d.live.state}`} role="status">
+                {d.live.state === "running" || d.live.state === "queued" ? <span className="dots"><i /><i /><i /></span> : null}<PxText text={d.live.label} />
+              </div>
+            )}
+            {/* Fix a stuck or doubled run right here. */}
+            {(d.live.runs > 0 || d.live.canRetry) && d.mode !== "closed" && (
+              <div className="runfix">
+                {d.live.runs > 1 && <>
+                  <span className="hint"><Px name="alert" /> {d.live.runs} runs started for this task; only one is needed.</span>
+                  <button className="btn sm" disabled={!!busy} onClick={() => onRunAction("stop-extra")}>Stop the extra {d.live.runs - 1 === 1 ? "run" : "runs"}</button>
+                </>}
+                {d.live.runs <= 1 && d.live.stuck && <span className="hint"><Px name="alert" /> Working for over an hour. If nothing new appeared, it may be stuck.</span>}
+                {d.live.runs <= 1 && d.live.canRetry && <span className="hint">Nothing is running on this task right now.</span>}
+                {d.live.runs > 0 && <button className="btn sm" disabled={!!busy} onClick={() => { if (window.confirm("Stop the agent's work on this task?")) onRunAction("stop"); }}><Px name="pause" /> Stop</button>}
+                {(d.live.stuck || d.live.canRetry) && <button className="btn sm" disabled={!!busy} onClick={() => onRunAction("restart")}><Px name="refresh" /> {d.live.runs ? "Stop & start again" : "Start again"}</button>}
+              </div>
+            )}
+            {d.live.state === "idle" && d.mode === "closed" && (
+              <div className="live live-closed" role="status"><Px name="done" /> {/^(done|completed)$/.test(d.status) ? "Done and closed. Nothing more is needed from you or the agent." : "This task is closed."}</div>
+            )}
+            {d.live.state === "idle" && d.mode !== "closed" && Date.now() < watchUntil && (
+              <div className="live live-queued" role="status"><span className="dots"><i /><i /><i /></span>Sent. Waiting for {d.assignee.name ?? "the agent"} to respond…</div>
+            )}
+          </div>
+        )}
+        {tab === "files" && selectedArtifact && (
+          <div className="pinpanel flat">
+            <div className="tiles">
+              {d.artifacts.map((a, i) => (
+                <button key={a.id} className="tile" aria-pressed={(pick ?? d.artifacts[0].id) === a.id} onClick={() => setPick(a.id)} title={a.name}>
+                  {a.image ? <img src={a.url} alt="" /> : <span className="tile-icon"><Px name={ICON[kindOf(a.name)]} /></span>}
+                  {freshIds.has(a.id) && <span className="newbadge tile-new">New</span>}
+                  <span className="tile-name">{a.name}</span>
+                  <small>{i === 0 ? "Latest · " : ""}{a.from} · {a.when}</small>
+                </button>
+              ))}
+            </div>
+            <FilePreview key={selectedArtifact.id} f={selectedArtifact} />
+          </div>
+        )}
+        {tab === "brief" && <div className="md tp-brief">{md(d.brief, ws)}</div>}
+        <details className="extra">
+          <summary>More info</summary>
+          <p className="desc">Code: {d.key} · Original title: {d.originalTitle}</p>
+          <div className="chiprow">
+            <button className="btn sm" onClick={onStartRename}>Rename</button>
+            <a className="btn sm" href={d.url} target="_blank" rel="noreferrer">Open in Multica</a>
+          </div>
+        </details>
+      </div>
+    </section>
+  );
+});
 
 export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; ws: string; onClose: () => void; onChanged: () => void }) {
   const [d, setD] = useState<TaskDetail | null>(null);
@@ -43,6 +185,12 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
   const [renaming, setRenaming] = useState(false);
   const [newName, setNewName] = useState("");
   const [confirm, setConfirm] = useState<null | "approve" | "done">(null);
+  const [handoffOpen, setHandoffOpen] = useState(false);
+  const [handoffTarget, setHandoffTarget] = useState("");
+  const [handoffTitle, setHandoffTitle] = useState("");
+  const [handoffNote, setHandoffNote] = useState("");
+  const [handoffStartNow, setHandoffStartNow] = useState(true);
+  const [handoffDone, setHandoffDone] = useState<{ id: string; title: string; assigneeName: string; parked: boolean } | null>(null);
   const body = useRef<HTMLDivElement>(null);
   const lastCount = useRef(0);
   const seenKey = `kantor-seen:${id}`;
@@ -119,10 +267,10 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
   const hasInput = answered > 0 || !!text.trim() || files.length > 0;
   const canApprove = !hasInput || (onlyOk && !followUp && !text.trim() && files.length === 0);
 
-  async function act(action: string, extra: Record<string, string> = {}) {
+  async function act(action: string, extra: Record<string, unknown> = {}) {
     setBusy(action); setErr(null);
     const typed = encodeMentions(text, picked).trim();
-    const out = action === "rename" ? extra.text ?? "" : [answerText, typed].filter(Boolean).join("\n\n");
+    const out = action === "rename" ? String(extra.text ?? "") : [answerText, typed].filter(Boolean).join("\n\n");
     const shown = action === "revise" || action === "reply" || action === "reopen" ? out : "";
     if (shown || files.length) setPending({ text: shown, files: files.map(f => f.name) });
     try {
@@ -130,13 +278,67 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
       const r = await fetch(`/api/task/${id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ws, action, ...extra, text: out, files: fileIds }) });
       const j = await r.json();
       if (j.error) throw new Error(j.error);
-      setD(j); setText(""); setPicked([]); setAnswers({}); setLink(""); setFiles([]); setConfirm(null); onChanged();
-      if (["approve", "done", "revise", "reply"].includes(action)) window.dispatchEvent(new CustomEvent("kantor:workflow", { detail: { action, title: d?.title ?? "Task", agentId: d?.assignee.kind === "agent" ? d.assignee.id : null } }));
+      setD(j); setText(""); setPicked([]); setAnswers({}); setLink(""); setFiles([]); setConfirm(null); setHandoffOpen(false); onChanged();
+      if (j.handoff) setHandoffDone(j.handoff);
+      if (["approve", "approve-handoff", "done", "revise", "reply"].includes(action)) {
+        window.dispatchEvent(new CustomEvent("kantor:workflow", {
+          detail: {
+            action: action === "approve-handoff" ? "assigned" : action,
+            title: j.handoff?.title ?? d?.title ?? "Task",
+            agentId: action === "approve-handoff"
+              ? ((extra.handoff as { assigneeType?: string; assigneeId?: string } | undefined)?.assigneeType === "agent"
+                ? (extra.handoff as { assigneeId?: string }).assigneeId ?? null
+                : null)
+              : (d?.assignee.kind === "agent" ? d.assignee.id : null),
+          },
+        }));
+      }
       if (action === "revise" || action === "reply" || action === "rerun" || action === "restart" || (action === "reopen" && out)) setWatchUntil(Date.now() + 3 * 60_000);
-      else if (action === "approve" || action === "done") setWatchUntil(0); // closed: nobody is expected to reply
+      else if (action === "approve" || action === "approve-handoff" || action === "done") setWatchUntil(0); // closed: nobody is expected to reply
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
     finally { setBusy(null); setPending(null); }
   }
+
+  function openHandoff() {
+    if (!d) return;
+    const defaultAgent = d.people.find(p => p.kind === "agent" && p.id !== d.assignee.id) ?? d.people[0];
+    setHandoffTarget(defaultAgent ? `${defaultAgent.kind}:${defaultAgent.id}` : "");
+    setHandoffTitle(`Follow up: ${d.title}`.slice(0, 110));
+    setHandoffNote("");
+    setHandoffStartNow(true);
+    setConfirm(null);
+    setHandoffOpen(true);
+  }
+
+  async function submitHandoff(e: React.FormEvent) {
+    e.preventDefault();
+    const [assigneeType, assigneeId] = handoffTarget.split(":");
+    if (!assigneeId || (assigneeType !== "agent" && assigneeType !== "member")) {
+      setErr("Pick a teammate or agent to hand off to.");
+      return;
+    }
+    await act("approve-handoff", {
+      handoff: {
+        title: handoffTitle.trim(),
+        detail: handoffNote.trim(),
+        assigneeType,
+        assigneeId,
+        startNow: handoffStartNow,
+      },
+    });
+  }
+
+  const actRef = useRef(act);
+  actRef.current = act;
+  const handleRunAction = useCallback((action: "stop-extra" | "stop" | "restart") => {
+    void actRef.current(action);
+  }, []);
+  const handleStartRename = useCallback(() => {
+    if (!d) return;
+    setNewName(d.title);
+    setRenaming(true);
+  }, [d]);
+  const waTaskValue = useMemo(() => ({ id, ws, title: d?.title ?? "" }), [id, ws, d?.title]);
 
   const jumpTo = (mid: string) => {
     setTab("chat");
@@ -168,108 +370,33 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
     </div>
   );
 
-  const busyLabel: Record<string, string> = { stop: "Stopping…", "stop-extra": "Stopping the extra runs…", restart: "Starting again…", approve: "Approving…", revise: "Sending changes…", reply: "Sending…", done: "Saving…", rename: "Saving…", rerun: "Asking the agent to retry…" };
+  const busyLabel: Record<string, string> = { stop: "Stopping…", "stop-extra": "Stopping the extra runs…", restart: "Starting again…", approve: "Approving…", "approve-handoff": "Approving & handing off…", revise: "Sending changes…", reply: "Sending…", done: "Saving…", rename: "Saving…", rerun: "Asking the agent to retry…" };
   const fresh = seen ? d.artifacts.filter(a => !seen.has(a.id)).length : 0;
   const canSend = !!text.trim() || files.length > 0 || answered > 0;
   const dg = d.digest;
-  const lastFilesMsg = [...d.messages].reverse().find(m => m.files.length > 0)?.id ?? null;
 
   return (
-    <WaTask.Provider value={{ id, ws, title: d.title }}>
+    <WaTask.Provider value={waTaskValue}>
     <div className="taskmodal" role="dialog" aria-modal="true" aria-label={d.title}>
       {head}
       <div className="tp-grid">
-        {/* ---- Left: what the agent produced ---- */}
-        <section className="tp-out" aria-label="Agent output">
-          <div className="tp-tabs" role="tablist">
-            <button role="tab" aria-selected={tab === "chat"} onClick={() => setTab("chat")}><Px name="chat" /> Conversation <small>{d.messages.length}</small></button>
-            {d.artifacts.length > 0 && <button role="tab" aria-selected={tab === "files"} onClick={() => setTab("files")}><Px name="folder" /> Files <small>{d.artifacts.length}</small>{fresh > 0 && <span className="newbadge">{fresh} new</span>}</button>}
-            {d.brief && <button role="tab" aria-selected={tab === "brief"} onClick={() => setTab("brief")}><Px name="todo" /> Brief</button>}
-          </div>
-          <div className="tp-scroll" ref={body}>
-            {tab === "chat" && (
-              <div className="thread">
-                {/* Cards an agent put in the brief (Taiga activities, WhatsApp drafts) are shown here too, so they aren't hidden in the Brief tab. */}
-                {actionBlocks(d.brief) && (
-                  <div className="msg bot">
-                    <div className="from"><span><Px name="todo" /> From the brief</span><span /></div>
-                    <div className="md">{md(actionBlocks(d.brief), ws)}</div>
-                  </div>
-                )}
-                {d.messages.length === 0 && !pending && !actionBlocks(d.brief) && <p className="desc">No messages yet. The agent will post results here.</p>}
-                {d.messages.map(m => (
-                  <div key={m.id} id={`m-${m.id}`} className={`msg ${m.whoKind === "member" ? "me" : "bot"} ${dg?.messageId === m.id ? "hl" : ""}`}>
-                    <div className="from"><span className="from-who">{m.face ? <><CharacterFace face={m.face} size={18} shape="circle" /> </> : null}{m.who}</span><span>{m.when}</span></div>
-                    {m.text && <div className="md">{md(m.text, ws)}</div>}
-                    {/* The newest files are previewed right here in the conversation, so revisions can be checked without leaving. */}
-                    {m.id === lastFilesMsg && m.files.map(f => <FilePreview key={f.id} f={f} />)}
-                    {(m.images.length > 0 || (m.files.length > 0 && m.id !== lastFilesMsg)) && (
-                      <div className="minifiles">
-                        {m.images.map(f => <button key={f.id} className="mini-img" onClick={() => { setPick(f.id); setTab("files"); }} title={`View ${f.name}`}><img src={f.url} alt={f.name} /></button>)}
-                        {m.id !== lastFilesMsg && m.files.map(f => <button key={f.id} className="chip" onClick={() => { setPick(f.id); setTab("files"); }}><Px name="clip" /> {f.name}</button>)}
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {pending && (
-                  <div className="msg me sending">
-                    <div className="from"><span>You</span><span><span className="spinner sm" /> sending…</span></div>
-                    {pending.text && <div className="md">{md(pending.text, ws)}</div>}
-                    {pending.files.length > 0 && <div className="chips">{pending.files.map(f => <span key={f} className="chip"><Px name="clip" /> {f}</span>)}</div>}
-                  </div>
-                )}
-                {d.live.state !== "idle" && (
-                  <div className={`live live-${d.live.state}`} role="status">
-                    {d.live.state === "running" || d.live.state === "queued" ? <span className="dots"><i /><i /><i /></span> : null}<PxText text={d.live.label} />
-                  </div>
-                )}
-                {/* Fix a stuck or doubled run right here. */}
-                {(d.live.runs > 0 || d.live.canRetry) && d.mode !== "closed" && (
-                  <div className="runfix">
-                    {d.live.runs > 1 && <>
-                      <span className="hint"><Px name="alert" /> {d.live.runs} runs started for this task; only one is needed.</span>
-                      <button className="btn sm" disabled={!!busy} onClick={() => act("stop-extra")}>Stop the extra {d.live.runs - 1 === 1 ? "run" : "runs"}</button>
-                    </>}
-                    {d.live.runs <= 1 && d.live.stuck && <span className="hint"><Px name="alert" /> Working for over an hour. If nothing new appeared, it may be stuck.</span>}
-                    {d.live.runs <= 1 && d.live.canRetry && <span className="hint">Nothing is running on this task right now.</span>}
-                    {d.live.runs > 0 && <button className="btn sm" disabled={!!busy} onClick={() => { if (window.confirm("Stop the agent's work on this task?")) act("stop"); }}><Px name="pause" /> Stop</button>}
-                    {(d.live.stuck || d.live.canRetry) && <button className="btn sm" disabled={!!busy} onClick={() => act("restart")}><Px name="refresh" /> {d.live.runs ? "Stop & start again" : "Start again"}</button>}
-                  </div>
-                )}
-                {d.live.state === "idle" && d.mode === "closed" && (
-                  <div className="live live-closed" role="status"><Px name="done" /> {/^(done|completed)$/.test(d.status) ? "Done and closed. Nothing more is needed from you or the agent." : "This task is closed."}</div>
-                )}
-                {d.live.state === "idle" && d.mode !== "closed" && Date.now() < watchUntil && (
-                  <div className="live live-queued" role="status"><span className="dots"><i /><i /><i /></span>Sent. Waiting for {d.assignee.name ?? "the agent"} to respond…</div>
-                )}
-              </div>
-            )}
-            {tab === "files" && (
-              <div className="pinpanel flat">
-                <div className="tiles">
-                  {d.artifacts.map((a, i) => (
-                    <button key={a.id} className="tile" aria-pressed={(pick ?? d.artifacts[0].id) === a.id} onClick={() => setPick(a.id)} title={a.name}>
-                      {a.image ? <img src={a.url} alt="" /> : <span className="tile-icon"><Px name={ICON[kindOf(a.name)]} /></span>}
-                      {freshIds.has(a.id) && <span className="newbadge tile-new">New</span>}
-                      <span className="tile-name">{a.name}</span>
-                      <small>{i === 0 ? "Latest · " : ""}{a.from} · {a.when}</small>
-                    </button>
-                  ))}
-                </div>
-                {(() => { const a = d.artifacts.find(x => x.id === (pick ?? d.artifacts[0].id)) ?? d.artifacts[0]; return <FilePreview key={a.id} f={a} />; })()}
-              </div>
-            )}
-            {tab === "brief" && <div className="md tp-brief">{md(d.brief, ws)}</div>}
-            <details className="extra">
-              <summary>More info</summary>
-              <p className="desc">Code: {d.key} · Original title: {d.originalTitle}</p>
-              <div className="chiprow">
-                <button className="btn sm" onClick={() => { setNewName(d.title); setRenaming(true); }}>Rename</button>
-                <a className="btn sm" href={d.url} target="_blank" rel="noreferrer">Open in Multica</a>
-              </div>
-            </details>
-          </div>
-        </section>
+        {/* ---- Left: what the agent produced (memoized to prevent lag while typing) ---- */}
+        <TaskOutputPane
+          d={d}
+          ws={ws}
+          tab={tab}
+          setTab={setTab}
+          pick={pick}
+          setPick={setPick}
+          fresh={fresh}
+          freshIds={freshIds}
+          pending={pending}
+          busy={busy}
+          watchUntil={watchUntil}
+          bodyRef={body}
+          onRunAction={handleRunAction}
+          onStartRename={handleStartRename}
+        />
 
         {/* ---- Right: your part ---- */}
         <section className="tp-you" aria-label="Your part">
@@ -297,6 +424,30 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
               <div className="tp-compose">
                 {err && <div className="note bad">{err}</div>}
                 {busy ? <div className="loading"><span className="spinner" /> {busyLabel[busy] ?? "Working…"}</div>
+                  : handoffOpen ? (
+                    <form className="handoff-box" onSubmit={submitHandoff}>
+                      <div className="dg-head"><b><Px name="rocket" /> Approve &amp; Hand Off</b><small>Carries summary &amp; file list automatically</small></div>
+                      <label className="sect" htmlFor="ho-who">Next owner</label>
+                      <select id="ho-who" className="input" value={handoffTarget} onChange={e => setHandoffTarget(e.target.value)}>
+                        <option value="">Choose agent or person…</option>
+                        <optgroup label="AI agents">
+                          {d.people.filter(p => p.kind === "agent").map(p => <option key={p.id} value={`agent:${p.id}`}>{p.name}</option>)}
+                        </optgroup>
+                        <optgroup label="People">
+                          {d.people.filter(p => p.kind === "member").map(p => <option key={p.id} value={`member:${p.id}`}>{p.name}</option>)}
+                        </optgroup>
+                      </select>
+                      <label className="sect" htmlFor="ho-title">Follow-up task title</label>
+                      <input id="ho-title" className="input" value={handoffTitle} onChange={e => setHandoffTitle(e.target.value)} maxLength={120} />
+                      <label className="sect" htmlFor="ho-note">Handoff instructions (optional)</label>
+                      <textarea id="ho-note" className="input" rows={2} value={handoffNote} onChange={e => setHandoffNote(e.target.value)} placeholder="What should the next owner do with this output?" />
+                      <label className="radio"><input type="checkbox" checked={handoffStartNow} onChange={e => setHandoffStartNow(e.target.checked)} /> Start immediately (otherwise queue in Backlog)</label>
+                      <div className="row">
+                        <button type="button" className="btn" onClick={() => setHandoffOpen(false)}>Cancel</button>
+                        <button type="submit" className="btn primary" disabled={!handoffTarget}><Px name="rocket" /> Approve &amp; create follow-up</button>
+                      </div>
+                    </form>
+                  )
                   : confirm ? (
                     <div className="confirm">
                       <span>{confirm === "approve" ? (answered ? "Send your OK and close this task?" : "Approve and close this task?") : "Mark as done? The next agent can continue."}</span>
@@ -326,9 +477,11 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
                         {!d.assignee.online && d.assignee.kind === "agent" && <span className="hint"><Px name="moon" /> Laptop off: the agent picks this up when it&apos;s back on.</span>}
                         {d.mode === "review" && (canApprove && !hasInput ? <>
                           <button className="btn" disabled title="Answer a question or type feedback first"><Px name="edit" /> Request changes</button>
+                          {d.people.length > 0 && <button className="btn" onClick={openHandoff}><Px name="rocket" /> Approve &amp; hand off…</button>}
                           <button className="btn primary" onClick={() => setConfirm("approve")}><Px name="done" /> Approve</button>
                         </> : canApprove ? <>
                           <button className="btn" onClick={() => act("revise")}><Px name="edit" /> Send without closing</button>
+                          {d.people.length > 0 && <button className="btn" onClick={openHandoff}><Px name="rocket" /> Approve &amp; hand off…</button>}
                           <button className="btn primary" onClick={() => setConfirm("approve")}><Px name="done" /> Approve &amp; close</button>
                         </> : <>
                           <span className="hint">{followUp ? `${d.assignee.name ?? "The agent"} still has work to do after your answer, so the task stays open.` : "Your answers include corrections, so the task stays open for the agent."}</span>
@@ -348,6 +501,11 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
             )}
             {d.mode === "closed" && (
               <div className="reopen">
+                {handoffDone && (
+                  <div className="note" role="status">
+                    <Px name="rocket" /> Handed off to <b>{handoffDone.assigneeName}</b>: {handoffDone.title}{handoffDone.parked ? " (parked until office opens)" : ""}.
+                  </div>
+                )}
                 <h3 className="sect">Need more on this?</h3>
                 <GrowText className="input" rows={2} maxPx={240} value={text} onChange={e => setText(e.target.value)} aria-label="What else is needed"
                   placeholder={d.assignee.kind === "agent" ? `Tell ${d.assignee.name ?? "the agent"} what else is needed (optional)` : "What else is needed? (optional)"} />

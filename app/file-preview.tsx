@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Px, PxSpan, rehypePx, type PxName } from "./pixel-icon";
@@ -7,6 +7,9 @@ import { localAttachmentHref } from "@/lib/attachment-meta";
 
 type F = { id: string; name: string; url: string };
 type Kind = "image" | "pdf" | "html" | "table" | "doc" | "text" | "slides" | "word" | "sheet" | "audio" | "video" | "other";
+
+const REMARK_PLUGINS = [remarkGfm];
+const REHYPE_PLUGINS = [rehypePx];
 
 const ext = (n: string) => n.toLowerCase().split(".").pop() ?? "";
 export function kindOf(name: string): Kind {
@@ -42,15 +45,51 @@ function parseTable(text: string, sep: string): string[][] {
   return rows.filter(r => r.some(x => x.trim()));
 }
 
-export function AttachmentBody({ f, kind, tall }: { f: F; kind: Kind; tall?: boolean }) {
+const MemoDocMarkdown = memo(function MemoDocMarkdown({ text, ws }: { text: string; ws: string }) {
+  const components = useMemo(
+    () => ({
+      span: PxSpan,
+      a: ({ node: _node, ...p }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { node?: unknown }) => (
+        <a {...p} href={localAttachmentHref(p.href, ws)} target="_blank" rel="noreferrer" />
+      ),
+    }),
+    [ws]
+  );
+  return (
+    <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS} components={components}>
+      {text}
+    </ReactMarkdown>
+  );
+});
+
+export const AttachmentBody = memo(function AttachmentBody({ f, kind, tall }: { f: F; kind: Kind; tall?: boolean }) {
   const [text, setText] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const office = OFFICE.includes(kind);
   const needsText = kind === "html" || kind === "table" || kind === "doc" || kind === "text" || office;
   useEffect(() => {
     if (!needsText) return;
-    fetch(office ? `${f.url}&mode=office&name=${encodeURIComponent(f.name)}` : `${f.url}&mode=text`).then(async r => { if (!r.ok) throw new Error(await r.text()); return r.text(); }).then(setText).catch(e => setErr(String(e.message ?? e)));
+    let alive = true;
+    fetch(office ? `${f.url}&mode=office&name=${encodeURIComponent(f.name)}` : `${f.url}&mode=text`)
+      .then(async r => { if (!r.ok) throw new Error(await r.text()); return r.text(); })
+      .then(t => { if (alive) setText(t); })
+      .catch(e => { if (alive) setErr(String(e.message ?? e)); });
+    return () => { alive = false; };
   }, [f.url, f.name, needsText, office]);
+
+  const ws = useMemo(() => new URL(f.url, "http://localhost").searchParams.get("ws") ?? "", [f.url]);
+  const tableRows = useMemo(
+    () => (kind === "table" && text !== null ? parseTable(text, ext(f.name) === "tsv" ? "\t" : ",") : null),
+    [kind, text, f.name]
+  );
+  const formattedText = useMemo(() => {
+    if (kind !== "text" || text === null) return text;
+    if (ext(f.name) === "json") {
+      try { return JSON.stringify(JSON.parse(text), null, 2); } catch { return text; }
+    }
+    return text;
+  }, [kind, text, f.name]);
+
   const h = tall ? "75vh" : 360;
   if (kind === "image") return <img src={f.url} alt={f.name} className="pv-img" />;
   if (kind === "pdf") return <iframe title={f.name} src={f.url} className="pv-frame" style={{ height: h }} />;
@@ -61,9 +100,8 @@ export function AttachmentBody({ f, kind, tall }: { f: F; kind: Kind; tall?: boo
   // Office files come back as a static page; the empty sandbox blocks scripts, forms and links.
   if (office) return <iframe title={f.name} srcDoc={text!} sandbox="" className="pv-frame" style={{ height: tall ? "78vh" : kind === "slides" ? 460 : h, background: "#eceaf0" }} />;
   if (kind === "html") return <iframe title={f.name} srcDoc={text!} sandbox="" className="pv-frame" style={{ height: h, background: "#fff" }} />;
-  if (kind === "table") {
-    const rows = parseTable(text!, ext(f.name) === "tsv" ? "\t" : ",");
-    const [head, ...rest] = rows;
+  if (kind === "table" && tableRows) {
+    const [head, ...rest] = tableRows;
     return (
       <div className="pv-table" style={{ maxHeight: h }}>
         <table><thead><tr>{head?.map((c, i) => <th key={i}>{c}</th>)}</tr></thead>
@@ -73,24 +111,20 @@ export function AttachmentBody({ f, kind, tall }: { f: F; kind: Kind; tall?: boo
     );
   }
   if (kind === "doc") {
-    const ws = new URL(f.url, "http://localhost").searchParams.get("ws") ?? "";
-    return <div className="md pv-doc" style={{ maxHeight: h }}><ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypePx]}
-      components={{ span: PxSpan, a: ({ node: _node, ...p }) => <a {...p} href={localAttachmentHref(p.href, ws)} target="_blank" rel="noreferrer" /> }}>{text!}</ReactMarkdown></div>;
+    return <div className="md pv-doc" style={{ maxHeight: h }}><MemoDocMarkdown text={text!} ws={ws} /></div>;
   }
   if (kind === "text") {
-    let shown = text;
-    if (ext(f.name) === "json") { try { shown = JSON.stringify(JSON.parse(text!), null, 2); } catch { /* show original */ } }
-    return <pre className="pv-text" style={{ maxHeight: h }}>{shown}</pre>;
+    return <pre className="pv-text" style={{ maxHeight: h }}>{formattedText}</pre>;
   }
-  return <p className="desc">This file can't be previewed here. Download it to open.</p>;
-}
+  return <p className="desc">This file can&apos;t be previewed here. Download it to open.</p>;
+});
 
 /** Kartu lampiran dengan pratinjau seperti di Claude: halaman web, tabel, dokumen, gambar, PDF. */
-export default function FilePreview({ f, startOpen }: { f: F; startOpen?: boolean }) {
+const FilePreview = memo(function FilePreview({ f, startOpen }: { f: F; startOpen?: boolean }) {
   const kind = kindOf(f.name);
   const [open, setOpen] = useState(startOpen ?? (kind === "image" || kind === "html" || kind === "table" || kind === "doc" || OFFICE.includes(kind)));
   const [full, setFull] = useState(false);
-  const ws = new URL(f.url, "http://localhost").searchParams.get("ws");
+  const ws = useMemo(() => new URL(f.url, "http://localhost").searchParams.get("ws"), [f.url]);
   const viewer = `/lampiran/${encodeURIComponent(f.id)}${ws ? `?ws=${encodeURIComponent(ws)}` : ""}`;
   const download = `${f.url}${f.url.includes("?") ? "&" : "?"}download=1`;
   return (
@@ -116,4 +150,6 @@ export default function FilePreview({ f, startOpen }: { f: F; startOpen?: boolea
       )}
     </div>
   );
-}
+});
+
+export default FilePreview;

@@ -8125,3 +8125,323 @@ main.pagewide > * {
 .mate-avatar-tray {
   margin: 4px 0 6px;
 }
+
+/* ==========================================================================
+   Multica Workflow Advancement: Summary Guard, Playbooks, Chains, Metrics, Schedule
+   ========================================================================== */
+
+.hud-summary {
+  margin: 0;
+  padding: 6px 10px 6px 22px;
+  border-radius: 8px;
+  background: var(--sunk);
+  border: 1px solid var(--line);
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--ink);
+  display: grid;
+  gap: 3px;
+}
+
+.hud-q-guard {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.orch-playbooks {
+  display: grid;
+  gap: 6px;
+}
+
+.orch-pb-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.orch-pb-chip {
+  cursor: pointer;
+}
+
+.orch-mode-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.orch-stage-pick {
+  width: 96px;
+  flex: 0 0 auto;
+}
+
+.orch-save-pb {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.handoff-box {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--sunk);
+  border: 1px solid var(--line);
+}
+
+.wfhub-modal {
+  width: min(760px, 94vw);
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.wfhub-body {
+  overflow-y: auto;
+  display: grid;
+  gap: 12px;
+  padding-right: 2px;
+}
+
+.wfhub-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.wfhub-chains {
+  display: grid;
+  gap: 10px;
+}
+
+.wf-chain {
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--sunk);
+  border: 1px solid var(--line);
+  display: grid;
+  gap: 8px;
+}
+
+.wf-chain-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.wf-chain-head small {
+  display: block;
+  font-size: 11.5px;
+  color: var(--ink-muted);
+}
+
+.wf-chain-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.wf-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.wf-progress i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 200ms ease;
+}
+
+.wf-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+
+.wf-steps li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+
+.wf-steps li.is-done {
+  opacity: 0.72;
+}
+
+.wf-stage-tag {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--sunk);
+  border: 1px solid var(--line);
+  color: var(--ink-muted);
+}
+
+.wf-step-link {
+  flex: 1 1 auto;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  color: var(--ink);
+  display: grid;
+  gap: 2px;
+}
+
+.wf-step-link b {
+  font-size: 12.5px;
+}
+
+.wf-step-link small {
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+
+.wf-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.wf-kpi {
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--sunk);
+  border: 1px solid var(--line);
+  display: grid;
+  gap: 4px;
+}
+
+.wf-kpi small {
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+
+.wf-kpi strong {
+  font-size: 22px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.wf-kpi span {
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+
+.wf-prov-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.wf-table-wrap {
+  overflow-x: auto;
+  margin-top: 6px;
+}
+
+.wf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.wf-table th,
+.wf-table td {
+  padding: 7px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+
+.wf-table th {
+  font-size: 11px;
+  color: var(--ink-muted);
+  font-weight: 600;
+}
+
+.office-schedule-box {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--sunk);
+  border: 1px solid var(--line);
+}
+
+.office-schedule-box summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  list-style: none;
+}
+
+.office-schedule-body {
+  margin-top: 8px;
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.sched-times {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.sched-times label {
+  display: grid;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+
+.office-controls-hub-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.instr-health-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .orch-mode-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Safari/WebKit paint & layout isolation for TaskPanel typing performance */
+.tp-out,
+.tp-you {
+  contain: layout paint style;
+}
+
+.pv-body,
+.pv-doc {
+  contain: layout style;
+}

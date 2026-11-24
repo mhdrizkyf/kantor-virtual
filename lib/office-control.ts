@@ -5,10 +5,11 @@
 import "server-only";
 import {
   loadWorkspace, autopilots, setAutopilotStatus, updateIssue, setIssueMeta, deleteIssueMeta,
-  rerunIssue, cancelRun, saveKantorSettings, me, type Issue, type Run,
+  rerunIssue, cancelRun, saveKantorSettings, me, invalidateWorkspaceCache, type Issue, type Run,
 } from "./multica";
 import { friendlyTitle } from "./titles";
 import { withProcessLock } from "./process-lock";
+import { emitWorkflowHook } from "./workflow-hooks";
 
 export const PARK_KEY = "kantor_parked";
 const ACTIVE = new Set(["queued", "dispatched", "running", "in_progress", "preparing", "started"]);
@@ -62,7 +63,7 @@ export async function planOffice(ws: string, action: "close" | "open"): Promise<
   return { action, autopilots: aps.filter(a => paused.has(a.id)).map(a => a.title), park: [], running: [], resume: resume.map(t), rerun: rerun.map(t) };
 }
 
-export async function closeOffice(ws: string, stopRunning: boolean) {
+export async function closeOffice(ws: string, stopRunning: boolean, source: "api" | "schedule" | "watchdog" = "api") {
   return withProcessLock(`office-${ws}`, async () => {
   const { s, runsByIssue } = await snapshot(ws);
   const who = (await me()).name;
@@ -82,11 +83,16 @@ export async function closeOffice(ws: string, stopRunning: boolean) {
     parked++;
   }
   await saveKantorSettings(ws, { ...s.kantor, open: false, changedAt: new Date().toISOString(), changedBy: who, pausedAutopilots, transition: undefined });
+  invalidateWorkspaceCache(ws);
+  await emitWorkflowHook("office.toggled", {
+    wsId: ws, action: "close", actor: who, source,
+    summary: `${parked} parked${stopped ? `, ${stopped} stopped` : ""}${aps.length ? `, ${aps.length} schedule(s) paused` : ""}`,
+  });
   return { autopilots: aps.length, parked, stopped };
   });
 }
 
-export async function openOffice(ws: string) {
+export async function openOffice(ws: string, source: "api" | "schedule" | "watchdog" = "api") {
   return withProcessLock(`office-${ws}`, async () => {
   const plan = await planOffice(ws, "open");
   const { s } = await snapshot(ws);
@@ -106,6 +112,11 @@ export async function openOffice(ws: string) {
   for (const r of plan.rerun) await rerunIssue(ws, r.id);
   for (const a of aps) await setAutopilotStatus(ws, a.id, "active");
   await saveKantorSettings(ws, { ...s.kantor, open: true, changedAt: new Date().toISOString(), changedBy: who, pausedAutopilots: [], transition: undefined });
+  invalidateWorkspaceCache(ws);
+  await emitWorkflowHook("office.toggled", {
+    wsId: ws, action: "open", actor: who, source,
+    summary: `${plan.resume.length} resumed${plan.rerun.length ? `, ${plan.rerun.length} restarted` : ""}${aps.length ? `, ${aps.length} schedule(s) active` : ""}`,
+  });
   return { autopilots: aps.length, resumed: plan.resume.length, rerun: plan.rerun.length };
   });
 }

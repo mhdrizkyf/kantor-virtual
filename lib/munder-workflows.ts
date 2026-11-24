@@ -35,7 +35,7 @@ export type DropZone =
   | { kind: "server" }
   | { kind: "floor" };
 
-export type ActivityKind = "handoff" | "approve" | "revise" | "delegate" | "standup" | "coffee" | "door" | "drag";
+export type ActivityKind = "handoff" | "approve" | "revise" | "delegate" | "standup" | "coffee" | "door" | "drag" | "chain" | "watchdog" | "schedule";
 
 export type ActivityEvent = {
   id: string;
@@ -43,6 +43,8 @@ export type ActivityEvent = {
   title: string;
   detail?: string;
   at: string;
+  isoAt?: string;
+  source?: "ui" | "api" | "chain" | "watchdog" | "schedule";
   agentId?: string;
   issueId?: string;
   ws?: string;
@@ -53,6 +55,7 @@ export type GoalStepDraft = {
   title: string;
   detail: string;
   agentId: string;
+  stage?: number;
 };
 
 export type AgentBrief = {
@@ -62,6 +65,8 @@ export type AgentBrief = {
   squad: string;
   state?: string;
   bubble?: string;
+  openTasks?: number;
+  runtimeOnline?: boolean;
 };
 
 export type StandupSummary = {
@@ -312,8 +317,14 @@ function scoreAgentForStep(stepText: string, agent: AgentBrief): number {
       }
     }
   }
-  // Slight preference for free/ready agents over overloaded ones
-  if (agent.state === "ready" || agent.state === "home") score += 1;
+  // Workload & availability awareness: prefer online, free agents; penalize overloaded or offline ones
+  if (agent.runtimeOnline === false || agent.state === "off" || agent.state === "break") score -= 5;
+  if (agent.state === "ready" || agent.state === "home") score += 2;
+  if (typeof agent.openTasks === "number") {
+    if (agent.openTasks === 0) score += 2;
+    else if (agent.openTasks >= 6) score -= 4;
+    else if (agent.openTasks >= 4) score -= 2;
+  }
   return score;
 }
 
