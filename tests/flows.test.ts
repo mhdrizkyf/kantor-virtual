@@ -53,7 +53,7 @@ test("Office loading and critical Multica flows", async t => {
       if (method === "PATCH") settings[id] = body.settings;
       return respond({ id, settings: settings[id] });
     }
-    if (path.endsWith("/members")) return respond({ members: [] });
+    if (path.endsWith("/members")) return respond({ members: [{ id: "m1", user_id: "user", name: "Owner", email: "owner@example.com", role: "owner", avatar_url: null }] });
     if (path === "/api/agents") return respond({ agents: [{ id: ws === "w1" ? "a1" : "a2", name: "Agent", description: "", avatar_url: null, runtime_id: "rt", status: "active", model: "", archived_at: null }] });
     if (path === "/api/projects") return respond({ projects: [] });
     if (path === "/api/runtimes") return respond({ runtimes: [{ id: "rt", name: "Laptop", provider: "codex", status: "online", last_seen_at: now, owner_id: "user" }] });
@@ -99,7 +99,8 @@ test("Office loading and critical Multica flows", async t => {
     const { withProcessLock, ProcessBusyError } = await import("../lib/process-lock");
     const { GET: getFile } = await import("../app/api/file/[id]/route");
     const { attachmentName, localAttachmentHref } = await import("../lib/attachment-meta");
-    const { readCharacters, saveCharacter } = await import("../lib/characters");
+    const { readCharacters, saveCharacter, memberCharacterKey } = await import("../lib/characters");
+    const { buildTeam } = await import("../lib/crew");
     const { PATCH: patchCrew } = await import("../app/api/crew/route");
     const { detectTransfers } = await import("../lib/workflow-transitions");
     const { suggestedSquad } = await import("../lib/squad-plan");
@@ -164,6 +165,23 @@ test("Office loading and critical Multica flows", async t => {
       const bad = await patchCrew(new Request("http://localhost/api/crew", { method: "PATCH", body: JSON.stringify({ ws: "w1", agentId: "a1", face: "not-a-face" }) }));
       assert.equal(bad.status, 400);
       assert.equal(readCharacters("w1").a1, "nala");
+    });
+    await t.test("human member avatar choices persist per workspace and flow to office and team views", async () => {
+      const res = await patchCrew(new Request("http://localhost/api/crew", { method: "PATCH", body: JSON.stringify({ ws: "w1", memberId: "user", face: "raya" }) }));
+      assert.equal(res.status, 200);
+      assert.equal(readCharacters("w1")[memberCharacterKey("user")], "raya");
+      assert.equal(readCharacters("w2")[memberCharacterKey("user")], undefined);
+
+      const badFace = await patchCrew(new Request("http://localhost/api/crew", { method: "PATCH", body: JSON.stringify({ ws: "w1", memberId: "user", face: "nope" }) }));
+      assert.equal(badFace.status, 400);
+      const unknownMember = await patchCrew(new Request("http://localhost/api/crew", { method: "PATCH", body: JSON.stringify({ ws: "w1", memberId: "missing-user", face: "raya" }) }));
+      assert.equal(unknownMember.status, 404);
+
+      const snap = await multica.loadWorkspace("w1");
+      const office = buildOffice(snap);
+      assert.equal(office.members.find(m => m.id === "user")?.face, "raya");
+      const team = buildTeam(snap, [], "user");
+      assert.equal(team.humans.find(h => h.id === "user")?.face, "raya");
     });
 
     await t.test("selected Office uses fewer API calls than loading every workspace", async () => {

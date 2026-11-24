@@ -5,6 +5,7 @@ import { readJsonFile, updateJsonLocked } from "./json-store";
 
 const file = () => join(process.cwd(), "data", "characters.json");
 type Store = Record<string, Record<string, string>>;
+export const memberCharacterKey = (memberId: string) => `member:${memberId}`;
 export function readCharacters(ws: string): Record<string, string> {
   return readJsonFile<Store>(file(), () => ({}))[ws] ?? {};
 }

@@ -50,19 +50,68 @@ function Engine({ m, team, onSaved }: { m: Mate; team: Team; onSaved: (msg: stri
 function MateCard({ m, team, onOpenTask, onChat, onToast }: { m: Mate; team: Team; onOpenTask: (id: string) => void; onChat?: () => void; onToast: (s: string) => void }) {
   const [open, setOpen] = useState(false);
   const [edit, setEdit] = useState(false);
+  const [avatarOpen, setAvatarOpen] = useState(false);
+  const [face, setFace] = useState(m.face ?? "yusuf");
+  const [savingFace, setSavingFace] = useState(false);
+  useEffect(() => { if (m.face) setFace(m.face); }, [m.face]);
   const L = m.load;
   const seg = (n: number) => `${L.open ? (n / L.open) * 100 : 0}%`;
   const openTasks = m.tasks.filter(t => t.col !== "done");
+
+  async function saveAvatar(nextFace: string) {
+    const prev = face;
+    setFace(nextFace);
+    setSavingFace(true);
+    try {
+      const payload = m.kind === "human"
+        ? { ws: team.workspaceId, memberId: m.id, face: nextFace }
+        : { ws: team.workspaceId, agentId: m.id, face: nextFace };
+      const res = await fetch("/api/crew", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || "Could not save avatar.");
+      onToast(`${m.name}'s avatar updated.`);
+    } catch (e) {
+      setFace(prev);
+      onToast(`Couldn't update avatar: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setSavingFace(false);
+    }
+  }
+
   return (
     <article className={`mate ${m.kind} st-${m.state}`}>
       <div className="mate-top">
-        <span className="avatar">{m.kind === "agent" ? <CharacterFace face={m.face} size={48} shape="circle" /> : m.avatar ? <img src={m.avatar} alt="" /> : m.emoji ? <Emo e={m.emoji} /> : m.name.slice(0, 1).toUpperCase()}<span className="status-dot" /></span>
+        <button
+          type="button"
+          className="avatar avatar-edit-btn"
+          title="Change avatar"
+          aria-label={`Change ${m.name}'s avatar`}
+          aria-expanded={avatarOpen}
+          onClick={() => setAvatarOpen(v => !v)}
+        >
+          <CharacterFace face={face} size={48} shape="circle" />
+          <span className="status-dot" />
+          <span className="avatar-edit-badge" aria-hidden="true">✎</span>
+        </button>
         <div className="mate-id">
           <h3>{m.name}{m.isMe && <span className="me-tag">you</span>}</h3>
           {m.kind === "human" && <small>{[m.role, m.sub].filter(Boolean).join(" · ")}</small>}
         </div>
         <span className={`lvl l-${L.level}`} title={LEVEL[L.level].tip}><Px name={LEVEL[L.level].icon} /> {LEVEL[L.level].label}</span>
       </div>
+      {avatarOpen && (
+        <div className="avatar-quick-tray mate-avatar-tray">
+          <div className="desk-sect-head">
+            <span className="sect">Choose avatar</span>
+            {savingFace && <span className="spinner sm" />}
+          </div>
+          <CharacterPicker value={face} onChange={next => void saveAvatar(next)} />
+        </div>
+      )}
       {m.kind === "agent" && m.sub && <p className="mate-desc">{m.sub}</p>}
       <p className="mate-status"><StateIcon state={m.state} />{m.status}</p>
 
@@ -86,6 +135,7 @@ function MateCard({ m, team, onOpenTask, onChat, onToast }: { m: Mate; team: Tea
       <div className="mate-actions">
         {openTasks.length > 0 && <button className="btn sm" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? "Hide tasks" : <><Px name="todo" /> {openTasks.length} open task{openTasks.length > 1 ? "s" : ""}</>}</button>}
         {onChat && <button className="btn sm" onClick={onChat}><Px name="chat" /> Chat</button>}
+        <button type="button" className={`btn sm${avatarOpen ? " primary" : ""}`} aria-expanded={avatarOpen} onClick={() => setAvatarOpen(v => !v)}>✎ {avatarOpen ? "Done" : "Avatar"}</button>
         {m.kind === "agent" && <button className="btn sm" onClick={() => setEdit(true)}><Px name="gear" /> Edit profile</button>}
         {m.kind === "human" && !m.isMe && <button className="btn sm" onClick={() => openChat(m.id)}><Px name="chat" /> Message</button>}
       </div>
@@ -275,7 +325,7 @@ export default function TeamView({ team }: { team: Team }) {
         {tab !== "agent" && (
           <section className="crew" aria-label="People">
             <h2><Px name="person" /> People <small>set direction, review, and step in when mentioned</small></h2>
-            <div className="crewgrid">{team.humans.map(m => <MateCard key={m.id} m={m} team={team} onOpenTask={setTask} onToast={setToast} />)}</div>
+            <div className="crewgrid">{team.humans.map(m => <MateCard key={m.id} m={m} team={team} onOpenTask={setTask} onToast={msg => { setToast(msg); refresh(); }} />)}</div>
             {team.invites.length > 0 && (
               <div className="invites"><b><Px name="mail" /> Pending invites</b>
                 <ul>{team.invites.map(i => <li key={i.email}>{i.email} <small>· {i.role} · sent {i.when}</small></li>)}</ul>

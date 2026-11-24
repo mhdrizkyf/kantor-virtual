@@ -3,7 +3,7 @@ import type { Snapshot, Issue } from "./multica";
 import { buildOffice, type Desk } from "./office";
 import { friendlyTitle } from "./titles";
 import type { Mentionable } from "./mentions";
-import { readCharacters } from "./characters";
+import { readCharacters, memberCharacterKey } from "./characters";
 import { assignUniqueFaces, defaultFace } from "./character-presets";
 
 import { type Col } from "./board-cols";
@@ -65,7 +65,7 @@ function cards(s: Snapshot, faces: Record<string, string>): Card[] {
     out.push({
       id: i.id, title: friendlyTitle(i), key: i.identifier, col, projectId: p?.id ?? null, project: p?.title ?? null, projectIcon: p?.icon ?? null,
       who: agent ? { kind: "agent", id: agent.id, name: agent.name, emoji: emojiOf(agent.avatar_url), face: faces[agent.id] ?? defaultFace(agent.id) }
-        : member ? { kind: "member", id: member.user_id, name: member.name, emoji: null, face: null } : null,
+        : member ? { kind: "member", id: member.user_id, name: member.name, emoji: null, face: faces[memberCharacterKey(member.user_id)] ?? defaultFace(memberCharacterKey(member.user_id)) } : null,
       due: i.due_date, dueText, dueFlag, priority: i.priority, updated: i.updated_at,
     });
   }
@@ -75,12 +75,15 @@ function cards(s: Snapshot, faces: Record<string, string>): Card[] {
 }
 
 const people = (s: Snapshot, faces: Record<string, string>): Mentionable[] => [
-  ...s.members.map(m => ({ kind: "member" as const, id: m.user_id, name: m.name, emoji: null, face: null })),
+  ...s.members.map(m => ({ kind: "member" as const, id: m.user_id, name: m.name, emoji: null, face: faces[memberCharacterKey(m.user_id)] ?? defaultFace(memberCharacterKey(m.user_id)) })),
   ...s.agents.map(a => ({ kind: "agent" as const, id: a.id, name: a.name, emoji: emojiOf(a.avatar_url), face: faces[a.id] ?? defaultFace(a.id) })),
 ];
 
 export function buildBoard(s: Snapshot): Board {
-  const faces = assignUniqueFaces(s.agents.map(a => a.id), readCharacters(s.workspace.id));
+  const faces = assignUniqueFaces(
+    [...s.agents.map(a => a.id), ...s.members.map(m => memberCharacterKey(m.user_id))],
+    readCharacters(s.workspace.id)
+  );
   const all = cards(s, faces);
   const live = s.issues.filter(i => colOf(i));
   return {
@@ -111,7 +114,10 @@ function projectsOf(cs: Card[]) {
 }
 
 export function buildTeam(s: Snapshot, invites: { invitee_email: string; role: string; created_at: string; status?: string }[], meId: string | null): Team {
-  const faces = assignUniqueFaces(s.agents.map(a => a.id), readCharacters(s.workspace.id));
+  const faces = assignUniqueFaces(
+    [...s.agents.map(a => a.id), ...s.members.map(m => memberCharacterKey(m.user_id))],
+    readCharacters(s.workspace.id)
+  );
   const all = cards(s, faces);
   const office = buildOffice(s);
   const desks = new Map<string, Desk>();
@@ -128,7 +134,8 @@ export function buildTeam(s: Snapshot, invites: { invitee_email: string; role: s
   const humans: Mate[] = s.members.map((m): Mate => {
     const tasks = all.filter(c => c.who?.kind === "member" && c.who.id === m.user_id);
     const p = rel(seen[m.name]);
-    return { kind: "human", id: m.user_id, name: m.name, emoji: null, avatar: null, face: null, sub: m.email, role: ROLE[m.role] ?? m.role,
+    const hKey = memberCharacterKey(m.user_id);
+    return { kind: "human", id: m.user_id, name: m.name, emoji: null, avatar: null, face: faces[hKey] ?? defaultFace(hKey), sub: m.email, role: ROLE[m.role] ?? m.role,
       status: p.text, state: p.here ? "here" : "away", projects: projectsOf(tasks), load: loadOf(tasks), tasks, runtimeOnline: true, runtimeId: null, isMe: m.user_id === meId };
   }).sort((a, b) => Number(!!b.isMe) - Number(!!a.isMe) || a.name.localeCompare(b.name));
 

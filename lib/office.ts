@@ -3,7 +3,7 @@ import type { Snapshot, Issue, Run, Agent } from "./multica";
 import { friendlyTitle } from "./titles";
 import { quotaStates, fmtTime } from "./quota";
 import { readCodexQuota, type CodexQuota } from "./codex-quota";
-import { readCharacters } from "./characters";
+import { readCharacters, memberCharacterKey } from "./characters";
 import { assignUniqueFaces, defaultFace } from "./character-presets";
 import { readSquads } from "./squads";
 import { readWorkCalendar } from "./work-calendar";
@@ -36,7 +36,7 @@ export type Office = {
   people: string[];
   agentsDetail: Record<string, { runs: RunView[]; tasks: TaskView[] }>;
   projects: { id: string; name: string; icon: string | null }[];
-  members: { id: string; name: string }[];
+  members: { id: string; name: string; face: string | null }[];
 };
 
 const CLOSED = new Set(["done", "cancelled", "canceled", "completed", "duplicate"]);
@@ -89,7 +89,10 @@ function loginAlerts(s: Snapshot): string[] {
 
 export function buildOffice(s: Snapshot): Office {
   const characters = readCharacters(s.workspace.id);
-  const assignedFaces = assignUniqueFaces(s.agents.map(a => a.id), characters);
+  const assignedFaces = assignUniqueFaces(
+    [...s.agents.map(a => a.id), ...s.members.map(m => memberCharacterKey(m.user_id))],
+    characters
+  );
   const squads = readSquads(s.workspace.id);
   const tz = process.env.KANTOR_TIMEZONE || "Asia/Jakarta";
   const today = todayIn(tz);
@@ -277,7 +280,7 @@ export function buildOffice(s: Snapshot): Office {
     openTasks: sortTasks([...allViews]),
     people: [...new Set(s.members.map(m => m.name))],
     projects: s.projects.map(p => ({ id: p.id, name: p.title, icon: p.icon ?? null })),
-    members: s.members.map(m => ({ id: m.user_id, name: m.name })),
+    members: s.members.map(m => ({ id: m.user_id, name: m.name, face: assignedFaces[memberCharacterKey(m.user_id)] ?? defaultFace(memberCharacterKey(m.user_id)) })),
     agentsDetail,
   };
 }
