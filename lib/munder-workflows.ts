@@ -168,16 +168,18 @@ export function tileRectBounds(r: { x: number; y: number; w: number; h: number }
 export function meetingSpotsFor(count: number, isWalkable?: (x: number, y: number) => boolean): { x: number; y: number; face: "up" | "down" }[] {
   const m = OFFICE_PLAN.meeting;
   const candidates: { x: number; y: number; face: "up" | "down" }[] = [
-    { x: m.x, y: m.y, face: "down" },
+    { x: m.x, y: m.y + 1, face: "down" },
+    { x: m.x, y: m.y + 2, face: "down" },
+    { x: m.x, y: m.y + 3, face: "down" },
+    { x: m.x, y: m.y + 4, face: "down" },
+    { x: m.x + m.w - 1, y: m.y + 1, face: "down" },
+    { x: m.x + m.w - 1, y: m.y + 2, face: "down" },
+    { x: m.x + m.w - 1, y: m.y + 3, face: "down" },
+    { x: m.x + m.w - 1, y: m.y + 4, face: "down" },
     { x: m.x + 1, y: m.y, face: "down" },
     { x: m.x + 2, y: m.y, face: "down" },
-    { x: m.x + 3, y: m.y, face: "down" },
-    { x: m.x - 1, y: m.y + 1, face: "down" },
-    { x: m.x + m.w, y: m.y + 1, face: "down" },
-    { x: m.x, y: m.y + m.h, face: "up" },
-    { x: m.x + 2, y: m.y + m.h, face: "up" },
-    { x: m.x + 1, y: m.y - 1, face: "down" },
-    { x: m.x + 3, y: m.y - 1, face: "down" },
+    { x: m.x + 1, y: m.y + m.h - 1, face: "up" },
+    { x: m.x + 2, y: m.y + m.h - 1, face: "up" },
   ];
   const valid = isWalkable ? candidates.filter(c => isWalkable(c.x, c.y)) : candidates;
   const pool = valid.length ? valid : candidates;
