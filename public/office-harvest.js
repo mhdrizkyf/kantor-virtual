@@ -12,7 +12,7 @@
   if (!O) return;
 
   var ASSET_BASE = '/art/stardew-v1/';
-  var ASSET_VER = '?v=4';
+  var ASSET_VER = '?v=5';
   var ASSETS = {
     bg: { uri: ASSET_BASE + 'farmhouse-bg@2x.png', w: 768, h: 448 },
     meadow: { uri: ASSET_BASE + 'meadow-tile@2x.png', w: 96, h: 96 },
@@ -230,19 +230,19 @@
       '101101111001001', '111100111001111', '111100111101111', '111001001001001',
       '111101111101111', '111101111001111',
     ];
-    var x = 29 * T;
-    var y = 3 * T + 2;
+    var x = 29 * T + 5;
+    var y = 2 * T + 3;
     g.fillStyle = '#2c1d18';
-    g.fillRect(x, y, 27, 12);
+    g.fillRect(x, y, 27, 11);
     g.fillStyle = '#8b512c';
-    g.fillRect(x + 1, y + 1, 25, 10);
-    g.fillStyle = phase === 'night' ? '#2c221c' : '#3a2c24';
-    g.fillRect(x + 2, y + 2, 23, 8);
+    g.fillRect(x + 1, y + 1, 25, 9);
+    g.fillStyle = phase === 'night' ? '#241c17' : '#33261f';
+    g.fillRect(x + 2, y + 2, 23, 7);
     g.fillStyle = '#fbd578';
     for (var i = 0; i < label.length; i++) {
       var glyph = label[i] === ':' ? '000010000010000' : digits[Number(label[i])];
       for (var n = 0; n < 15; n++) {
-        if (glyph[n] === '1') g.fillRect(x + 4 + i * 4 + (n % 3), y + 3.5 + Math.floor(n / 3), 1, 1);
+        if (glyph[n] === '1') g.fillRect(x + 4 + i * 4 + (n % 3), y + 3 + Math.floor(n / 3), 1, 1);
       }
     }
   }
@@ -339,13 +339,22 @@
 
     scene.drawCampusChair = function (g, d, front) {
       var key = front ? 'chairSouth' : 'chairNorth';
-      drawImg(g, pack, key, d.x * T + 9, d.y * T + (front ? 20 : -14));
+      var occupied = this.agents && this.agents.some(function (a) {
+        return !a.hidden && a.state === 'seat' && scene.L.desks[a.desk] === d;
+      });
+      // Realistic human seating: chair pulls snugly under/behind seated characters (zero awkward gap!),
+      // and rests slightly pushed back when unoccupied.
+      if (front) {
+        drawImg(g, pack, key, d.x * T + 9, d.y * T + (occupied ? 11 : 15));
+      } else {
+        drawImg(g, pack, key, d.x * T + 9, d.y * T + (occupied ? -10 : -12));
+      }
     };
 
     // Interactive Workspace Critters (Chickens, Cats & Rabbits!) — autonomous roaming + click-to-pet!
     var critters = [
       { id: 'hen-north', kind: 'chicken', asset: 'chickenWhite', x: 13 * T, y: 0.9 * T, minX: 9.2 * T, maxX: 19.5 * T, minY: 0.45 * T, maxY: 1.25 * T, dir: 1, speed: 12, mode: 'walk', timer: 2.2, emote: '', emoteT: 0, jumpT: 0, seed: 1.1 },
-      { id: 'hen-south', kind: 'chicken', asset: 'chickenBrown', x: 33 * T, y: 25.1 * T, minX: 27 * T, maxX: 39.5 * T, minY: 24.85 * T, maxY: 25.45 * T, dir: -1, speed: 11, mode: 'peck', timer: 1.8, emote: '', emoteT: 0, jumpT: 0, seed: 2.7 },
+      { id: 'hen-south', kind: 'chicken', asset: 'chickenBrown', x: 32 * T, y: 25.15 * T, minX: 27 * T, maxX: 35.4 * T, minY: 24.9 * T, maxY: 25.45 * T, dir: -1, speed: 11, mode: 'peck', timer: 1.8, emote: '', emoteT: 0, jumpT: 0, seed: 2.7 },
       { id: 'cat-indoor', kind: 'cat', asset: 'catGinger', x: 21.5 * T, y: 22.4 * T, minX: 18.2 * T, maxX: 26.2 * T, minY: 20.6 * T, maxY: 23.1 * T, dir: 1, speed: 14, mode: 'nap', timer: 5.5, emote: '', emoteT: 0, jumpT: 0, seed: 3.4 },
       { id: 'cat-porch', kind: 'cat', asset: 'catTuxedo', x: 15.2 * T, y: 25.1 * T, minX: 9.5 * T, maxX: 19.2 * T, minY: 24.85 * T, maxY: 25.4 * T, dir: 1, speed: 13, mode: 'walk', timer: 3.2, emote: '', emoteT: 0, jumpT: 0, seed: 4.8 },
       { id: 'rabbit-ne', kind: 'rabbit', asset: 'rabbitWhite', x: 31 * T, y: 0.95 * T, minX: 27 * T, maxX: 35.8 * T, minY: 0.45 * T, maxY: 1.25 * T, dir: -1, speed: 18, mode: 'walk', timer: 1.9, emote: '', emoteT: 0, jumpT: 0, seed: 5.3 },
@@ -582,8 +591,9 @@
         g.save();
         g.globalCompositeOperation = 'lighter';
 
-        // Warm hearth firelight spilling across the lounge
+        // Warm hearth firelight & cozy lounge TV glow spilling across the breakout room
         drawWarmGlow(g, 12.2 * T, 21 * T, 56, 'rgba(255, 160, 66, ' + (0.42 * glowStrength).toFixed(2) + ')');
+        drawWarmGlow(g, 15.8 * T, 22.3 * T, 30, 'rgba(120, 200, 255, ' + (0.28 * glowStrength).toFixed(2) + ')');
 
         // Porch entrance lanterns flanking the farmhouse front door
         drawWarmGlow(g, 21.7 * T, 24.8 * T, 26, 'rgba(255, 206, 108, ' + (0.58 * glowStrength).toFixed(2) + ')');

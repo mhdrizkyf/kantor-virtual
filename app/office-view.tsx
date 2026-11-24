@@ -528,7 +528,27 @@ export default function OfficeView({ office, buildings, attention, people, seen,
         <div className="wrap hbar">
           <button type="button" className="office-nav-button" onClick={() => { setControlsOpen(false); setAttentionOpen(false); window.dispatchEvent(new Event("kantor:nav-toggle")); }} aria-label="Toggle navigation" title="Navigation">☰</button>
           <div className="brand"><h1>{office.workspace}</h1><span className={`office-live ${office.switchOpen ? "is-open" : "is-closed"}`}><i />{office.switchOpen ? "Office open" : "Office closed"}</span></div>
-          <div className="header-engines">{runtimeSummary.slice(0,3).map(([provider, list]) => <span key={provider} title={`${list.filter(r => r.online).length}/${list.length} online`}><b>{provider === "codex" ? "Codex" : provider === "claude" ? "Claude Code" : provider}</b><i><em style={{ width: `${Math.round(list.filter(r => r.online).length / list.length * 100)}%` }} /></i></span>)}</div>
+          {(() => {
+            const cq = office.codexQuota;
+            const pct = cq ? cq.remaining5h : (office.open ? 100 : 0);
+            const tone = !cq?.online ? "is-off" : pct < 15 ? "is-low" : pct < 40 ? "is-warn" : "is-ok";
+            const tipParts = [
+              `Codex ${cq?.planType ? `(${cq.planType.toUpperCase()})` : ""}`.trim(),
+              `5h credit left: ${pct}%${cq?.reset5hAt ? ` · resets ${cq.reset5hAt}` : ""}`,
+              cq ? `Weekly left: ${cq.remainingWeekly}%${cq.resetWeeklyAt ? ` · resets ${cq.resetWeeklyAt}` : ""}` : null,
+              cq?.creditsBalance ? `Extra credits: ${cq.creditsBalance}` : null,
+              cq ? `Runtimes online: ${cq.onlineCount}/${cq.totalCount}` : null,
+            ].filter(Boolean);
+            return (
+              <div className="header-engines">
+                <span className={`codex-meter ${tone}`} title={tipParts.join(" • ")}>
+                  <b>Codex</b>
+                  <i><em style={{ width: `${pct}%` }} /></i>
+                  <small className="codex-pct">{cq?.online === false && pct === 0 ? "Off" : `${pct}%`}</small>
+                </span>
+              </div>
+            );
+          })()}
           <div className="office-top-actions">
             <OfficeAmbience open={office.switchOpen} timeZone={office.timeZone} calendar={office.workCalendar} activeWork={activeWork} />
             <button type="button" className="office-top-button" aria-label="Team Standup" aria-expanded={standupOpen} onClick={() => openStandup()}><Px name="team" /><span className="btn-label">Standup</span></button>
@@ -577,7 +597,26 @@ export default function OfficeView({ office, buildings, attention, people, seen,
                 </div>
               </div>
             )}
-            <div className="runtime-strip" aria-label="AI engines">{runtimeSummary.map(([provider, list]) => <span className="runtime-chip" key={provider} title={list.map(r => r.name).join(", ")}><i className={list.some(r => r.online) ? "on" : ""} />{provider === "codex" ? "Codex" : provider === "claude" ? "Claude" : provider.charAt(0).toUpperCase() + provider.slice(1)}{list.length > 1 ? ` ${list.filter(r => r.online).length}/${list.length}` : ""}</span>)}</div>
+            <div className="runtime-strip" aria-label="Codex credit status">
+              {office.codexQuota ? (
+                <>
+                  <span className="runtime-chip" title={`Codex 5h rolling window${office.codexQuota.reset5hAt ? ` · resets ${office.codexQuota.reset5hAt}` : ""}`}>
+                    <i className={office.codexQuota.online ? "on" : ""} />
+                    Codex 5h · {office.codexQuota.remaining5h}% left
+                  </span>
+                  <span className="runtime-chip" title={`Codex 7-day quota${office.codexQuota.resetWeeklyAt ? ` · resets ${office.codexQuota.resetWeeklyAt}` : ""}`}>
+                    <i className={office.codexQuota.remainingWeekly > 15 ? "on" : ""} />
+                    Weekly · {office.codexQuota.remainingWeekly}% left
+                  </span>
+                </>
+              ) : (
+                runtimeSummary.filter(([p]) => p === "codex").map(([provider, list]) => (
+                  <span className="runtime-chip" key={provider} title={list.map(r => r.name).join(", ")}>
+                    <i className={list.some(r => r.online) ? "on" : ""} />Codex {list.filter(r => r.online).length}/{list.length}
+                  </span>
+                ))
+              )}
+            </div>
             <div className="office-controls-foot"><span className="clock">{refreshing ? "Refreshing…" : `Updated ${office.updatedAt}`}</span></div>
             <button className="office-preview-button" onClick={() => { setControlsOpen(false); setRoomId("all"); setPreviewStep(0); }}>▶ Preview workflow animation <small>Visual only; no Multica task changes</small></button>
           </div>}

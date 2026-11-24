@@ -7187,6 +7187,34 @@ main.pagewide > * {
   z-index: 12;
 }
 
+/* Compact "Working" badge by default; smoothly reveal full task detail only on hover! */
+.actor-speech.tone-working {
+  gap: 0;
+  padding: 3px 4px;
+  transition: opacity 160ms ease-out, border-color 140ms ease-out, box-shadow 140ms ease-out, padding 160ms ease-out, gap 160ms ease-out;
+}
+
+.actor-speech.tone-working .as-text {
+  max-width: 0;
+  opacity: 0;
+  transition: max-width 180ms ease-out, opacity 150ms ease-out;
+}
+
+.actor-speech.tone-working:hover,
+.actor-speech.tone-working:focus-visible,
+.actor-speech.tone-working.is-expanded {
+  gap: 6px;
+  padding: 4px 10px 4px 5px;
+  z-index: 15;
+}
+
+.actor-speech.tone-working:hover .as-text,
+.actor-speech.tone-working:focus-visible .as-text,
+.actor-speech.tone-working.is-expanded .as-text {
+  max-width: 215px;
+  opacity: 1;
+}
+
 .as-badge {
   flex: none;
   font-size: 9.5px;
@@ -7894,4 +7922,119 @@ main.pagewide > * {
 
 .reference-office.harvest-office .hs-seat > span {
   border-color: color-mix(in oklab, var(--accent) 45%, var(--line-strong));
+}
+
+/* ==========================================================================
+   Codex Remaining Credit Meter & Studio Sound Mixer Popover
+   ========================================================================== */
+
+.header-engines .codex-meter {
+  gap: 8px;
+  padding: 5px 11px;
+}
+
+.header-engines .codex-meter > i {
+  width: 54px;
+  height: 6px;
+}
+
+.header-engines .codex-meter.is-warn > i > em {
+  background: var(--warn);
+}
+
+.header-engines .codex-meter.is-low > i > em,
+.header-engines .codex-meter.is-off > i > em {
+  background: var(--bad);
+}
+
+.header-engines .codex-pct {
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-muted);
+}
+
+.sound-wrap {
+  position: relative;
+}
+
+.office-top-button.is-sound-on {
+  border-color: color-mix(in oklab, var(--ok) 48%, var(--line-strong));
+  color: var(--ok);
+}
+
+.sound-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 244px;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--panel-glass);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow-lg);
+  display: grid;
+  gap: 10px;
+  z-index: 60;
+}
+
+.sound-pop-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12.5px;
+  color: var(--ink);
+}
+
+.sound-pop-head small {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.sound-seg {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--sunk);
+  border: 1px solid var(--line);
+}
+
+.sound-seg .theme-seg-btn {
+  padding: 5px 3px;
+  font-size: 11px;
+  min-height: 28px;
+}
+
+.sound-vol-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.sound-slider {
+  width: 100%;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.sound-vol-val {
+  min-width: 32px;
+  text-align: right;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-muted);
+}
+
+.sound-hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--ink-muted);
 }

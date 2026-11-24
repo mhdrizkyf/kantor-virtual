@@ -801,16 +801,28 @@ function generateFarmhouseBackground(laneCanvas) {
   paintStardewCropPlot(c, 3 * S, 25 * S + 2, 4, 1, ["parsnip", "strawberry", "cauliflower", "sunflower"]);
   paintStardewCropPlot(c, 28 * S, 25 * S + 2, 5, 1, ["sunflower", "parsnip", "strawberry", "cauliflower", "parsnip"]);
 
-  // Real LPC wooden fences from bridges.png along garden borders
+  // Real LPC wooden fences from bridges.png along garden borders (STOPPING at x=38 so Garage Door x=40..45 is 100% unobstructed!)
   for (const fx of [11, 12, 13, 14, 15, 29, 30, 31, 32, 33]) {
     c.blit(SHEETS.bridges, 96, 96, 32, 32, fx * S, 18, { grade: GRADE.stardewWood });
   }
-  for (const fx of [10, 11, 12, 13, 14, 15, 16, 17, 36, 37, 38, 39, 40]) {
+  for (const fx of [10, 11, 12, 13, 14, 15, 16, 17, 36, 37, 38]) {
     c.blit(SHEETS.bridges, 96, 96, 32, 32, fx * S, 25 * S - 6, { grade: GRADE.stardewWood });
   }
-  // Decorative farm rocks from rock.png
+  // Smooth Paved Concrete Garage Driveway Apron (x=40..45, y=25) connecting Garage Door straight to main road!
+  const drX = 40 * S, drY = 25 * S, drW = 6 * S, drH = S + 4;
+  c.rect(drX - 2, drY, drW + 4, drH, hex("#6b727a")); // curb edge
+  c.rect(drX, drY, drW, drH, hex("#a3a9b0")); // concrete apron
+  c.rect(drX + 2, drY + 1, drW - 4, 3, hex("#c2c8cf")); // top bevel
+  for (let gx = drX + S * 2; gx < drX + drW; gx += S * 2) {
+    c.rect(gx, drY, 2, drH, hex("#848b94")); // expansion joint
+  }
+  // Subtle wheel exit guide tracks
+  c.rect(drX + 28, drY + 4, 18, drH - 6, hex("#8d949c", 110));
+  c.rect(drX + 94, drY + 4, 18, drH - 6, hex("#8d949c", 110));
+
+  // Decorative farm rocks from rock.png (clear of driveway!)
   c.blit(SHEETS.rock, 0, 0, SHEETS.rock.w, SHEETS.rock.h, 16 * S + 8, 22, { dw: 42, dh: 22 });
-  c.blit(SHEETS.rock, 0, 0, SHEETS.rock.w, SHEETS.rock.h, 42 * S, 25 * S + 4, { dw: 36, dh: 18 });
+  c.blit(SHEETS.rock, 0, 0, SHEETS.rock.w, SHEETS.rock.h, 38 * S + 20, 25 * S + 4, { dw: 32, dh: 18 });
 
   // STEP E: Farmhouse Interior Floors (100% aligned to OFFICE_PLAN walls!)
   // 1) Main Studio Floor (x=11..37, y=3..23) — Iconic Stardew Valley Honey-Oak Planks!
@@ -1164,22 +1176,48 @@ function generateFarmhouseBackground(laneCanvas) {
       c.box(px + 10, py + ph - 42, pw - 20, 26, hex("#54786b"), hex("#375248"), 2);
       c.rect(px + 12, py + ph - 38, pw - 24, 4, hex("#71998a"));
     } else if (p.k === "lounge") {
-      // Cozy Stardew Farmhouse Hearth Lounge (x=11..20, y=18..23)!
+      // IMAGE 1: Cozy Breakout Lounge with Plush Sofas, Coffee Table & Modern Smart TV Console (x=11..20, y=18..23)!
       // 1) Large ornate crimson & gold woven Stardew rug!
-      paintStardewCarpet(c, px + 40, py + 24, pw - 68, ph - 44);
+      paintStardewCarpet(c, px + 44, py + 20, pw - 72, ph - 38);
       // 2) Brick Hearth Fireplace along left wall (x=11..12, y=19..22 — aligned with live firelight!)
       paintStardewHearth(c, px + 4, py + 34, 48, 86);
-      // 3) Cozy green Stardew Cottage Sofa facing the hearth & coffee table!
-      paintStardewSofa(c, px + 94, py + 18, 124, 38, "south");
-      paintStardewSofa(c, px + pw - 52, py + 64, 40, 66, "west");
-      // 4) Hand-pixeled wood coffee table + tea service in center of rug (clean crop y=266..304!)
-      c.rect(px + 104, py + 78, 98, 38, SHADOW);
-      c.blit(SHEETS.cabinets, 96, 266, 64, 38, px + 102, py + 72, { dw: 98, dh: 40, grade: GRADE.stardewWood });
-      c.blit(SHEETS.cabinets, 128, 32, 32, 32, px + 134, py + 70);
-      c.blit(SHEETS.cabinets, 128, 64, 32, 32, px + 136, py + 72);
-      // Cozy woven cushions/footstools from country.png wooden chairs facing up
-      c.blit(SHEETS.country, 64, 32, 32, 32, px + 114, py + 122, { grade: GRADE.stardewWood });
-      c.blit(SHEETS.country, 64, 32, 32, 32, px + 162, py + 122, { grade: GRADE.stardewWood });
+      // 3) Plush 3-Seater Sage Sofa on top (facing south toward the TV!) + 2-Seater Loveseat on right!
+      paintStardewSofa(c, px + 92, py + 12, 132, 38, "south");
+      paintStardewSofa(c, px + pw - 50, py + 58, 40, 74, "west");
+      // 4) Modern Walnut Coffee Table in center with coffee mugs, snack plate & game controllers!
+      c.rect(px + 106, py + 74, 96, 34, SHADOW);
+      c.borderedRoundRect(px + 104, py + 68, 96, 36, 5, hex("#8f5932"), INK, 2);
+      c.rect(px + 108, py + 71, 88, 4, hex("#b87a4a"));
+      c.circle(px + 124, py + 84, 5, hex("#f7f2e8")); // coffee mug
+      c.circle(px + 124, py + 84, 3, hex("#5c351c"));
+      c.borderedRoundRect(px + 144, py + 78, 22, 12, 3, hex("#2c323b"), INK, 1); // game controller!
+      c.rect(px + 148, py + 82, 4, 4, hex("#68d67a"));
+      c.rect(px + 158, py + 82, 4, 4, hex("#ff7070"));
+      c.circle(px + 182, py + 85, 5, hex("#f7f2e8")); // snack plate
+      c.circle(px + 182, py + 85, 2.5, hex("#e5a44c"));
+      // 5) Sleek Walnut TV Media Console + Wide Flat-Screen Smart TV at bottom (facing north toward the sofa!)
+      const tvX = px + 96, tvY = py + ph - 48, tvW = 112, tvH = 28;
+      c.rect(tvX + 4, tvY + 12, tvW, 20, SHADOW);
+      // Low-profile mid-century walnut media console
+      c.borderedRoundRect(tvX, tvY + 8, tvW, 22, 3, hex("#6e4428"), INK, 2);
+      c.rect(tvX + 4, tvY + 10, tvW - 8, 5, hex("#96613c"));
+      // Console cabinets & soundbar
+      c.box(tvX + 6, tvY + 18, 30, 8, hex("#54331d"), hex("#382011"), 1);
+      c.box(tvX + tvW - 36, tvY + 18, 30, 8, hex("#54331d"), hex("#382011"), 1);
+      c.box(tvX + 40, tvY + 17, 32, 6, hex("#252a32"), INK, 1); // matte-black soundbar
+      c.rect(tvX + 54, tvY + 19, 4, 2, hex("#68e38a")); // power LED
+      // Wide Flat-Screen Smart TV mounted above console (crisp dark bezel + bright vivid screen!)
+      c.borderedRoundRect(tvX + 12, tvY - 12, tvW - 24, 24, 3, hex("#1c222b"), INK, 2);
+      // Vivid cozy Stardew Valley / studio ambient screen display!
+      c.rect(tvX + 16, tvY - 8, tvW - 32, 16, hex("#4aa4d8")); // sky
+      c.rect(tvX + 16, tvY + 1, tvW - 32, 7, hex("#54ad4e")); // valley hills
+      c.circle(tvX + 30, tvY - 3, 3, hex("#ffe675")); // little sun
+      c.rect(tvX + 58, tvY - 3, 14, 7, hex("#c9543e")); // cozy cottage on TV!
+      c.rect(tvX + 61, tvY - 1, 4, 3, hex("#ffe99c"));
+      // Diagonal glass screen highlight
+      c.line(tvX + 20, tvY - 7, tvX + 30, tvY + 6, 2, hex("#ffffff", 95));
+      // TV center stand neck
+      c.rect(tvX + Math.floor(tvW / 2) - 5, tvY + 10, 10, 5, hex("#2e343d"));
     } else if (p.k === "meeting") {
       // IMAGE 5: Relocated Modern-Cozy Community Standup Conference Table (x=30..33, y=12..13 — clear of front door!)
       c.rect(px + 4, py + 10, pw - 8, ph - 8, SHADOW);
@@ -1202,20 +1240,31 @@ function generateFarmhouseBackground(laneCanvas) {
       // Iconic Stardew Valley Pelican Town "Help Wanted" Bulletin Board!
       paintHelpWantedBoard(c, px, py, pw, ph);
     } else if (p.k === "server") {
-      // Rustic Stardew Valley Junimo / Clockwork Farm Control Cabinet (x=27..28, y=3..6)!
-      c.rect(px + 4, py + 12, pw - 4, ph - 10, SHADOW);
-      c.blit(SHEETS.cabinets, 128, 96, 32, 64, px, py + 4, { dw: 32, dh: 62, grade: GRADE.stardewWalnut });
-      c.blit(SHEETS.cabinets, 96, 96, 32, 64, px + 32, py + 4, { dw: 32, dh: 62, grade: GRADE.stardewWalnut });
-      c.blit(SHEETS.cabinets, 32, 96, 32, 64, px, py + 62, { dw: 32, dh: 58, grade: GRADE.stardewWalnut });
-      c.blit(SHEETS.cabinets, 64, 96, 32, 64, px + 32, py + 62, { dw: 32, dh: 58, grade: GRADE.stardewWalnut });
-      for (const gy of [20, 44, 78, 98]) {
-        c.box(px + 8, py + gy, 16, 12, hex("#2b2622"), hex("#c99442"), 1);
-        c.rect(px + 10, py + gy + 3, 4, 4, hex("#69e378"));
-        c.rect(px + 17, py + gy + 3, 4, 4, gy % 4 === 0 ? hex("#fbd35c") : hex("#69e378"));
-        c.box(px + 40, py + gy, 16, 12, hex("#2b2622"), hex("#c99442"), 1);
-        c.rect(px + 42, py + gy + 3, 4, 4, hex("#6ad6f2"));
-        c.rect(px + 49, py + gy + 3, 4, 4, hex("#69e378"));
+      // IMAGE 6: Sleek Unified Modern Walnut & Matte-Charcoal AI Engine Tower Cabinet (x=27..28, y=3..6 — clean separation from wall clock!)
+      const sx = px + 4, sy = py + 10, sw = pw - 10, sh = ph - 16; // 54x112 crisp unified rack cabinet
+      c.rect(sx + 4, sy + 8, sw, sh, SHADOW);
+      // Outer warm walnut architectural enclosure
+      c.borderedRoundRect(sx, sy, sw, sh, 4, hex("#6b442a"), INK, 2);
+      // Top beveled walnut lid with cooling vent slots
+      c.box(sx + 2, sy + 2, sw - 4, 14, hex("#8f5d3c"), hex("#472a17"), 1);
+      for (let vx = sx + 8; vx < sx + sw - 10; vx += 8) {
+        c.rect(vx, sy + 6, 4, 5, hex("#362013"));
       }
+      // Recessed matte-charcoal tempered glass equipment bay
+      c.box(sx + 6, sy + 18, sw - 12, sh - 26, hex("#232830"), hex("#12151a"), 2);
+      // 4 Clean Horizontal Codex / AI Compute Blades with crisp status LEDs & airflow mesh
+      for (let bi = 0; bi < 4; bi++) {
+        const by = sy + 24 + bi * 20;
+        c.box(sx + 10, by, sw - 20, 15, hex("#323944"), hex("#181c22"), 1);
+        c.rect(sx + 13, by + 3, 14, 3, hex("#4b5563")); // intake louver
+        c.rect(sx + 13, by + 8, 14, 3, hex("#4b5563"));
+        // Crisp glowing emerald & cyan LED indicators
+        c.rect(sx + sw - 22, by + 5, 4, 4, hex("#5be882"));
+        c.rect(sx + sw - 16, by + 5, 4, 4, bi === 1 ? hex("#fbd35c") : hex("#6ad6f2"));
+      }
+      // Subtle diagonal glass door reflection + brass handle
+      c.line(sx + 10, sy + 24, sx + 22, sy + 42, 2, hex("#ffffff", 45));
+      c.rect(sx + sw - 9, sy + 52, 2, 16, hex("#d9b15f"));
     } else if (p.k === "coffee") {
       // Cozy Stardew Coffee & Tea Sideboard (x=34..36, y=3..4)!
       c.rect(px + 4, py + 14, pw - 8, ph - 10, SHADOW);
@@ -1461,10 +1510,10 @@ function generateChair(dir) {
     c.blit(SHEETS.country, 64, 2, 32, 28, -1, 0, { dw: 32, dh: 26, grade: GRADE.stardewWood });
     return c;
   }
-  // Exact 30x40 — cropped directly from country.png wooden chair facing north (64, 32, 32, 32)!
+  // Exact 30x40 — positioned near top (y=0..34) so seated characters sit snugly ON the chair with zero floor gap!
   const c = new Canvas(30, 40);
-  c.rect(4, 33, 22, 5, SHADOW_SOFT);
-  c.blit(SHEETS.country, 64, 32, 32, 32, -1, 4, { dw: 32, dh: 34, grade: GRADE.stardewWood });
+  c.rect(4, 30, 22, 5, SHADOW_SOFT);
+  c.blit(SHEETS.country, 64, 32, 32, 32, -1, 0, { dw: 32, dh: 34, grade: GRADE.stardewWood });
   return c;
 }
 

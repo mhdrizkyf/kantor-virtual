@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import vm from "node:vm";
 import {
   floorPropLabel,
@@ -9,6 +10,7 @@ import {
   parseHarvestLighting,
   resolveHarvestPhase,
 } from "../lib/harvest-theme";
+import { readCodexQuota } from "../lib/codex-quota";
 
 test("all Stardew Valley 2x Retina PNG assets exist with exact expected dimensions", () => {
   const expected: Record<string, [number, number]> = {
@@ -134,4 +136,62 @@ test("public/office-harvest.js installs cleanly, switches phases live, and unins
   assert.equal(scene.drawWindows, origWin);
   assert.equal(scene.drawCampusDesk, origDesk);
   assert.equal(scene.drawCampusChair, origChair);
+});
+
+test("readCodexQuota syncs real remaining 5h & weekly percentages and resets expired windows", () => {
+  const dir = mkdtempSync(join(tmpdir(), "codex-quota-test-"));
+  try {
+    const sessDir = join(dir, "sessions", "2026", "11", "24");
+    mkdirSync(sessDir, { recursive: true });
+    const nowSec = Math.floor(Date.parse("2026-11-24T10:00:00Z") / 1000);
+    writeFileSync(
+      join(sessDir, "rollout-2026-11-24T10-00-00.jsonl"),
+      JSON.stringify({
+        payload: {
+          rate_limits: {
+            limit_id: "codex",
+            plan_type: "plus",
+            primary: { used_percent: 28, window_minutes: 300, resets_at: nowSec + 7200 },
+            secondary: { used_percent: 42, window_minutes: 10080, resets_at: nowSec + 86400 },
+            credits: { has_credits: false, unlimited: false, balance: "0" },
+          },
+        },
+      }) + "\n"
+    );
+
+    const active = readCodexQuota({
+      runtimes: [{ provider: "codex", online: true, quotaOut: false, quotaReset: null }],
+      timeZone: "Asia/Jakarta",
+      codexHome: dir,
+      now: new Date(nowSec * 1000),
+    });
+    assert.equal(active.source, "codex-session");
+    assert.equal(active.remaining5h, 72);
+    assert.equal(active.remainingWeekly, 58);
+    assert.equal(active.planType, "plus");
+    assert.ok(active.reset5hAt);
+
+    // Once primary 5h reset timestamp passes, remaining5h resets cleanly to 100%
+    const afterReset = readCodexQuota({
+      runtimes: [{ provider: "codex", online: true, quotaOut: false, quotaReset: null }],
+      timeZone: "Asia/Jakarta",
+      codexHome: dir,
+      now: new Date((nowSec + 8000) * 1000),
+    });
+    assert.equal(afterReset.remaining5h, 100);
+    assert.equal(afterReset.remainingWeekly, 58);
+
+    // Live Multica quota-out error always clamps remaining5h to 0%
+    const capped = readCodexQuota({
+      runtimes: [{ provider: "codex", online: true, quotaOut: true, quotaReset: "21:30" }],
+      timeZone: "Asia/Jakarta",
+      codexHome: dir,
+      now: new Date(nowSec * 1000),
+    });
+    assert.equal(capped.source, "multica-quota");
+    assert.equal(capped.remaining5h, 0);
+    assert.equal(capped.reset5hAt, "21:30");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
