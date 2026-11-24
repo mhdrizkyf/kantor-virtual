@@ -924,14 +924,17 @@ function generateFarmhouseBackground(laneCanvas) {
       }
     }
   }
-  // Crisp painted yellow-amber parking bay guide lines framing the modern car slot (x=39.6..44.2, y=15.5..22.8)
-  c.rect(39 * S + 18, 15 * S + 18, 4, 7 * S + 10, hex("#e8be4a", 210));
-  c.rect(44 * S + 8, 15 * S + 18, 4, 7 * S + 10, hex("#e8be4a", 210));
-  c.rect(39 * S + 18, 15 * S + 18, 5 * S - 6, 4, hex("#e8be4a", 210));
-  // Rubber wheel-stop curb at front of parking bay
-  c.borderedRoundRect(40 * S + 16, 15 * S + 26, 3 * S, 9, 3, hex("#3c4149"), INK, 1);
-  c.rect(40 * S + 28, 15 * S + 28, 14, 5, hex("#f0c64b"));
-  c.rect(42 * S + 6, 15 * S + 28, 14, 5, hex("#f0c64b"));
+  // Crisp painted yellow-amber parking bay guide lines framing the modern car slot (x=39.6..44.2, y=15.6..22.8)
+  c.rect(39 * S + 18, 15 * S + 20, 4, 7 * S + 8, hex("#e8be4a", 210));
+  c.rect(44 * S + 8, 15 * S + 20, 4, 7 * S + 8, hex("#e8be4a", 210));
+  c.rect(39 * S + 18, 15 * S + 20, 5 * S - 6, 4, hex("#e8be4a", 210));
+  // Rubber wheel-stop curb at front of parking bay + ribbed rubber entry mat at garage doorway (x=39, y=15..16)
+  c.borderedRoundRect(40 * S + 16, 15 * S + 28, 3 * S, 8, 3, hex("#343940"), INK, 1);
+  c.rect(40 * S + 28, 15 * S + 30, 14, 4, hex("#f0c64b"));
+  c.rect(42 * S + 6, 15 * S + 30, 14, 4, hex("#f0c64b"));
+  // Subtle ribbed charcoal entry mat inside garage door
+  c.borderedRoundRect(39 * S + 2, 15 * S + 8, 12, 46, 2, hex("#3c424a"), hex("#22262b"), 1);
+  for (let my = 15 * S + 14; my < 15 * S + 50; my += 6) c.rect(39 * S + 4, my, 8, 2, hex("#525a63"));
 
   // Doorway floor thresholds connecting rooms smoothly (Boardroom doorway at x=38, y=7..8; Garage doorway at x=38, y=15..16!)
   paintHoneyOakFloor(c, 10, 8, 1, 2, "honey");
@@ -1113,10 +1116,10 @@ function generateFarmhouseBackground(laneCanvas) {
   c.circle(9 * S + 21, 23 * S + 11, 7, hex("#438f4c"));
   c.circle(9 * S + 16, 23 * S + 6, 6, hex("#62b360"));
 
-  // 2) Structured Studio Workstation Pod Woven Area Rugs — warmly framing all 4 symmetrical desk pods!
+  // 2) Structured Studio Workstation Pod Woven Area Rugs — 4 UNIFORM 6-desk pods (3x2 each)!
   for (const pod of [
     { x: 11 * S + 24, y: 3 * S + 26, w: 8 * S + 16, h: 4 * S + 16 }, // Pod NW (6 desks: x=12,15,18 y=5..6)
-    { x: 12 * S + 24, y: 10 * S + 26, w: 5 * S + 16, h: 4 * S + 16 }, // Pod Mid-West (4 desks: x=13,16 y=12..13)
+    { x: 11 * S + 24, y: 10 * S + 26, w: 8 * S + 16, h: 4 * S + 16 }, // Pod Mid-West (6 desks: x=12,15,18 y=12..13)
     { x: 26 * S + 24, y: 7 * S + 26, w: 8 * S + 16, h: 4 * S + 16 }, // Pod NE (6 desks: x=27,30,33 y=9..10)
     { x: 26 * S + 24, y: 15 * S + 26, w: 8 * S + 16, h: 4 * S + 16 }, // Pod SE (6 desks: x=27,30,33 y=17..18)
   ]) {
@@ -1561,6 +1564,55 @@ function generateFarmhouseBackground(laneCanvas) {
     } else if (p.k === "board") {
       // Iconic Stardew Valley Pelican Town "Help Wanted" Bulletin Board!
       paintHelpWantedBoard(c, px, py, pw, ph);
+    } else if (p.k === "hub") {
+      // IMAGE 3: Airy Central Studio Resource & Greenery Hub (x=22..24, y=12..13 -> 96x64px)
+      // Calm, refined workstation companion hub (Laser Printer + Bonsai/Library + Filtered Water Station) — zero clutter!
+      // Subtle woven sage-linen accent mat grounding the island cleanly in the central avenue
+      const rx = px - 10, ry = py - 12, rw = pw + 20, rh = ph + 24;
+      c.rect(rx + 2, ry + 3, rw, rh, SHADOW_SOFT);
+      c.borderedRoundRect(rx, ry, rw, rh, 6, hex("#ced7cc", 205), hex("#738775", 215), 2);
+      c.box(rx + 6, ry + 6, rw - 12, rh - 12, hex("#dfe6dd", 190), hex("#a6b8a5", 190), 1);
+
+      // Sleek Low-Profile Warm-Walnut & Matte-Cream Studio Credenza Island (centered inside mat!)
+      const ix = px + 2, iy = py + 8, iw = pw - 4, ih = ph - 16; // 92x48px
+      c.rect(ix + 2, iy + 5, iw, ih, SHADOW);
+      c.borderedRoundRect(ix, iy, iw, ih, 5, hex("#7d4e2d"), INK, 2); // walnut base cabinet
+      c.box(ix + 3, iy + 3, iw - 6, ih - 14, hex("#f2ede3"), hex("#b5aa98"), 1); // warm stone/cream top slab
+      // Front walnut cabinet doors with subtle brass pulls
+      for (const bx of [ix + 6, ix + 34, ix + 62]) {
+        c.box(bx, iy + ih - 10, 24, 7, hex("#683e22"), hex("#472915"), 1);
+        c.rect(bx + 8, iy + ih - 8, 8, 2, hex("#e3b95d"));
+      }
+
+      // 1) Left: Sleek Modern Studio Multifunction Laser Printer + Crisp Printed Report Sheet!
+      const prX = ix + 7, prY = iy + 6;
+      c.borderedRoundRect(prX, prY, 26, 22, 3, hex("#e6e9ed"), INK, 1);
+      c.rect(prX + 3, prY + 3, 20, 6, hex("#2f3640")); // sleek dark scanner lid & touch strip
+      c.rect(prX + 18, prY + 5, 3, 2, hex("#5be882")); // green ready LED
+      c.box(prX + 5, prY + 12, 16, 13, hex("#ffffff"), hex("#9aa4b0"), 1); // freshly printed wireframe sheet!
+      c.rect(prX + 7, prY + 15, 10, 2, hex("#7d8ea0"));
+      c.rect(prX + 7, prY + 19, 12, 2, hex("#a8b4c0"));
+
+      // 2) Center: Minimalist Stoneware Bonsai/Succulent Planter + Stacked Studio Reference Books!
+      c.box(ix + 38, iy + 18, 16, 10, hex("#5c8c72"), INK, 1); // hardcover design guide
+      c.box(ix + 40, iy + 14, 14, 7, hex("#d47b52"), INK, 1); // stacked product playbook
+      c.circle(ix + 46, iy + 10, 6, hex("#f5f1e8")); // minimalist stoneware bonsai pot
+      c.circle(ix + 44, iy + 8, 4, hex("#47914a"));
+      c.circle(ix + 49, iy + 9, 3.5, hex("#66b562"));
+
+      // 3) Right: Modern Filtered Cold/Hot Studio Water Bar + Crystal Glass Tumblers!
+      const wtX = ix + 61, wtY = iy + 6;
+      c.borderedRoundRect(wtX, wtY, 15, 22, 3, hex("#eef3f7"), INK, 1); // matte-white water station
+      c.circle(wtX + 7, wtY + 7, 5, hex("#9ad4f2")); // chilled filtered water reservoir
+      c.circle(wtX + 7, wtY + 7, 3, hex("#d6f0fc"));
+      c.rect(wtX + 4, wtY + 15, 3, 2, hex("#3c9de8")); // cold blue LED
+      c.rect(wtX + 9, wtY + 15, 3, 2, hex("#e8664a")); // hot coral LED
+      c.box(wtX + 3, wtY + 18, 9, 3, hex("#4b535e"), INK, 1); // stainless drip tray
+      // Two crystal water tumblers on a tiny slate coaster beside the dispenser
+      c.circle(ix + 82, iy + 12, 3.5, hex("#dceef7"));
+      c.ring(ix + 82, iy + 12, 3.5, 2, hex("#7d9bb0"));
+      c.circle(ix + 82, iy + 22, 3.5, hex("#dceef7"));
+      c.ring(ix + 82, iy + 22, 3.5, 2, hex("#7d9bb0"));
     } else if (p.k === "server") {
       // IMAGE 6: Sleek Unified Modern Walnut & Matte-Charcoal AI Engine Tower Cabinet (x=27..28, y=3..6 — clean separation from wall clock!)
       const sx = px + 4, sy = py + 10, sw = pw - 10, sh = ph - 16; // 54x112 crisp unified rack cabinet
@@ -1659,110 +1711,124 @@ function generateFarmhouseBackground(laneCanvas) {
         }
       }
     } else if (p.k === "storage") {
-      // Compact Modern Garage East Wall: Slim Storage Locker + EV Wallbox Charger beside Car Bay (x=45, y=15..21)!
-      // Compact steel wall tool locker at top
-      c.rect(px + 4, py + 8, 24, 52, SHADOW);
-      c.box(px + 2, py + 4, 26, 54, hex("#3d444e"), INK, 2);
-      c.box(px + 5, py + 9, 20, 18, hex("#597896"), hex("#2c3e50"), 1);
-      c.rect(px + 10, py + 16, 10, 4, hex("#f5efe2"));
-      c.box(px + 5, py + 32, 20, 20, hex("#d99a3b"), hex("#7a5116"), 1);
-      c.rect(px + 10, py + 40, 10, 4, hex("#f5efe2"));
-      // Modern EV Wallbox Charger beside Car Bay (glowing emerald LED ring + coiled cable!)
-      c.rect(px + 4, py + 104, 24, 44, SHADOW);
-      c.borderedRoundRect(px + 2, py + 100, 26, 46, 5, hex("#eef2f5"), INK, 2);
-      c.box(px + 6, py + 107, 18, 18, hex("#282e36"), hex("#5e6873"), 1);
-      c.ring(px + 15, py + 116, 5, 3, hex("#4ce37d")); // glowing emerald EV ready ring!
-      c.line(px + 2, py + 132, px - 10, py + 146, 3, hex("#262b31")); // coiled EV cable
-    } else if (p.k === "bike") {
-      // Sleek Mint City Bicycle parked neatly along North Garage Wall (x=40..42, y=14 -> 96x32px)!
-      const yWheel = py + 20;
-      const xRear = px + 20;
-      const xFront = px + pw - 22;
-      const rWheel = 11;
-      c.ellipse(xRear, yWheel + 9, 10, 3, SHADOW);
-      c.ellipse(xFront, yWheel + 9, 10, 3, SHADOW);
-      for (const wx of [xRear, xFront]) {
-        c.ring(wx, yWheel, rWheel, rWheel - 2.5, hex("#20242a"));
-        c.ring(wx, yWheel, rWheel - 2.5, rWheel - 4, hex("#cfd6de"));
-        for (let a = 0; a < 4; a++) {
-          const ang = (a * Math.PI) / 4;
-          const dx = Math.cos(ang) * (rWheel - 3), dy = Math.sin(ang) * (rWheel - 3);
-          c.line(wx - dx, yWheel - dy, wx + dx, yWheel + dy, 1, hex("#9ba5b0", 190));
-        }
-        c.circle(wx, yWheel, 2.5, hex("#4b535e"));
+      // IMAGE 1: Modern Studio Garage — Flush North Wall Workbench Cabinet (y=14) + Sleek East Wall EV Wallbox Charger (x=45)!
+      // A) Built-In Matte-Charcoal & Butcher-Block Garage Storage Bench flush against North Garage Wall (y=14, x=39.6..44.8)
+      const gbX = 39 * S + 20, gbY = 14 * S + 1, gbW = 5 * S + 6, gbH = 26;
+      c.rect(gbX + 2, gbY + 5, gbW, gbH, SHADOW_SOFT);
+      c.box(gbX, gbY, gbW, gbH, hex("#363d47"), INK, 2); // matte-charcoal cabinet
+      c.box(gbX + 2, gbY + 2, gbW - 4, 11, hex("#cfa06b"), hex("#78522d"), 1); // warm oak butcher-block top
+      c.rect(gbX + 4, gbY + 3, gbW - 8, 2, hex("#ebd0a2"));
+      for (let dx = gbX + 8; dx < gbX + gbW - 22; dx += 32) {
+        c.box(dx, gbY + 15, 26, 8, hex("#48515e"), hex("#232830"), 1);
+        c.rect(dx + 8, gbY + 18, 10, 2, hex("#d6dde6")); // brushed aluminum drawer pull
       }
-      const frame = hex("#2f9c8c");
-      const frameHi = hex("#5ec9b6");
-      const bbX = px + 44, bbY = yWheel;
-      const seatTopX = px + 36, seatTopY = py + 7;
-      const headTopX = px + pw - 29, headTopY = py + 6;
-      const headBotX = px + pw - 26, headBotY = py + 12;
-      c.line(xRear, yWheel, bbX, bbY, 2, hex("#23272e"));
-      c.line(xRear, yWheel, seatTopX, seatTopY, 2.5, frame);
-      c.line(bbX, bbY, seatTopX, seatTopY, 3, frame);
-      c.line(seatTopX, seatTopY, headTopX, headTopY, 3, frame);
-      c.line(seatTopX, seatTopY - 1, headTopX, headTopY - 1, 1, frameHi);
-      c.line(bbX, bbY, headBotX, headBotY, 3, frame);
-      c.line(headTopX, headTopY, xFront, yWheel, 2.5, frame);
-      c.circle(bbX, bbY, 4, hex("#454d57"));
-      c.circle(bbX, bbY, 1.5, hex("#cfd6de"));
-      c.line(seatTopX, seatTopY, seatTopX - 2, py + 3, 2, hex("#c8d0d8"));
-      c.borderedRoundRect(seatTopX - 9, py + 1, 14, 5, 2, hex("#5c3a24"), INK, 1);
-      c.line(headTopX, headTopY, headTopX + 2, py + 3, 2, hex("#c8d0d8"));
-      c.line(headTopX - 3, py + 3, headTopX + 7, py + 4, 2.5, hex("#2a2f36"));
-      c.circle(headTopX + 8, py + 7, 2.5, hex("#ffe680"));
+      // Neat red mechanic toolbox + detailing bottles resting on the butcher-block bench
+      c.box(gbX + 12, gbY + 3, 20, 9, hex("#c93834"), INK, 1);
+      c.rect(gbX + 18, gbY + 6, 8, 2, hex("#e8edf2"));
+      c.box(gbX + gbW - 26, gbY + 4, 5, 7, hex("#5998b8"), INK, 1);
+      c.box(gbX + gbW - 18, gbY + 4, 5, 7, hex("#e8b948"), INK, 1);
+      // Slim wall-mounted tool strip inside the y=13 divider wall plaster above the bench!
+      c.box(gbX + 36, 13 * S + 16, 72, 11, hex("#2b313a"), INK, 1);
+      for (let tx = gbX + 43; tx < gbX + 102; tx += 11) {
+        c.rect(tx, 13 * S + 18, 3, 7, hex("#c5ced6"));
+      }
+
+      // B) Modern Architectural EV Wallbox Charger mounted cleanly on East Wall beside Car (x=45, y=17..19)!
+      const evX = px + 2, evY = 17 * S + 16;
+      c.rect(evX + 2, evY + 5, 24, 50, SHADOW);
+      c.borderedRoundRect(evX, evY, 26, 52, 6, hex("#f0f4f7"), INK, 2); // satin-white EV charger body
+      c.rect(evX + 2, evY + 2, 22, 6, hex("#ffffff"));
+      c.borderedRoundRect(evX + 4, evY + 10, 18, 22, 3, hex("#1f252d"), hex("#545e6b"), 1); // obsidian display
+      c.ring(evX + 13, evY + 19, 5, 3, hex("#4ce37d")); // glowing emerald EV ready halo
+      c.rect(evX + 8, evY + 27, 10, 2, hex("#68d6f0")); // charge bar
+      // Coiled charging cable + wall dock holster below charger
+      c.borderedRoundRect(evX + 6, evY + 38, 14, 10, 2, hex("#323942"), INK, 1);
+      c.ring(evX - 4, evY + 42, 7, 4.5, hex("#232830")); // neatly coiled matte-black cable loop!
     } else if (p.k === "car") {
-      // REAL Detailed Top-Down Pixel-Art Modern Sporty Car (Crimson Metallic Hatchback/SUV, x=40..43, y=16..21 -> 128x192px)!
-      const cx = px + 14, cy = py + 10, cw = pw - 28, ch = ph - 20; // 100x172 px crisp modern vehicle!
-      c.roundRect(cx - 2, cy + 5, cw + 8, ch + 4, 22, SHADOW);
+      // IMAGE 1: Executive Sculpted Modern Fastback / Sporty SUV (Crimson Metallic, x=40..43, y=16..21 -> 128x192px)!
+      // Tapered aerodynamic front nose & rear deck, wide muscular fenders, smoked glass cabin, clearcoat highlights!
+      const cx = px + 14, cy = py + 8, cw = pw - 28, ch = ph - 14; // 100x178px sculpted silhouette!
+      const midX = cx + Math.floor(cw / 2);
+
+      // Soft contoured ground shadow
+      c.roundRect(cx - 2, cy + 6, cw + 8, ch + 3, 24, SHADOW);
+
+      // 4 Recessed Wide Sport Tires inside subtle dark wheel-arch recesses
       for (const [tx, ty] of [
-        [cx - 4, cy + 24], [cx + cw - 5, cy + 24],
-        [cx - 4, cy + ch - 54], [cx + cw - 5, cy + ch - 54],
+        [cx - 3, cy + 24], [cx + cw - 5, cy + 24],
+        [cx - 3, cy + ch - 56], [cx + cw - 5, cy + ch - 56],
       ]) {
-        c.borderedRoundRect(tx, ty, 9, 30, 4, hex("#1f2329"), INK, 1);
-        c.rect(tx + 2, ty + 5, 2, 20, hex("#3c434d"));
+        c.borderedRoundRect(tx, ty, 8, 30, 3, hex("#1a1e24"), INK, 1);
+        c.rect(tx + 2, ty + 5, 2, 20, hex("#3d4550")); // tire tread sheen
       }
-      const paint = hex("#c93838");
-      const paintHi = hex("#e55852");
-      const paintDark = hex("#8a1e22");
-      c.borderedRoundRect(cx, cy, cw, ch, 20, paint, INK, 2);
-      c.roundRect(cx + 4, cy + 4, cw - 8, ch - 8, 17, paintHi);
-      c.roundRect(cx + 10, cy + 8, cw - 20, ch - 16, 13, paint);
-      c.rect(cx + 22, cy + ch - 42, 3, 28, paintHi);
-      c.rect(cx + cw - 25, cy + ch - 42, 3, 28, paintHi);
-      c.borderedRoundRect(cx - 10, cy + ch - 66, 12, 9, 3, paint, INK, 2);
-      c.borderedRoundRect(cx + cw - 2, cy + ch - 66, 12, 9, 3, paint, INK, 2);
-      // Rear window
-      c.borderedRoundRect(cx + 15, cy + 16, cw - 30, 22, 7, hex("#2c3c4c"), INK, 2);
-      c.line(cx + 22, cy + 20, cx + 34, cy + 32, 3, hex("#6a94b8", 160));
-      // Roof & Panoramic Tinted Glass Sunroof
-      c.borderedRoundRect(cx + 13, cy + 40, cw - 26, 56, 8, paintHi, paintDark, 2);
-      c.borderedRoundRect(cx + 20, cy + 47, cw - 40, 40, 6, hex("#23303d"), hex("#141a21"), 2);
-      c.line(cx + 26, cy + 54, cx + 52, cy + 80, 5, hex("#5983a8", 120));
-      c.line(cx + 42, cy + 52, cx + 62, cy + 72, 2, hex("#9ac4e6", 110));
-      c.rect(cx + 14, cy + 42, 3, 52, hex("#3c434d"));
-      c.rect(cx + cw - 17, cy + 42, 3, 52, hex("#3c434d"));
-      c.box(cx + Math.floor(cw / 2) - 2, cy + 42, 4, 8, hex("#262b31"), INK, 1);
-      // Curved Front Windshield
-      c.borderedRoundRect(cx + 13, cy + 98, cw - 26, 28, 8, hex("#2c3c4c"), INK, 2);
-      c.line(cx + 20, cy + 104, cx + 36, cy + 120, 4, hex("#7ab2db", 170));
-      c.line(cx + 34, cy + 103, cx + 46, cy + 115, 2, hex("#c2e3fa", 160));
-      c.line(cx + 22, cy + 122, cx + 42, cy + 118, 2, hex("#181c20"));
-      c.line(cx + 52, cy + 122, cx + 74, cy + 118, 2, hex("#181c20"));
-      c.rect(cx + 5, cy + 72, 4, 2, paintDark);
-      c.rect(cx + cw - 9, cy + 72, 4, 2, paintDark);
-      c.rect(cx + 6, cy + 84, 3, 8, hex("#e3e8ee"));
-      c.rect(cx + cw - 9, cy + 84, 3, 8, hex("#e3e8ee"));
-      c.box(cx + 14, cy + 4, 22, 6, hex("#ff4a4a"), hex("#5e1010"), 1);
-      c.box(cx + cw - 36, cy + 4, 22, 6, hex("#ff4a4a"), hex("#5e1010"), 1);
-      c.rect(cx + 38, cy + 5, cw - 76, 4, hex("#d42c2c"));
-      c.box(cx + Math.floor(cw / 2) - 10, cy + 1, 20, 4, hex("#f4f6f8"), INK, 1);
-      c.borderedRoundRect(cx + 12, cy + ch - 12, 22, 8, 3, hex("#fff9d6"), hex("#4a4f57"), 1);
-      c.borderedRoundRect(cx + cw - 34, cy + ch - 12, 22, 8, 3, hex("#fff9d6"), hex("#4a4f57"), 1);
-      c.rect(cx + 16, cy + ch - 9, 14, 3, hex("#ffffff"));
-      c.rect(cx + cw - 30, cy + ch - 9, 14, 3, hex("#ffffff"));
-      c.borderedRoundRect(cx + 36, cy + ch - 9, cw - 72, 6, 2, hex("#242930"), INK, 1);
-      c.circle(cx + Math.floor(cw / 2), cy + ch - 6, 2, hex("#d6dde6"));
+
+      // Rich Multi-Tone Metallic Ruby-Crimson Sculpted Body
+      const bodyDeep = hex("#7d191e");
+      const bodyBase = hex("#ba2930");
+      const bodyMid = hex("#d43b40");
+      const bodySpec = hex("#f07872");
+
+      // Tapered Rear Haunch & Front Nose Cap (gives genuine car taper instead of boxy rectangle!)
+      c.borderedRoundRect(cx + 6, cy, cw - 12, ch, 20, bodyBase, INK, 2);
+      // Wide Muscular Mid-Body & Wheel-Arch Fenders
+      c.borderedRoundRect(cx, cy + 16, cw, ch - 32, 16, bodyBase, INK, 2);
+      // Smooth inner body blend covering the taper join seams
+      c.roundRect(cx + 3, cy + 14, cw - 6, ch - 28, 14, bodyMid);
+      c.roundRect(cx + 8, cy + 4, cw - 16, ch - 8, 16, bodyMid);
+      c.roundRect(cx + 12, cy + 8, cw - 24, ch - 16, 12, bodyBase);
+
+      // Crisp Metallic Shoulder Lines & Sculpted Hood Power-Domes!
+      c.rect(cx + 4, cy + 26, 3, ch - 54, bodySpec); // left sculpted fender highlight
+      c.rect(cx + cw - 7, cy + 26, 3, ch - 54, bodySpec); // right sculpted fender highlight
+      c.line(cx + 20, cy + ch - 44, cx + 26, cy + ch - 14, 2, bodySpec); // sculpted V-hood crease L
+      c.line(cx + cw - 20, cy + ch - 44, cx + cw - 26, cy + ch - 14, 2, bodySpec); // sculpted V-hood crease R
+      c.rect(cx + 10, cy + ch - 16, cw - 20, 2, bodyDeep); // front hood shutline
+
+      // Aerodynamic Body-Colored Side Wing Mirrors
+      c.borderedRoundRect(cx - 10, cy + ch - 70, 12, 8, 3, bodyMid, INK, 2);
+      c.rect(cx - 8, cy + ch - 68, 6, 2, bodySpec);
+      c.borderedRoundRect(cx + cw - 2, cy + ch - 70, 12, 8, 3, bodyMid, INK, 2);
+      c.rect(cx + cw + 2, cy + ch - 68, 6, 2, bodySpec);
+
+      // Wrap-Around Smoked Glass Cabin Greenhouse (dark A/B/C pillars + continuous sleek roof glass!)
+      c.borderedRoundRect(cx + 13, cy + 18, cw - 26, 114, 12, hex("#1c242e"), INK, 2); // dark glass greenhouse frame
+      // Rear Fastback Window (north)
+      c.borderedRoundRect(cx + 17, cy + 21, cw - 34, 20, 6, hex("#2f4357"), hex("#141b24"), 1);
+      c.line(cx + 24, cy + 24, cx + 34, cy + 36, 3, hex("#7ab0d9", 150));
+      // Glossy Tinted Panoramic Sunroof framed by painted roof rails
+      c.borderedRoundRect(cx + 16, cy + 43, cw - 32, 54, 6, bodyMid, bodyDeep, 1);
+      c.borderedRoundRect(cx + 21, cy + 47, cw - 42, 46, 5, hex("#233242"), hex("#121921"), 1);
+      c.line(cx + 26, cy + 54, cx + 52, cy + 84, 5, hex("#6898bf", 130)); // soft glass sky sheen
+      c.line(cx + 42, cy + 52, cx + 62, cy + 74, 2, hex("#b3daf5", 130));
+      // Shark-fin roof antenna
+      c.box(midX - 2, cy + 43, 4, 7, hex("#22272e"), INK, 1);
+
+      // Swept Curved Front Windshield (south, facing garage roller door!)
+      c.borderedRoundRect(cx + 15, cy + 99, cw - 30, 30, 8, hex("#2e4459"), hex("#141c24"), 1);
+      c.line(cx + 22, cy + 104, cx + 38, cy + 122, 4, hex("#89c2eb", 170));
+      c.line(cx + 36, cy + 103, cx + 48, cy + 117, 2, hex("#d4edff", 160));
+      // Subtle windshield wiper blades
+      c.line(cx + 22, cy + 125, cx + 42, cy + 121, 2, hex("#14181d"));
+      c.line(cx + 52, cy + 125, cx + 74, cy + 121, 2, hex("#14181d"));
+
+      // Flush Chrome Door Handles & Side Character Line
+      c.rect(cx + 7, cy + 76, 3, 7, hex("#e3e9ef"));
+      c.rect(cx + cw - 10, cy + 76, 3, 7, hex("#e3e9ef"));
+
+      // Sleek Full-Width Smoked-Ruby Rear LED Tail Light Bar (north bumper) + Rear Spoiler Lip
+      c.rect(cx + 16, cy + 12, cw - 32, 3, bodyDeep); // rear lip spoiler
+      c.box(cx + 15, cy + 4, cw - 30, 6, hex("#ff3d47"), hex("#5e0d12"), 1);
+      c.rect(cx + 17, cy + 6, 20, 2, hex("#ff9e9e")); // bright LED signature L
+      c.rect(cx + cw - 37, cy + 6, 20, 2, hex("#ff9e9e")); // bright LED signature R
+      c.box(midX - 9, cy + 1, 18, 4, hex("#f4f6f8"), INK, 1); // clean license plate
+
+      // Sharp Modern LED DRL Headlights + Recessed Matte-Black Front Grille & Silver Emblem (south nose!)
+      c.borderedRoundRect(cx + 14, cy + ch - 13, 22, 8, 3, hex("#fffbe0"), hex("#3c434d"), 1);
+      c.borderedRoundRect(cx + cw - 36, cy + ch - 13, 22, 8, 3, hex("#fffbe0"), hex("#3c434d"), 1);
+      c.rect(cx + 17, cy + ch - 10, 16, 3, hex("#ffffff")); // crisp white DRL blade
+      c.rect(cx + cw - 33, cy + ch - 10, 16, 3, hex("#ffffff"));
+      c.borderedRoundRect(cx + 38, cy + ch - 10, cw - 76, 7, 2, hex("#1f242b"), INK, 1); // recessed sport grille
+      c.circle(midX, cy + ch - 7, 2.5, hex("#dde4ec")); // metallic studio badge!
     } else if (p.k === "plant") {
       paintStardewPlant(c, px, py, p.x + p.y);
     }
