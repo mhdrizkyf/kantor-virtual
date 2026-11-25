@@ -24,7 +24,7 @@ export type Desk = {
   runtime: string; runtimeId: string | null; squad: string; state: DeskState; bubble: string; reviewCount: number; lateCount: number; riskCount: number; tasks: TaskView[];
 };
 export type Room = { id: string; name: string; icon: string | null; progress: string | null; desks: Desk[] };
-export type RunView = { id: string; issueId: string | null; ws: string; agent: string; status: string; when: string; error: string | null; issueTitle: string | null; url: string | null };
+export type RunView = { id: string; issueId: string | null; ws: string; agent: string; status: string; when: string; error: string | null; issueTitle: string | null; url: string | null; kind?: "task" | "chat" };
 export type Office = {
   workspace: string; workspaceId: string; workspaceSlug: string; today: string; updatedAt: string; timeZone: string; open: boolean;
   workCalendar?: WorkCalendar;
@@ -159,8 +159,18 @@ export function buildOffice(s: Snapshot): Office {
 
   const runView = (r: Run): RunView => {
     const iss = r.issue_id ? issueById.get(r.issue_id) : undefined;
-    return { id: r.id, ws: s.workspace.id, agent: agentById.get(r.agent_id)?.name ?? "Agent", status: r.status, when: relTime(r.completed_at || r.started_at || r.created_at, tz),
-      error: r.status === "failed" ? shortError(r.error) : null, issueTitle: iss ? friendlyTitle(iss) : null, issueId: iss?.id ?? null, url: iss ? url(iss) : null };
+    return {
+      id: r.id,
+      ws: s.workspace.id,
+      agent: agentById.get(r.agent_id)?.name ?? "Agent",
+      status: r.status,
+      when: relTime(r.completed_at || r.started_at || r.created_at, tz),
+      error: r.status === "failed" ? shortError(r.error) : null,
+      issueTitle: iss ? friendlyTitle(iss) : null,
+      issueId: iss?.id ?? r.issue_id ?? null,
+      url: iss ? url(iss) : null,
+      kind: r.issue_id ? "task" : "chat",
+    };
   };
 
   const runsByAgent = new Map<string, Run[]>();
@@ -169,22 +179,31 @@ export function buildOffice(s: Snapshot): Office {
   }
 
   // Status worker (global), dihitung dari runtime, run terakhir, dan antrean issue.
+  // Multica memakai antrean Run yang sama untuk pekerjaan task (issue_id != null) dan balasan chat (issue_id == null);
+  // keduanya dipisahkan di sini supaya obrolan tidak tampil sebagai "Task" atau membuat meja gagal.
   const deskBase = (a: Agent) => {
     const rt = runtimeById.get(a.runtime_id);
     const online = rt?.status === "online";
     const runs = runsByAgent.get(a.id) ?? [];
-    const active = runs.find(r => ACTIVE_RUN.has(r.status));
-    const last = runs[0];
+    const taskRuns = runs.filter(r => !!r.issue_id);
+    const chatRuns = runs.filter(r => !r.issue_id);
+    const activeTask = taskRuns.find(r => ACTIVE_RUN.has(r.status));
+    const activeChat = chatRuns.find(r => ACTIVE_RUN.has(r.status));
+    const active = activeTask ?? activeChat;
+    const lastTask = taskRuns[0];
     const mine = open.filter(i => i.assignee_type === "agent" && i.assignee_id === a.id);
     const mineIds = new Set(mine.map(i => i.id));
     const review = mine.filter(i => i.status === "in_review");
     const ready = mine.filter(i => (i.status === "todo" || i.status === "in_progress") && !workerFinished(i));
     const agentBusy = ["working", "running", "busy"].includes(String(a.status || "").toLowerCase());
-    // Ignore stale failures from an old runtime the agent was switched away from, or from issues no longer open/assigned to this agent.
-    const recentFail = last?.status === "failed"
-      && last.runtime_id === a.runtime_id
-      && (!last.issue_id || (mineIds.has(last.issue_id) && issueById.get(last.issue_id)?.status !== "in_review"))
-      && Date.now() - Date.parse(last.created_at) < 86400000 * 3;
+    // Ignore chat-only failures and stale failures from an old runtime or closed/unassigned issues.
+    const recentFail = !!lastTask
+      && lastTask.status === "failed"
+      && lastTask.runtime_id === a.runtime_id
+      && !!lastTask.issue_id
+      && mineIds.has(lastTask.issue_id)
+      && issueById.get(lastTask.issue_id)?.status !== "in_review"
+      && Date.now() - Date.parse(lastTask.created_at) < 86400000 * 3;
     let state: DeskState, bubble: string;
     const parkedMine = mine.filter(i => (i.metadata ?? {}).kantor_parked).length;
     if (!switchOpen && !active && !agentBusy) { state = "closed"; bubble = parkedMine ? `Office closed · ${parkedMine} waiting` : "Office closed"; }
@@ -195,8 +214,21 @@ export function buildOffice(s: Snapshot): Office {
       state = "break";
       bubble = q.resetAt ? (past ? "Quota back · resuming soon" : `On a break · quota resets ${fmtTime(new Date(q.resetAt))}`) : "On a break · AI quota used up";
     }
-    else if (active || agentBusy) { state = "working"; const ai = active?.issue_id ? issueById.get(active.issue_id) : undefined; bubble = "Working on: " + (ai ? friendlyTitle(ai) : "a task"); }
-    else if (recentFail) { state = "failed"; bubble = "Failed: " + shortError(last.error); }
+    else if (activeTask) {
+      state = "working";
+      const ai = activeTask.issue_id ? issueById.get(activeTask.issue_id) : undefined;
+      bubble = "Working on: " + (ai ? friendlyTitle(ai) : "a task");
+    }
+    else if (activeChat) {
+      state = "working";
+      bubble = "Chatting · membalas pesan…";
+    }
+    else if (agentBusy) {
+      state = "working";
+      const inProg = mine.find(i => i.status === "in_progress");
+      bubble = inProg ? "Working on: " + friendlyTitle(inProg) : "Chatting · memproses pesan…";
+    }
+    else if (recentFail) { state = "failed"; bubble = "Failed: " + shortError(lastTask.error); }
     else if (review.length) { state = "review"; bubble = `Waiting for your review (${review.length})`; }
     else if (ready.length) { state = "ready"; bubble = `Ready for ${ready.length} task${ready.length > 1 ? "s" : ""}`; }
     else {
@@ -248,7 +280,8 @@ export function buildOffice(s: Snapshot): Office {
 
   const agentsDetail: Office["agentsDetail"] = {};
   for (const a of s.agents) agentsDetail[a.id] = {
-    runs: (runsByAgent.get(a.id) ?? []).slice(0, 6).map(runView),
+    // Only show real issue/task runs under "Recent work"; chat-reply runs (issue_id == null) stay in the Chats tab.
+    runs: (runsByAgent.get(a.id) ?? []).filter(r => !!r.issue_id).slice(0, 6).map(runView),
     tasks: sortTasks(agentIssues.filter(i => i.assignee_id === a.id).map(view)),
   };
 

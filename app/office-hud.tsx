@@ -16,6 +16,7 @@ const EVENT_ICON: Record<ActivityEvent["kind"], PxName> = {
   chain: "play",
   watchdog: "alert",
   schedule: "clock",
+  chat: "chat",
 };
 
 export function QuickApprovalBar({

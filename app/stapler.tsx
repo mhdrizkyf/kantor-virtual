@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { uploadAll } from "./file-picker";
 import { MANAGER } from "./chat-panel";
+import { readActiveChatId, writeActiveChatId } from "@/lib/chat-continuity";
 
 type Agent = { id: string; name: string };
 type Mode = "note" | "screenshot" | "meeting" | "voice";
@@ -26,6 +27,7 @@ export default function Stapler({ ws }: { ws: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState<string | null>(null);
+  const [startNewTopic, setStartNewTopic] = useState(false);
   const recorder = useRef<MediaRecorder | null>(null);
   const stream = useRef<MediaStream | null>(null);
   const root = useRef<HTMLDivElement>(null);
@@ -82,11 +84,36 @@ export default function Stapler({ ws }: { ws: string }) {
     try {
       const title = note.trim().split("\n")[0].slice(0, 60) || (file?.name ?? "Stapler capture");
       const ids = file ? await uploadAll([file], ws) : [];
-      const created = await (await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ws, agentId, title }) })).json();
-      if (created.error || !created.id) throw new Error(created.error || "Could not start chat.");
-      const result = await (await fetch(`/api/chat/${encodeURIComponent(created.id)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ws, text: note, files: ids }) })).json();
-      if (result.error) throw new Error(result.error);
-      setSent(agents.find(a => a.id === agentId)?.name ?? "agent"); setFile(null); setNote("");
+      let sid = !startNewTopic ? readActiveChatId(ws, agentId) : null;
+      const ensureSession = async (reuseLatest: boolean) => {
+        const created = await (await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ws, agentId, title, reuseLatest }),
+        })).json();
+        if (created.error || !created.id) throw new Error(created.error || "Could not start chat.");
+        return created.id as string;
+      };
+      if (!sid) sid = await ensureSession(!startNewTopic);
+      writeActiveChatId(ws, agentId, sid);
+      let res = await fetch(`/api/chat/${encodeURIComponent(sid)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ws, text: note, files: ids }),
+      });
+      if (!res.ok && res.status >= 400 && res.status < 500 && !startNewTopic) {
+        writeActiveChatId(ws, agentId, null);
+        sid = await ensureSession(true);
+        writeActiveChatId(ws, agentId, sid);
+        res = await fetch(`/api/chat/${encodeURIComponent(sid)}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ws, text: note, files: ids }),
+        });
+      }
+      const result = await res.json();
+      if (!res.ok || result.error) throw new Error(result.error || "Could not send message.");
+      setSent(agents.find(a => a.id === agentId)?.name ?? "agent"); setFile(null); setNote(""); setStartNewTopic(false);
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); } finally { setBusy(false); }
   }
   if (hidden) return null;
@@ -99,6 +126,7 @@ export default function Stapler({ ws }: { ws: string }) {
       {file && preview && <div className="stapler-preview"><div><b>{file.name}</b><button onClick={() => setFile(null)} aria-label="Remove capture">Remove</button></div>{file.type.startsWith("image/") ? <img src={preview} alt="Screenshot preview" /> : <audio controls src={preview} />}</div>}
       <button className="stapler-attach" disabled={recording} onClick={() => input.current?.click()}>＋ Attach existing file</button><input ref={input} type="file" hidden accept="image/*,audio/*,video/*,.pdf,.txt,.docx" onChange={e => { const f = e.target.files?.[0]; if (f) { setFile(f); setError(null); } e.target.value = ""; }} />
       <label>Send to<select value={agentId} onChange={e => setAgentId(e.target.value)}><option value="">Choose agent</option>{agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
+      <label className="stapler-check"><input type="checkbox" checked={startNewTopic} onChange={e => setStartNewTopic(e.target.checked)} /> Start a new topic (otherwise continues active chat)</label>
       <textarea value={note} onChange={e => setNote(e.target.value)} aria-label={`Instructions for ${mode}`} placeholder="Add context or instructions…" rows={3} />
       {error && <p className="stapler-error" role="alert">{error}</p>}{sent && <p className="stapler-sent" role="status">Sent to {sent}. Open the agent&apos;s chat to see the reply.</p>}
       <footer><button disabled={recording} onClick={() => { setOpen(false); setHidden(true); }}>Hide widget</button><button className="send" disabled={busy || recording || !agentId || (!note.trim() && !file)} onClick={send}>{busy ? "Sending…" : "Send →"}</button></footer>

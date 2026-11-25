@@ -20,11 +20,20 @@ export async function GET(req: Request) {
   } catch (e) { return NextResponse.json({ error: String(e instanceof Error ? e.message : e) }, { status: 500 }); }
 }
 
-/** Mulai obrolan baru. */
+/** Mulai obrolan baru, atau lanjutkan percakapan aktif terakhir untuk agent yang sama bila reuseLatest=true. */
 export async function POST(req: Request) {
-  const b = (await req.json()) as { ws?: string; agentId: string; title?: string; projectId?: string | null };
+  const b = (await req.json()) as { ws?: string; agentId: string; title?: string; projectId?: string | null; reuseLatest?: boolean };
   try {
+    if (b.reuseLatest && b.agentId) {
+      const all = await chatSessions(b.ws ?? null);
+      const latest = all
+        .filter(c => c.agent_id === b.agentId && c.status !== "archived")
+        .sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at))[0];
+      if (latest) {
+        return NextResponse.json({ id: latest.id, reused: true, title: latest.title || "Chat" });
+      }
+    }
     const s = await createChat(b.ws ?? null, b.agentId, b.title?.trim() || "New chat", b.projectId);
-    return NextResponse.json({ id: s.id });
+    return NextResponse.json({ id: s.id, reused: false, title: s.title || b.title?.trim() || "New chat" });
   } catch (e) { return NextResponse.json({ error: String(e instanceof Error ? e.message : e) }, { status: 500 }); }
 }

@@ -30,6 +30,7 @@ export type WorkspaceMetrics = {
   generatedAt: string;
   runs: {
     total: number;
+    chatRuns: number;
     completed: number;
     failed: number;
     active: number;
@@ -71,7 +72,12 @@ export function computeWorkspaceMetrics(
   const byAgent = new Map<string, { completed: number; failed: number; active: number; durations: number[] }>();
   const byProvider = new Map<string, { completed: number; failed: number; quotaFailures: number }>();
 
-  for (const r of s.runs) {
+  // Separate real task runs (issue_id != null) from chat-reply runs (issue_id == null)
+  // so casual conversations do not skew task throughput or failure rates.
+  const taskRuns = s.runs.filter(r => !!r.issue_id);
+  const chatRuns = s.runs.length - taskRuns.length;
+
+  for (const r of taskRuns) {
     const aStat = byAgent.get(r.agent_id) ?? { completed: 0, failed: 0, active: 0, durations: [] };
     byAgent.set(r.agent_id, aStat);
 
@@ -155,7 +161,8 @@ export function computeWorkspaceMetrics(
     workspaceName: s.workspace.name,
     generatedAt: now.toISOString(),
     runs: {
-      total: s.runs.length,
+      total: taskRuns.length,
+      chatRuns,
       completed,
       failed,
       active,
