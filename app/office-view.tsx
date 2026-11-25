@@ -91,12 +91,24 @@ function AttnRow({ t, onOpen, showWs }: { t: TaskView; onOpen: () => void; showW
   );
 }
 
+function notifyScreenReader(msg: string, setFallback: (v: string) => void) {
+  if (!msg || typeof document === "undefined") return;
+  const docAny = document as unknown as { ariaNotify?: (text: string) => void };
+  if (typeof docAny.ariaNotify === "function") {
+    docAny.ariaNotify(msg);
+  } else {
+    setFallback(msg);
+  }
+}
+
 /** Isolated command bar so typing never re-renders OfficeView or ReferenceOffice. */
 const OfficeComposer = memo(function OfficeComposer({
   workspaceId,
   desks,
   defaultAgentId,
   clearTick,
+  suppressToasts = false,
+  stackOffset = false,
   onDelegate,
   onMessageSent,
   onOpenChat,
@@ -105,6 +117,8 @@ const OfficeComposer = memo(function OfficeComposer({
   desks: Desk[];
   defaultAgentId: string;
   clearTick: number;
+  suppressToasts?: boolean;
+  stackOffset?: boolean;
   onDelegate: (goal: string) => void;
   onMessageSent: (agent: Desk, message: string, sessionId: string) => void;
   onOpenChat: (agent: Desk, sessionId: string) => void;
@@ -113,12 +127,71 @@ const OfficeComposer = memo(function OfficeComposer({
   const [composeMode, setComposeMode] = useState<"message" | "delegate">("message");
   const [composeAgentId, setComposeAgentId] = useState("");
   const [sending, setSending] = useState(false);
-  const [sendStatus, setSendStatus] = useState("");
+  const [sendStatus, setSendStatus] = useState<{ text: string; tone: "ok" | "error"; key: number; hasAction: boolean } | null>(null);
+  const [sendPaused, setSendPaused] = useState(false);
+  const [srLiveText, setSrLiveText] = useState("");
   const [lastSent, setLastSent] = useState<{ agent: Desk; sessionId: string } | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const toastRegionRef = useRef<HTMLDivElement>(null);
+  const toastElRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (clearTick > 0) setCompose("");
   }, [clearTick]);
+
+  // Announce toast text via ariaNotify() (or pre-mounted live region fallback) without reading button labels
+  useEffect(() => {
+    if (!sendStatus) { setSendPaused(false); return; }
+    const spoken = sendStatus.hasAction ? `${sendStatus.text}. Actions available` : sendStatus.text;
+    notifyScreenReader(spoken, setSrLiveText);
+  }, [sendStatus]);
+
+  // Auto-dismiss after 4.2s (7s on error), pausing automatically while hovered or focused inside the toast
+  useEffect(() => {
+    if (!sendStatus || sendPaused) return;
+    const ms = sendStatus.tone === "error" ? 7000 : 4200;
+    const t = setTimeout(() => { setSendStatus(null); setLastSent(null); }, ms);
+    return () => clearTimeout(t);
+  }, [sendStatus, sendPaused]);
+
+  // Sync top-layer popover coordinates to the .office container and promote via popover="manual" when supported
+  useEffect(() => {
+    const syncPos = () => {
+      const stageEl = formRef.current?.parentElement;
+      const regionEl = toastRegionRef.current;
+      if (!stageEl || !regionEl) return;
+      const r = stageEl.getBoundingClientRect();
+      regionEl.style.setProperty("--toast-left", `${Math.max(12, Math.round(r.left + 16))}px`);
+      regionEl.style.setProperty("--toast-bottom", `${Math.max(16, Math.round(window.innerHeight - r.bottom + 82))}px`);
+    };
+    syncPos();
+    const stageEl = formRef.current?.parentElement;
+    const ro = typeof ResizeObserver !== "undefined" && stageEl ? new ResizeObserver(syncPos) : null;
+    if (ro && stageEl) ro.observe(stageEl);
+    window.addEventListener("resize", syncPos);
+    return () => { ro?.disconnect(); window.removeEventListener("resize", syncPos); };
+  }, [sendStatus, suppressToasts]);
+
+  useEffect(() => {
+    const el = toastElRef.current;
+    if (!el || typeof HTMLElement === "undefined" || !Object.hasOwn(HTMLElement.prototype, "popover")) return;
+    const active = !!sendStatus && !suppressToasts;
+    if (active) {
+      if (el.getAttribute("popover") !== "manual") el.setAttribute("popover", "manual");
+      try { if (!el.matches(":popover-open")) el.showPopover(); } catch { /* ignore */ }
+    } else {
+      try { if (el.matches(":popover-open")) el.hidePopover(); } catch { /* ignore */ }
+    }
+  }, [sendStatus, suppressToasts]);
+
+  const dismissSendToast = useCallback((restoreFocus = false) => {
+    const wasFocused = restoreFocus && !!toastElRef.current?.contains(document.activeElement);
+    setSendStatus(null);
+    setLastSent(null);
+    if (wasFocused) {
+      requestAnimationFrame(() => document.getElementById("office-ask")?.focus());
+    }
+  }, []);
 
   const target = desks.find(d => d.agentId === composeAgentId)
     ?? desks.find(d => d.agentId === defaultAgentId)
@@ -128,7 +201,7 @@ const OfficeComposer = memo(function OfficeComposer({
     if (!target || !compose.trim() || sending) return;
     const message = compose.trim();
     setSending(true);
-    setSendStatus("");
+    setSendStatus(null);
     setLastSent(null);
     try {
       const resolveSession = async (skipSaved = false): Promise<string> => {
@@ -167,12 +240,12 @@ const OfficeComposer = memo(function OfficeComposer({
       if (!response.ok || data.error) throw new Error(data.error || "Message could not be sent.");
       writeActiveChatId(workspaceId, target.agentId, id);
       setCompose(current => current.trim() === message ? "" : current);
-      setSendStatus(`Chat terkirim ke ${target.name} (bukan task)`);
       setLastSent({ agent: target, sessionId: id });
+      setSendStatus({ text: `Chat terkirim ke ${target.name} (bukan task)`, tone: "ok", key: Date.now(), hasAction: true });
       onMessageSent(target, message, id);
       window.dispatchEvent(new CustomEvent("kantor:letter", { detail: { agentId: target.agentId } }));
     } catch (e) {
-      setSendStatus(e instanceof Error ? e.message : String(e));
+      setSendStatus({ text: e instanceof Error ? e.message : String(e), tone: "error", key: Date.now(), hasAction: false });
     } finally {
       setSending(false);
     }
@@ -190,21 +263,48 @@ const OfficeComposer = memo(function OfficeComposer({
 
   return (
     <>
-      {sendStatus && (
-        <div className="composer-feedback" role="status">
-          <span>{sendStatus}</span>
-          {lastSent && (
+      <div className="toast-sr-wrap">
+        {srLiveText && <p className="toast-sr-only">Screen reader announcements</p>}
+        <div className="toast-sr-only" aria-live="polite" aria-atomic="true">{srLiveText}</div>
+      </div>
+      <div ref={toastRegionRef} role="region" aria-label="Composer notifications" className="office-toast-region">
+        {!suppressToasts && sendStatus && (
+          <div
+            id="office-send-toast"
+            ref={toastElRef}
+            className={`composer-feedback office-toast-item is-${sendStatus.tone}${stackOffset ? " is-stacked" : ""}`}
+            onMouseEnter={() => setSendPaused(true)}
+            onMouseLeave={() => setSendPaused(false)}
+            onFocus={() => setSendPaused(true)}
+            onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setSendPaused(false); }}
+            onToggle={e => { if ((e as unknown as { newState?: string }).newState === "closed") dismissSendToast(true); }}
+          >
+            <span className={`toast-ic is-${sendStatus.tone}`} aria-hidden="true">
+              <Px name={sendStatus.tone === "error" ? "alert" : "check"} />
+            </span>
+            <span className="toast-msg">{sendStatus.text}</span>
+            {lastSent && sendStatus.tone === "ok" && (
+              <button
+                type="button"
+                className="btn sm"
+                onClick={() => { onOpenChat(lastSent.agent, lastSent.sessionId); dismissSendToast(false); }}
+              >
+                Buka percakapan →
+              </button>
+            )}
             <button
               type="button"
-              className="btn sm"
-              onClick={() => { onOpenChat(lastSent.agent, lastSent.sessionId); setSendStatus(""); }}
+              className="toast-close"
+              aria-label="Close notification"
+              {...({ popovertarget: "office-send-toast", popovertargetaction: "hide" } as Record<string, string>)}
+              onClick={() => dismissSendToast(true)}
             >
-              Buka percakapan →
+              ×
             </button>
-          )}
-        </div>
-      )}
-      <form className="office-composer" onSubmit={submitComposer}>
+          </div>
+        )}
+      </div>
+      <form ref={formRef} className="office-composer" onSubmit={submitComposer}>
         <div className="composer-mode" role="group" aria-label="Command bar mode">
           <button type="button" aria-pressed={composeMode === "message"} onClick={() => setComposeMode("message")} title="Ngobrol biasa — berlanjut di satu percakapan, bukan task">Chat</button>
           <button type="button" aria-pressed={composeMode === "delegate"} onClick={() => setComposeMode("delegate")} title="Buat & delegasikan task resmi ke papan Multica">Delegate Task</button>
@@ -423,7 +523,16 @@ export default function OfficeView({ office, buildings, attention, people, seen,
     } catch (e) { setToast("Couldn't retry: " + (e instanceof Error ? e.message : String(e))); }
     finally { setRerunning(null); }
   }
-  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 6000); return () => clearTimeout(t); }, [toast]);
+  const [toastPaused, setToastPaused] = useState(false);
+  const [flowPaused, setFlowPaused] = useState(false);
+  useEffect(() => {
+    if (!toast) { setToastPaused(false); return; }
+  }, [toast]);
+  useEffect(() => {
+    if (!toast || toastPaused) return;
+    const t = setTimeout(() => setToast(null), 5000);
+    return () => clearTimeout(t);
+  }, [toast, toastPaused]);
 
   // Smart delta polling: check lightweight server fingerprint first; only run full SSR router.refresh() when changed.
   const syncFp = useRef<string | null>(null);
@@ -650,7 +759,14 @@ export default function OfficeView({ office, buildings, attention, people, seen,
     };
     addEventListener("kantor:workflow", f); return () => removeEventListener("kantor:workflow", f);
   }, [ownerActorId, ownerName, startWalks, uniqueDesks]);
-  useEffect(() => { if (!flowNotice) return; const t = setTimeout(() => setFlowNotice(""), 8500); return () => clearTimeout(t); }, [flowNotice]);
+  useEffect(() => {
+    if (!flowNotice) { setFlowPaused(false); return; }
+  }, [flowNotice]);
+  useEffect(() => {
+    if (!flowNotice || flowPaused) return;
+    const t = setTimeout(() => setFlowNotice(""), 5000);
+    return () => clearTimeout(t);
+  }, [flowNotice, flowPaused]);
   useEffect(() => {
     if (previewStep === null) return;
     const first = uniqueDesks[0];
@@ -1070,13 +1186,28 @@ export default function OfficeView({ office, buildings, attention, people, seen,
           </div>
 
           {previewStep !== null && <div className="workflow-preview" role="status"><div><b>Workflow preview</b><button onClick={() => setPreviewStep(null)} aria-label="Stop preview">×</button></div><ol>{["Assigned", "Working", "Handed over", "Approved"].map((label, i) => <li key={label} className={i === previewStep ? "active" : i < previewStep ? "done" : ""}>{label}</li>)}</ol><small>Visual preview only. No tasks changed.</small></div>}
-          {flowNotice && previewStep === null && <div className="workflow-notice" role="status"><Px name="check" /> {flowNotice}</div>}
+          {flowNotice && previewStep === null && !(chatWith || openTask || newProject || standupOpen || orchDraft || hubTab) && (
+            <div
+              className="workflow-notice office-toast-item"
+              role="status"
+              onMouseEnter={() => setFlowPaused(true)}
+              onMouseLeave={() => setFlowPaused(false)}
+              onFocus={() => setFlowPaused(true)}
+              onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFlowPaused(false); }}
+            >
+              <span className="toast-ic is-ok" aria-hidden="true"><Px name="check" /></span>
+              <span className="toast-msg">{flowNotice}</span>
+              <button type="button" className="toast-close" onClick={() => setFlowNotice("")} aria-label="Close notification">×</button>
+            </div>
+          )}
 
           <OfficeComposer
             workspaceId={office.workspaceId}
             desks={uniqueDesks}
             defaultAgentId={mika?.agentId ?? uniqueDesks[0]?.agentId ?? ""}
             clearTick={composerClearTick}
+            suppressToasts={!!(chatWith || openTask || newProject || standupOpen || orchDraft || hubTab)}
+            stackOffset={!!flowNotice && previewStep === null}
             onDelegate={handleComposerDelegate}
             onMessageSent={handleComposerMessageSent}
             onOpenChat={handleComposerOpenChat}
@@ -1383,7 +1514,19 @@ export default function OfficeView({ office, buildings, attention, people, seen,
           onClose={() => setHubTab(null)}
         />
       )}
-      {toast && <div className="toast" role="status">{toast}</div>}
+      {toast && (
+        <div
+          className="toast"
+          role="status"
+          onMouseEnter={() => setToastPaused(true)}
+          onMouseLeave={() => setToastPaused(false)}
+          onFocus={() => setToastPaused(true)}
+          onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setToastPaused(false); }}
+        >
+          <span>{toast}</span>
+          <button type="button" className="toast-dismiss-inline" onClick={() => setToast(null)} aria-label="Close notification">×</button>
+        </div>
+      )}
       {openTask && <TaskPanel id={openTask.id} ws={openTask.ws} onClose={() => setOpenTask(null)} onChanged={refresh} />}
     </>
   );

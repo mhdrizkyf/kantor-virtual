@@ -1096,16 +1096,50 @@ svg.px {
   left: 50%;
   bottom: calc(20px + env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   background: var(--ink);
   color: var(--panel);
   border: 1px solid var(--line-strong);
-  padding: 10px 18px;
+  padding: 9px 12px 9px 16px;
   border-radius: var(--r-pill);
   font-size: 13.5px;
   font-weight: 600;
   z-index: 65;
   box-shadow: var(--shadow-lg);
   max-width: calc(100% - 32px);
+}
+
+.toast-dismiss-inline {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  color: inherit;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.toast-dismiss-inline:hover {
+  background: rgba(255, 255, 255, 0.26);
+}
+
+.toast-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* ==========================================================================
@@ -2346,13 +2380,12 @@ header.top {
   }
 }
 
-.workflow-preview,
-.workflow-notice,
-.composer-feedback {
+.workflow-preview {
   position: absolute;
   left: 16px;
   bottom: 82px;
   z-index: 10;
+  width: min(390px, calc(100% - 32px));
   border: 1px solid var(--line-strong);
   border-radius: var(--r-md);
   background: var(--panel-glass);
@@ -2363,8 +2396,132 @@ header.top {
   font-size: 12.5px;
 }
 
-.workflow-preview {
-  width: min(390px, calc(100% - 32px));
+.office-toast-region {
+  position: absolute;
+  left: 16px;
+  bottom: 82px;
+  z-index: 14;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: calc(100% - 32px);
+  pointer-events: none;
+}
+
+.workflow-notice {
+  position: absolute;
+  left: 16px;
+  bottom: 82px;
+  z-index: 14;
+}
+
+.office-toast-item {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  max-width: min(500px, calc(100vw - 28px));
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--panel-glass);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-md);
+  padding: 8px 8px 8px 12px;
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.office-toast-item.is-error {
+  border-color: color-mix(in srgb, var(--danger) 50%, var(--line-strong));
+  background: color-mix(in srgb, var(--danger-soft) 88%, var(--panel));
+  color: var(--danger-ink);
+}
+
+.office-toast-item[popover]:is(:popover-open, .\:popover-open) {
+  display: inline-flex;
+  position: fixed;
+  inset: auto auto var(--toast-bottom, 86px) var(--toast-left, 34px);
+  margin: 0;
+}
+
+.office-toast-item.is-stacked {
+  bottom: 132px;
+}
+
+.office-toast-item.is-stacked[popover]:is(:popover-open, .\:popover-open) {
+  bottom: calc(var(--toast-bottom, 86px) + 50px);
+}
+
+@supports not selector(:popover-open) {
+  .office-toast-item[popover]:not(.\:popover-open) {
+    display: none;
+  }
+}
+
+.toast-ic {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+
+.toast-ic.is-error {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.toast-msg {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.toast-close {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+
+.toast-close:hover {
+  background: var(--sunk);
+  color: var(--ink);
+}
+
+.toast-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .office-toast-item {
+    transition: opacity 170ms ease-out, transform 170ms ease-out, display 170ms ease-out, overlay 170ms ease-out;
+    transition-behavior: allow-discrete;
+  }
+
+  @starting-style {
+    .office-toast-item,
+    .office-toast-item[popover]:is(:popover-open, .\:popover-open) {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+  }
 }
 
 .workflow-preview > div {
@@ -8143,7 +8300,7 @@ main.pagewide > * {
 .composer-feedback {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
 }
 
 .ch-kind-pill {
