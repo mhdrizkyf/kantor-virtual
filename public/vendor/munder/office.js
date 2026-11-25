@@ -418,8 +418,14 @@
       g.globalCompositeOperation = 'source-over';
       this.agents.forEach(function (a) { if (a.hidden || a.state !== 'seat') return; var d = L.desks[a.desk]; if (d.seat === 's') self.drawScreen(g, d, P, true, t); });
     }
-    // bubbles last
-    this.agents.forEach(function (a) { if (a.hidden || !a.bubble || a.bubble.until < t) return; var head = a.fy - (a.state === 'seat' && L.desks[a.desk].seat === 's' ? 24 : 31); drawBubble(g, Math.round(a.fx), Math.round(head - 1), a.bubble.kind, t); });
+    // bubbles last (clamped inside canvas bounds so edge rooms like Kitchen & Door never clip)
+    this.agents.forEach(function (a) {
+      if (a.hidden || !a.bubble || a.bubble.until < t) return;
+      var head = a.fy - (a.state === 'seat' && L.desks[a.desk].seat === 's' ? 24 : 31);
+      var bx = Math.max(13, Math.min(self.W - 13, Math.round(a.fx)));
+      var by = Math.max(18, Math.min(self.H - 4, Math.round(head - 1)));
+      drawBubble(g, bx, by, a.bubble.kind, t);
+    });
     if (this.onDraw) this.onDraw(g);
   };
   Scene.prototype.drawScreen = function (g, d, P, on, t) {

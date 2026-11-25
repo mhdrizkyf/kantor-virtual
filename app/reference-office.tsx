@@ -1,5 +1,6 @@
 "use client";
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { Desk } from '@/lib/office';
 import { castFor } from '@/lib/munder-cast';
 import { floorSeats, OFFICE_PLAN, OWNER_SEAT, seatBounds } from '@/lib/floor-seats';
@@ -34,7 +35,7 @@ type Vendor = any;
 let loading: Promise<void> | undefined;
 function load() {
   return loading ??= (async () => {
-    for (const name of ['/vendor/munder/avatars.js', '/vendor/munder/office.js', '/office-campus.js']) await new Promise<void>((resolve, reject) => {
+    for (const name of ['/vendor/munder/avatars.js', '/vendor/munder/office.js?v=2', '/office-campus.js']) await new Promise<void>((resolve, reject) => {
       const s = document.createElement('script'); s.src = name; s.onload = () => resolve(); s.onerror = () => reject(new Error('Could not load office artwork')); document.head.appendChild(s);
     });
     const art = new Image(); art.src = '/art/office-reference.png'; await art.decode();
@@ -76,6 +77,18 @@ function describeDropTarget(draggedName: string, zone: DropZone): string {
 
 export type ReviewTaskInfo = { id: string; ws: string; title: string; questionCount?: number };
 export type OfficeWalk = Handover & { key: string; kind?: 'assign' | 'revise' | 'review' | 'handoff' };
+
+type HoverCardState = {
+  key: string;
+  actorId?: string;
+  anchorEl: HTMLElement;
+  title: string;
+  badge?: string;
+  detail: string;
+  tip?: string;
+};
+
+const clampNum = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
 const ReferenceOffice = memo(function ReferenceOffice({
   desks,
@@ -205,8 +218,88 @@ const ReferenceOffice = memo(function ReferenceOffice({
   const [transientBubbles, setTransientBubbles] = useState<Record<string, SpeechBubbleItem & { expiresAt: number }>>({});
   const [reviewArrived, setReviewArrived] = useState<Record<string, boolean>>({});
   const [hoveredActorId, setHoveredActorId] = useState<string | null>(null);
+  const [hoverCard, setHoverCard] = useState<HoverCardState | null>(null);
+  const hoverCardRef = useRef<HTMLDivElement>(null);
+  const [hoverCardPos, setHoverCardPos] = useState<{ left: number; top: number; arrowX: number; below: boolean } | null>(null);
   const dragRef = useRef<{ agentId: string; desk: Desk; startX: number; startY: number; active: boolean; zone: DropZone } | null>(null);
   const justDraggedRef = useRef(0);
+
+  // Clear hovercard whenever dragging starts, scene pauses (drawer/modal opens), or floor page changes
+  useEffect(() => {
+    if (paused || dragUI) setHoverCard(null);
+  }, [paused, dragUI]);
+  useEffect(() => {
+    setHoverCard(null);
+  }, [page]);
+
+  const showHoverCard = useCallback((next: HoverCardState) => {
+    if (dragRef.current?.active) return;
+    setHoverCard(next);
+  }, []);
+
+  const hideHoverCard = useCallback((key: string) => {
+    setHoverCard(cur => (cur?.key === key ? null : cur));
+  }, []);
+
+  // Measure and clamp/flip the active hovercard inside safe viewport & office-frame bounds (zero clipping!)
+  useLayoutEffect(() => {
+    if (!hoverCard || paused || dragUI) {
+      setHoverCardPos(null);
+      return;
+    }
+    const update = () => {
+      const cardEl = hoverCardRef.current;
+      const anchorEl = hoverCard.anchorEl;
+      if (!cardEl || !anchorEl || !anchorEl.isConnected) {
+        setHoverCardPos(null);
+        return;
+      }
+      const ar = anchorEl.getBoundingClientRect();
+      const fr = frame.current?.getBoundingClientRect();
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const cw = cardEl.offsetWidth || 210;
+      const ch = cardEl.offsetHeight || 78;
+
+      const safeLeft = Math.max(10, Math.round((fr?.left ?? 0) + 8));
+      const safeRight = Math.min(vw - 10, Math.round((fr?.right ?? vw) - 8));
+      const safeTop = Math.max(70, Math.round((fr?.top ?? 0) + 8));
+      const safeBottom = Math.min(vh - 12, Math.round((fr?.bottom ?? vh) - 8));
+
+      const gap = 9;
+      const aboveTop = ar.top - gap - ch;
+      const belowTop = ar.bottom + gap;
+      const placeBelow = aboveTop < safeTop && (vh - ar.bottom) > (ar.top - safeTop);
+      const rawTop = placeBelow ? belowTop : aboveTop;
+      const top = Math.round(clampNum(rawTop, safeTop, Math.max(safeTop, safeBottom - ch)));
+
+      const anchorCx = ar.left + ar.width / 2;
+      const left = Math.round(clampNum(anchorCx - cw / 2, safeLeft, Math.max(safeLeft, safeRight - cw)));
+      const arrowX = Math.round(clampNum(anchorCx - left, 16, Math.max(16, cw - 16)));
+
+      setHoverCardPos({ left, top, arrowX, below: placeBelow });
+    };
+    update();
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+    };
+  }, [hoverCard, paused, dragUI]);
+
+  // Promote active hovercard to native browser Top Layer via popover="manual" when supported
+  const hasHoverPos = hoverCardPos !== null;
+  useEffect(() => {
+    const el = hoverCardRef.current;
+    if (!el || typeof HTMLElement === 'undefined' || !Object.hasOwn(HTMLElement.prototype, 'popover')) return;
+    if (hoverCard && hasHoverPos && !paused && !dragUI) {
+      if (el.getAttribute('popover') !== 'manual') el.setAttribute('popover', 'manual');
+      try { if (!el.matches(':popover-open')) el.showPopover(); } catch { /* ignore */ }
+    } else {
+      try { if (el.matches(':popover-open')) el.hidePopover(); } catch { /* ignore */ }
+    }
+  }, [hoverCard, hasHoverPos, paused, dragUI]);
 
   const pages = Math.max(1, Math.ceil(desks.length / agentSeats.length));
   const currentPage = Math.min(page, pages - 1);
@@ -756,18 +849,55 @@ const ReferenceOffice = memo(function ReferenceOffice({
     return [...map.values()];
   }, [shown, owner, offDuty, previewWorking, walkReviewIds, deskReviewIds, reviewTasksByAgent, previewReviewId, reviewArrived, huddleIds, walks, transientBubbles]);
 
-  // Sync bubble DOM coordinates immediately whenever the bubble list changes
-  useEffect(() => {
+  // Position any speech bubble strictly inside the visible office frame with automatic top/bottom flip & dynamic tail
+  const placeSpeechEl = useCallback((el: HTMLElement, a: { fx: number; fy: number }, s: { W: number; H: number }) => {
+    const stageEl = stageRef.current;
+    const frameEl = frame.current;
+    const stageW = stageEl?.clientWidth || 0;
+    const stageH = stageEl?.clientHeight || 0;
+    if (!stageW || !stageH) {
+      el.style.left = `${(a.fx / s.W) * 100}%`;
+      el.style.top = `${(Math.max(28, a.fy - 36) / s.H) * 100}%`;
+      return;
+    }
+    const frameW = frameEl?.clientWidth || stageW;
+    const frameH = frameEl?.clientHeight || stageH;
+    const extraX = Math.max(0, (frameW - stageW) / 2 - 8);
+    const extraY = Math.max(0, (frameH - stageH) / 2 - 8);
+    const minX = -extraX + 6;
+    const maxX = stageW + extraX - 6;
+    const minY = -extraY + 6;
+    const maxY = stageH + extraY - 6;
+
+    const bw = el.offsetWidth || 88;
+    const bh = el.offsetHeight || 26;
+    const ax = (a.fx / s.W) * stageW;
+    const headY = ((a.fy - 36) / s.H) * stageH;
+    const feetY = ((a.fy + 8) / s.H) * stageH;
+
+    const flipBelow = headY - bh < minY;
+    const rawTop = flipBelow ? feetY : headY - bh;
+    const topPx = Math.round(clampNum(rawTop, minY, Math.max(minY, maxY - bh)));
+    const leftPx = Math.round(clampNum(ax - bw / 2, minX, Math.max(minX, maxX - bw)));
+    const tailX = Math.round(clampNum(ax - leftPx, 12, Math.max(12, bw - 12)));
+
+    el.classList.toggle('is-below', flipBelow);
+    el.style.left = `${leftPx}px`;
+    el.style.top = `${topPx}px`;
+    el.style.setProperty('--tail-x', `${tailX}px`);
+  }, []);
+
+  // Sync bubble DOM coordinates immediately whenever the bubble list, hover expansion, or stage size changes
+  useLayoutEffect(() => {
     const s = scene.current;
     if (!s) return;
     for (const b of speechBubbles) {
       const el = speechElsRef.current.get(b.actorId);
       const a = s.get(b.actorId);
       if (!el || !a || a.hidden) continue;
-      el.style.left = `${(a.fx / s.W) * 100}%`;
-      el.style.top = `${(Math.max(24, a.fy - 36) / s.H) * 100}%`;
+      placeSpeechEl(el, a, s);
     }
-  }, [speechBubbles]);
+  }, [speechBubbles, hoveredActorId, size, placeSpeechEl]);
 
   const letterPoint = seatPoint(agentSeats[Math.max(0, shown.findIndex(d => d.agentId === letter))]);
   const letterX = letterPoint.x;
@@ -836,12 +966,12 @@ const ReferenceOffice = memo(function ReferenceOffice({
           }
           const rx = Math.round(a.fx * 2);
           const ry = Math.round(a.fy * 2);
-          const key = `${rx},${ry}`;
+          const ew = el.offsetWidth;
+          const key = `${rx},${ry},${ew}`;
           if (lastSpeechPos.get(actorId) === key) return;
           lastSpeechPos.set(actorId, key);
           el.style.opacity = '1';
-          el.style.left = `${(a.fx / s.W) * 100}%`;
-          el.style.top = `${(Math.max(24, a.fy - 36) / s.H) * 100}%`;
+          placeSpeechEl(el, a, s);
         });
       };
 
@@ -1176,49 +1306,77 @@ const ReferenceOffice = memo(function ReferenceOffice({
         />
         {ack && <div className="scene-ack" role="status">{ack}</div>}
         {letter && shown.some(d => d.agentId === letter) && (
-          <div className="delivery-letter" key={letter} aria-label="Message delivered" style={{ '--letter-x': `${(letterX + 1) / OFFICE_PLAN.cols * 100}%`, '--letter-y': `${(letterY - 1) / OFFICE_PLAN.rows * 100}%` } as React.CSSProperties}>
+          <div
+            className="delivery-letter"
+            key={letter}
+            aria-label="Message delivered"
+            style={{
+              '--letter-x': `${clampNum(((letterX + 1) / OFFICE_PLAN.cols) * 100, 6, 90)}%`,
+              '--letter-y': `${clampNum(((letterY - 1) / OFFICE_PLAN.rows) * 100, 8, 90)}%`,
+            } as React.CSSProperties}
+          >
             ✉<small>Delivered</small>
           </div>
         )}
 
         {/* Live moving speech bubbles tracking characters across working, handover, and owner-desk review */}
         <div className="actor-speech-layer" aria-live="polite">
-          {speechBubbles.map(item => (
-            <button
-              key={item.actorId}
-              type="button"
-              ref={el => {
-                if (el) speechElsRef.current.set(item.actorId, el);
-                else speechElsRef.current.delete(item.actorId);
-              }}
-              className={`actor-speech tone-${item.tone}${item.clickable ? ' is-clickable' : ''}${hoveredActorId === item.actorId ? ' is-expanded' : ''}`}
-              onClick={e => {
-                e.stopPropagation();
-                if (item.clickable) handleBubbleClick(item);
-              }}
-              onMouseEnter={() => setHoveredActorId(item.actorId)}
-              onMouseLeave={() => setHoveredActorId(cur => (cur === item.actorId ? null : cur))}
-              tabIndex={item.clickable ? 0 : -1}
-              aria-label={`${item.badge}: ${item.text}`}
-            >
-              <span className="as-badge">{item.badge}</span>
-              <span className="as-text">{item.text}</span>
-            </button>
-          ))}
+          {speechBubbles.map(item => {
+            const suppressedByCard = hoverCard?.actorId === item.actorId;
+            return (
+              <button
+                key={item.actorId}
+                type="button"
+                ref={el => {
+                  if (el) speechElsRef.current.set(item.actorId, el);
+                  else speechElsRef.current.delete(item.actorId);
+                }}
+                className={`actor-speech is-px-placed tone-${item.tone}${item.clickable ? ' is-clickable' : ''}${hoveredActorId === item.actorId && !suppressedByCard ? ' is-expanded' : ''}${suppressedByCard ? ' is-suppressed' : ''}`}
+                onClick={e => {
+                  e.stopPropagation();
+                  if (item.clickable) handleBubbleClick(item);
+                }}
+                onMouseEnter={() => setHoveredActorId(item.actorId)}
+                onMouseLeave={() => setHoveredActorId(cur => (cur === item.actorId ? null : cur))}
+                tabIndex={item.clickable ? 0 : -1}
+                aria-label={`${item.badge}: ${item.text}`}
+              >
+                <span className="as-badge">{item.badge}</span>
+                <span className="as-text">{item.text}</span>
+              </button>
+            );
+          })}
         </div>
 
-        {dragUI && (
-          <div
-            className={`drag-pill drag-${dragUI.zone.kind}`}
-            style={{ left: dragUI.x, top: Math.max(18, dragUI.y - 44) }}
-            role="status"
-          >
-            {describeDropTarget(dragUI.name, dragUI.zone)}
-          </div>
-        )}
+        {dragUI && (() => {
+          const sw = stageRef.current?.clientWidth || size?.width || 768;
+          const sh = stageRef.current?.clientHeight || size?.height || 448;
+          const pillLeft = clampNum(dragUI.x, Math.min(110, sw / 2), Math.max(sw / 2, sw - 110));
+          const pillTop = dragUI.y < 54 ? Math.min(sh - 34, dragUI.y + 22) : Math.max(10, dragUI.y - 44);
+          return (
+            <div
+              className={`drag-pill drag-${dragUI.zone.kind}`}
+              style={{ left: pillLeft, top: pillTop }}
+              role="status"
+            >
+              {describeDropTarget(dragUI.name, dragUI.zone)}
+            </div>
+          );
+        })()}
         <div className="reference-hotspots">
           {shown.map((d, i) => {
             const isTarget = dragUI?.zone.kind === 'desk' && dragUI.zone.agentId === d.agentId;
+            const cardKey = `desk:${d.agentId}`;
+            const openCard = (el: HTMLElement) =>
+              showHoverCard({
+                key: cardKey,
+                actorId: d.agentId,
+                anchorEl: el,
+                title: d.name,
+                badge: d.squad || undefined,
+                detail: d.bubble,
+                tip: 'Drag to hand off · Click to open',
+              });
             return (
               <button
                 key={d.agentId}
@@ -1226,66 +1384,119 @@ const ReferenceOffice = memo(function ReferenceOffice({
                 style={seatBounds(agentSeats[i])}
                 onPointerDown={e => {
                   if (e.button !== 0) return;
+                  setHoverCard(null);
                   beginDrag(d, e.clientX, e.clientY);
                 }}
-                onMouseEnter={() => setHoveredActorId(d.agentId)}
-                onMouseLeave={() => setHoveredActorId(cur => (cur === d.agentId ? null : cur))}
+                onMouseEnter={e => openCard(e.currentTarget)}
+                onMouseLeave={() => hideHoverCard(cardKey)}
+                onFocus={e => openCard(e.currentTarget)}
+                onBlur={() => hideHoverCard(cardKey)}
                 onClick={() => {
                   if (Date.now() - justDraggedRef.current < 260) return;
+                  setHoverCard(null);
                   onDesk(d);
                 }}
                 aria-label={`${d.name}. ${d.squad}. ${d.bubble}. Drag onto another desk or room to hand off.`}
-              >
-                <span>
-                  <strong className="hs-name">{d.name}</strong>
-                  {d.squad && <em className="hs-meta">{d.squad}</em>}
-                  <small>{d.bubble}</small>
-                  <small className="hs-tip">Drag to hand off · Click to open</small>
-                </span>
-              </button>
+              />
             );
           })}
-          {owner && (
-            <button
-              className={`hs-seat hs-human${dragUI?.zone.kind === 'human' && dragUI.zone.name === owner.name ? ' is-drop-target' : ''}`}
-              style={seatBounds(OWNER_SEAT)}
-              onClick={() => onHuman(owner.name)}
-              aria-label={`${owner.name}'s office`}
-            >
-              <span><strong className="hs-name">{owner.name}</strong><small>Private office &amp; approvals</small></span>
-            </button>
-          )}
-          {coworkers.map((h, i) => (
-            <button
-              className={`hs-seat human-hotspot hs-human${dragUI?.zone.kind === 'human' && dragUI.zone.name === h.name ? ' is-drop-target' : ''}`}
-              key={h.id}
-              style={seatBounds(coworkerSeats[i])}
-              onClick={() => onHuman(h.name)}
-              aria-label={`${h.name}'s desk`}
-            >
-              <span><strong className="hs-name">{h.name}</strong><small>Human teammate</small></span>
-            </button>
-          ))}
+          {owner && (() => {
+            const cardKey = `owner:${owner.id}`;
+            const openCard = (el: HTMLElement) =>
+              showHoverCard({
+                key: cardKey,
+                actorId: `person:${owner.id}`,
+                anchorEl: el,
+                title: owner.name,
+                detail: 'Private office & approvals',
+              });
+            return (
+              <button
+                className={`hs-seat hs-human${dragUI?.zone.kind === 'human' && dragUI.zone.name === owner.name ? ' is-drop-target' : ''}`}
+                style={seatBounds(OWNER_SEAT)}
+                onMouseEnter={e => openCard(e.currentTarget)}
+                onMouseLeave={() => hideHoverCard(cardKey)}
+                onFocus={e => openCard(e.currentTarget)}
+                onBlur={() => hideHoverCard(cardKey)}
+                onClick={() => { setHoverCard(null); onHuman(owner.name); }}
+                aria-label={`${owner.name}'s office`}
+              />
+            );
+          })()}
+          {coworkers.map((h, i) => {
+            const cardKey = `human:${h.id}`;
+            const openCard = (el: HTMLElement) =>
+              showHoverCard({
+                key: cardKey,
+                actorId: `person:${h.id}`,
+                anchorEl: el,
+                title: h.name,
+                detail: 'Human teammate',
+              });
+            return (
+              <button
+                className={`hs-seat human-hotspot hs-human${dragUI?.zone.kind === 'human' && dragUI.zone.name === h.name ? ' is-drop-target' : ''}`}
+                key={h.id}
+                style={seatBounds(coworkerSeats[i])}
+                onMouseEnter={e => openCard(e.currentTarget)}
+                onMouseLeave={() => hideHoverCard(cardKey)}
+                onFocus={e => openCard(e.currentTarget)}
+                onBlur={() => hideHoverCard(cardKey)}
+                onClick={() => { setHoverCard(null); onHuman(h.name); }}
+                aria-label={`${h.name}'s desk`}
+              />
+            );
+          })}
           {FLOOR_PROPS.map(prop => {
             const isTarget = dragUI?.zone.kind === prop.kind;
             const copy = floorPropLabel(floorTheme, prop.kind);
+            const cardKey = `prop:${prop.kind}`;
+            const openCard = (el: HTMLElement) =>
+              showHoverCard({
+                key: cardKey,
+                anchorEl: el,
+                title: copy.title,
+                detail: copy.hint,
+              });
             return (
               <button
                 key={prop.kind}
                 className={`hs-seat hs-prop hs-${prop.kind}${isTarget ? ' is-drop-target' : ''}`}
                 style={tileRectBounds(prop)}
-                onClick={() => (prop.kind === 'meeting' ? onMeeting() : onPropClick?.(prop.kind))}
+                onMouseEnter={e => openCard(e.currentTarget)}
+                onMouseLeave={() => hideHoverCard(cardKey)}
+                onFocus={e => openCard(e.currentTarget)}
+                onBlur={() => hideHoverCard(cardKey)}
+                onClick={() => { setHoverCard(null); if (prop.kind === 'meeting') onMeeting(); else onPropClick?.(prop.kind); }}
                 aria-label={`${copy.title}: ${copy.hint}`}
-              >
-                <span>
-                  <strong className="hs-name">{copy.title}</strong>
-                  <small>{copy.hint}</small>
-                </span>
-              </button>
+              />
             );
           })}
         </div>
       </div>
+      {typeof document !== 'undefined' && hoverCard && !paused && !dragUI && createPortal(
+        <div
+          ref={hoverCardRef}
+          role="tooltip"
+          className={`office-hovercard${hoverCardPos?.below ? ' is-below' : ''}${floorTheme === 'harvest' ? ' is-harvest' : ''}`}
+          style={hoverCardPos ? {
+            left: `${hoverCardPos.left}px`,
+            top: `${hoverCardPos.top}px`,
+            visibility: 'visible',
+            '--arrow-x': `${hoverCardPos.arrowX}px`,
+          } as React.CSSProperties : {
+            left: '0px',
+            top: '0px',
+            visibility: 'hidden',
+          }}
+        >
+          <strong className="hs-name">{hoverCard.title}</strong>
+          {hoverCard.badge && <em className="hs-meta">{hoverCard.badge}</em>}
+          <small>{hoverCard.detail}</small>
+          {hoverCard.tip && <small className="hs-tip">{hoverCard.tip}</small>}
+        </div>,
+        document.body
+      )}
       {pages > 1 && <div className="floor-pages"><button disabled={!currentPage} onClick={() => setPage(p => p - 1)}>←</button> Agents {currentPage + 1}/{pages} <button disabled={currentPage === pages - 1} onClick={() => setPage(p => p + 1)}>→</button></div>}
       {officePhase !== 'working' && (
         <span className={`lunch-sign phase-${officePhase}`}>

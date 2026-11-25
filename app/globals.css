@@ -2216,33 +2216,49 @@ header.top {
   outline-offset: 2px;
 }
 
-.reference-hotspots > button > span {
-  display: none;
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
+/* Top-Layer Viewport-Clamped Editorial Hovercard (never clipped by overflow: hidden!) */
+.office-hovercard {
+  position: fixed;
+  inset: auto;
+  margin: 0;
   width: max-content;
-  max-width: 230px;
+  max-width: min(244px, calc(100vw - 24px));
   text-align: left;
   border: 1px solid var(--line-strong);
   border-radius: var(--r-md);
   background: var(--panel-glass);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(12px);
   padding: 8px 11px;
   color: var(--ink);
   font-family: var(--f-body);
   font-size: 12px;
   line-height: 1.35;
-  box-shadow: var(--shadow-md);
-  z-index: 12;
+  box-shadow: var(--shadow-lg);
+  z-index: 60;
   pointer-events: none;
 }
 
-.reference-hotspots > button > span::after {
+.office-hovercard.is-harvest {
+  border-color: color-mix(in oklab, var(--accent) 45%, var(--line-strong));
+}
+
+.office-hovercard[popover]:is(:popover-open, .\:popover-open) {
+  display: block;
+  position: fixed;
+  inset: auto;
+  margin: 0;
+}
+
+@supports not selector(:popover-open) {
+  .office-hovercard[popover]:not(.\:popover-open) {
+    display: none;
+  }
+}
+
+.office-hovercard::after {
   content: "";
   position: absolute;
-  left: 50%;
+  left: var(--arrow-x, 50%);
   bottom: -5px;
   width: 9px;
   height: 9px;
@@ -2252,6 +2268,24 @@ header.top {
   transform: translateX(-50%) rotate(45deg);
 }
 
+.office-hovercard.is-harvest::after {
+  border-color: color-mix(in oklab, var(--accent) 45%, var(--line-strong));
+}
+
+.office-hovercard.is-below::after {
+  bottom: auto;
+  top: -5px;
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 1px solid var(--line-strong);
+  border-top: 1px solid var(--line-strong);
+}
+
+.office-hovercard.is-harvest.is-below::after {
+  border-color: color-mix(in oklab, var(--accent) 45%, var(--line-strong));
+}
+
+.office-hovercard .hs-name,
 .reference-hotspots .hs-name {
   display: block;
   font-weight: 700;
@@ -2259,6 +2293,7 @@ header.top {
   color: var(--ink);
 }
 
+.office-hovercard .hs-meta,
 .reference-hotspots .hs-meta {
   display: inline-block;
   font-style: normal;
@@ -2273,17 +2308,22 @@ header.top {
   margin-top: 3px;
 }
 
+.office-hovercard small,
 .reference-hotspots small {
   display: block;
   font-weight: 500;
   font-size: 11px;
   color: var(--muted);
   margin-top: 3px;
+  overflow-wrap: anywhere;
 }
 
-.reference-hotspots > button:hover > span,
-.reference-hotspots > button:focus-visible > span {
-  display: block;
+.office-hovercard .hs-tip {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px dashed var(--line);
+  font-size: 10px;
+  color: var(--subtle);
 }
 
 /* Floating Office Status Overlays */
@@ -2292,6 +2332,7 @@ header.top {
   top: 14px;
   left: 50%;
   transform: translateX(-50%);
+  max-width: calc(100% - 28px);
   padding: 7px 14px;
   border: 1px solid var(--line-strong);
   border-radius: var(--r-pill);
@@ -2300,6 +2341,7 @@ header.top {
   color: var(--ink);
   font-size: 12px;
   font-weight: 600;
+  text-align: center;
   box-shadow: var(--shadow-md);
   z-index: 12;
 }
@@ -8020,7 +8062,7 @@ main.pagewide > * {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  max-width: 245px;
+  max-width: min(245px, calc(100vw - 44px));
   padding: 4px 9px 4px 5px;
   border: 1px solid var(--line-strong);
   border-radius: var(--r-pill);
@@ -8033,13 +8075,22 @@ main.pagewide > * {
   white-space: nowrap;
   box-shadow: var(--shadow-md);
   pointer-events: none;
-  transition: opacity 160ms ease-out, border-color 140ms ease-out, box-shadow 140ms ease-out;
+  transition: opacity 150ms ease-out, border-color 140ms ease-out, box-shadow 140ms ease-out;
+}
+
+.actor-speech.is-px-placed {
+  transform: none;
+}
+
+.actor-speech.is-suppressed {
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 .actor-speech::after {
   content: "";
   position: absolute;
-  left: 50%;
+  left: var(--tail-x, 50%);
   bottom: -5px;
   width: 8px;
   height: 8px;
@@ -8047,6 +8098,15 @@ main.pagewide > * {
   border-right: 1px solid var(--line-strong);
   border-bottom: 1px solid var(--line-strong);
   transform: translateX(-50%) rotate(45deg);
+}
+
+.actor-speech.is-below::after {
+  bottom: auto;
+  top: -5px;
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 1px solid var(--line-strong);
+  border-top: 1px solid var(--line-strong);
 }
 
 .actor-speech.is-clickable {
@@ -8060,17 +8120,14 @@ main.pagewide > * {
   z-index: 12;
 }
 
-/* Compact "Working" badge by default; smoothly reveal full task detail only on hover! */
+/* Compact "Working" badge by default; reveal full task detail on direct pill hover without layout-thrashing width transitions */
 .actor-speech.tone-working {
   gap: 0;
   padding: 3px 4px;
-  transition: opacity 160ms ease-out, border-color 140ms ease-out, box-shadow 140ms ease-out, padding 160ms ease-out, gap 160ms ease-out;
 }
 
 .actor-speech.tone-working .as-text {
-  max-width: 0;
-  opacity: 0;
-  transition: max-width 180ms ease-out, opacity 150ms ease-out;
+  display: none;
 }
 
 .actor-speech.tone-working:hover,
@@ -8084,8 +8141,8 @@ main.pagewide > * {
 .actor-speech.tone-working:hover .as-text,
 .actor-speech.tone-working:focus-visible .as-text,
 .actor-speech.tone-working.is-expanded .as-text {
-  max-width: 215px;
-  opacity: 1;
+  display: inline-block;
+  max-width: min(210px, calc(100vw - 96px));
 }
 
 .as-badge {
