@@ -296,7 +296,8 @@ const OfficeComposer = memo(function OfficeComposer({
               type="button"
               className="toast-close"
               aria-label="Close notification"
-              {...({ popovertarget: "office-send-toast", popovertargetaction: "hide" } as Record<string, string>)}
+              popoverTarget="office-send-toast"
+              popoverTargetAction="hide"
               onClick={() => dismissSendToast(true)}
             >
               ×
