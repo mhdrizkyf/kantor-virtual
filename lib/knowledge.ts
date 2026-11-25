@@ -10,6 +10,8 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSy
 import { homedir } from "node:os";
 import { join, relative, resolve, sep, dirname } from "node:path";
 import { workspaces, loadDirectory, allIssues, issueDetail, fileRaw, call_, updateAgent, isHiddenIssue, type Agent, type Workspace } from "./multica";
+import { readJsonFile, writeJsonAtomic } from "./json-store";
+import { withProcessLock } from "./process-lock";
 
 export const FILES_MARKER = "## Kantor Virtual files";
 /** Top folder inside OneDrive. A second install (e.g. a demo server) can use its own with KANTOR_FILES_FOLDER. */
@@ -37,8 +39,8 @@ type Meta = {
   links: Record<string, string[]>; lastSync?: string; lastResult?: string; v?: number;
 };
 function readMeta(): Meta {
-  let m: Meta;
-  try { m = { agents: {}, ws: {}, copied: {}, skills: {}, links: {}, ...JSON.parse(readFileSync(META(), "utf8")) }; } catch { m = { agents: {}, ws: {}, copied: {}, skills: {}, links: {} }; }
+  const raw = readJsonFile<Partial<Meta>>(META(), () => ({}), { tolerateInvalid: true });
+  const m: Meta = { agents: {}, ws: {}, copied: {}, skills: {}, links: {}, ...raw };
   // v1 stored paths relative to "Kantor Virtual"; now they are relative to the OneDrive root.
   if (!m.v) {
     const fix = (r: Record<string, string>) => { for (const k in r) if (!r[k].startsWith(KV + sep)) r[k] = join(KV, r[k]); };
@@ -46,7 +48,7 @@ function readMeta(): Meta {
   }
   return m;
 }
-function writeMeta(m: Meta) { mkdirSync(dirname(META()), { recursive: true }); writeFileSync(META(), JSON.stringify(m, null, 2)); }
+function writeMeta(m: Meta) { writeJsonAtomic(META(), m); }
 
 /** Agents that run on this laptop can read the folders; others (another person's laptop) can't. */
 function localDaemon(): string | null {
@@ -147,14 +149,16 @@ export async function setLink(key: string, path: string, on: boolean) {
   if (on && (!existsSync(p) || !statSync(p).isDirectory())) throw new Error("That folder doesn't exist.");
   const rel = relative(root, p);
   if (!rel) throw new Error("Pick a folder inside OneDrive, not OneDrive itself.");
-  const m = readMeta();
-  const cur = new Set(m.links[key] ?? []);
-  if (on) cur.add(rel); else cur.delete(rel);
-  m.links[key] = [...cur];
-  writeMeta(m);
-  const wsId = key.startsWith("shared:") ? key.slice(7) : m.ws[key];
+  const { wsId, links } = await withProcessLock("files-sync", async () => {
+    const m = readMeta();
+    const cur = new Set(m.links[key] ?? []);
+    if (on) cur.add(rel); else cur.delete(rel);
+    m.links[key] = [...cur];
+    writeMeta(m);
+    return { wsId: key.startsWith("shared:") ? key.slice(7) : m.ws[key], links: m.links[key] };
+  });
   if (wsId) await setupFolders([], wsId);
-  return m.links[key];
+  return links;
 }
 
 let running: Promise<string> | null = null;
@@ -196,12 +200,14 @@ async function doSync() {
     }
   }
   // Links and new agents may have changed meanwhile: only update what this run owns.
-  const fresh = readMeta();
-  fresh.copied = { ...fresh.copied, ...m.copied };
-  fresh.lastSync = started;
-  fresh.lastResult = n ? `Copied ${n} new file${n === 1 ? "" : "s"}.` : "Up to date.";
-  writeMeta(fresh);
-  return fresh.lastResult;
+  return withProcessLock("files-sync", async () => {
+    const fresh = readMeta();
+    fresh.copied = { ...fresh.copied, ...m.copied };
+    fresh.lastSync = started;
+    fresh.lastResult = n ? `Copied ${n} new file${n === 1 ? "" : "s"}.` : "Up to date.";
+    writeMeta(fresh);
+    return fresh.lastResult;
+  });
 }
 
 // ---- Browsing (for the Knowledge page) ----

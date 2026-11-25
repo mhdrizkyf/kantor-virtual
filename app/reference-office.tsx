@@ -1,25 +1,32 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import type { Desk } from '@/lib/office';
 import { castFor } from '@/lib/munder-cast';
 import { floorSeats, OFFICE_PLAN, OWNER_SEAT, seatBounds } from '@/lib/floor-seats';
 import {
   bubbleKindForState,
+  buildTwoWayDialog,
   compactLabel,
-  handoverSpeechPayload,
+  GOODBYE_LINES,
   interactiveFloorProps,
   meetingSpotsFor,
+  MORNING_GREETINGS,
   ownerReviewSpotsFor,
+  partitionReviewDelivery,
+  PEER_CHAT_SCRIPTS,
+  pickNaturalActivity,
   resolveDropZone,
   tileRectBounds,
   type BubbleKind,
   type DropZone,
   type FloorPropKind,
+  type ReviewStyle,
   type SpeechBubbleItem,
   type SpeechBubbleTone,
 } from '@/lib/munder-workflows';
 import type { Handover } from './handover';
 import { floorPropLabel, type FloorTheme, type HarvestPhase } from '@/lib/harvest-theme';
+import type { OfficePhase } from '@/lib/office-time';
 
 // The campus extends the MIT procedural engine with a shared floor plan and custom artwork.
 // Its isolated JS API is deliberately kept at this boundary.
@@ -67,15 +74,18 @@ function describeDropTarget(draggedName: string, zone: DropZone): string {
   }
 }
 
-export type ReviewTaskInfo = { id: string; ws: string; title: string };
+export type ReviewTaskInfo = { id: string; ws: string; title: string; questionCount?: number };
 export type OfficeWalk = Handover & { key: string; kind?: 'assign' | 'revise' | 'review' | 'handoff' };
 
-export default function ReferenceOffice({
+const ReferenceOffice = memo(function ReferenceOffice({
   desks,
   humans,
   ownerId,
   officeOpen,
+  officePhase = 'working',
+  phaseLabel = '',
   lunch,
+  reviewStyle = 'auto',
   previewWorking,
   previewReviewId = null,
   huddleIds = [],
@@ -83,6 +93,7 @@ export default function ReferenceOffice({
   reviewTasksByAgent = {},
   floorTheme = 'harvest',
   harvestPhase = 'day',
+  paused = false,
   onDesk,
   onHuman,
   onMeeting,
@@ -97,7 +108,10 @@ export default function ReferenceOffice({
   humans: { id: string; name: string; face?: string | null }[];
   ownerId: string | null;
   officeOpen: boolean;
+  officePhase?: OfficePhase;
+  phaseLabel?: string;
   lunch: boolean;
+  reviewStyle?: ReviewStyle;
   previewWorking: boolean;
   previewReviewId?: string | null;
   huddleIds?: string[];
@@ -105,6 +119,7 @@ export default function ReferenceOffice({
   reviewTasksByAgent?: Record<string, ReviewTaskInfo>;
   floorTheme?: FloorTheme;
   harvestPhase?: HarvestPhase;
+  paused?: boolean;
   onDesk: (d: Desk) => void;
   onHuman: (name: string) => void;
   onMeeting: (focusAgentId?: string) => void;
@@ -158,14 +173,14 @@ export default function ReferenceOffice({
   const retinaPackRef = useRef<unknown>(null);
   const [sceneReady, setSceneReady] = useState(0);
   const speechElsRef = useRef<Map<string, HTMLElement>>(new Map());
-  const latest = useRef({ desks, lunch, previewWorking, previewReviewId, walks, onDelivered, onDone, onDropAgent, onMeeting, onPropClick, onHuman });
-  latest.current = { desks, lunch, previewWorking, previewReviewId, walks, onDelivered, onDone, onDropAgent, onMeeting, onPropClick, onHuman };
-
   const orderedHumans = ownerId ? [...humans.filter(h => h.id === ownerId), ...humans.filter(h => h.id !== ownerId)] : humans;
   const visibleHumans = orderedHumans.slice(0, 6);
   const owner = visibleHumans[0];
   const coworkers = visibleHumans.slice(1);
   const { coworkerSeats, agentSeats } = floorSeats(visibleHumans.length);
+  const offDuty = !officeOpen || (officePhase !== 'working' && officePhase !== 'lunch');
+  const latest = useRef({ desks, lunch, officeOpen, officePhase, offDuty, paused, previewWorking, previewReviewId, walks, onDelivered, onDone, onDropAgent, onMeeting, onPropClick, onHuman, agentSeats, coworkerSeats, visibleHumans });
+  latest.current = { desks, lunch, officeOpen, officePhase, offDuty, paused, previewWorking, previewReviewId, walks, onDelivered, onDone, onDropAgent, onMeeting, onPropClick, onHuman, agentSeats, coworkerSeats, visibleHumans };
 
   // Two real break destinations: Kitchen Pantry (x=7, y=7) & Dedicated Coffee Machine Bar (x=35, y=5)
   const breakSpotCursorRef = useRef(0);
@@ -195,19 +210,29 @@ export default function ReferenceOffice({
 
   const pages = Math.max(1, Math.ceil(desks.length / agentSeats.length));
   const currentPage = Math.min(page, pages - 1);
-  const shown = desks.slice(currentPage * agentSeats.length, currentPage * agentSeats.length + agentSeats.length);
+  const shown = useMemo(
+    () => desks.slice(currentPage * agentSeats.length, currentPage * agentSeats.length + agentSeats.length),
+    [desks, currentPage, agentSeats.length]
+  );
   const shownRef = useRef(shown);
   shownRef.current = shown;
 
-  // Agents currently awaiting human owner review (real Multica state OR visual workflow preview)
-  const reviewAgentIds = useMemo(() => {
-    if (huddleIds.length > 0) return [];
-    const ids = shown.filter(d => d.state === 'review' || !!reviewTasksByAgent[d.agentId]).map(d => d.agentId);
-    if (previewReviewId && shown.some(d => d.agentId === previewReviewId) && !ids.includes(previewReviewId)) {
-      ids.unshift(previewReviewId);
+  // Agents currently awaiting human owner review (partitioned into Alt 1: Walk to Owner vs Alt 2: Desk Bubble)
+  const { walkReviewIds, deskReviewIds } = useMemo(() => {
+    if (huddleIds.length > 0) return { walkReviewIds: [] as string[], deskReviewIds: [] as string[] };
+    const allIds = shown
+      .filter(d => {
+        if (offDuty && !previewReviewId) return false;
+        return d.state === 'review' || !!reviewTasksByAgent[d.agentId];
+      })
+      .map(d => d.agentId);
+    if (previewReviewId && shown.some(d => d.agentId === previewReviewId) && !allIds.includes(previewReviewId)) {
+      allIds.unshift(previewReviewId);
     }
-    return ids.slice(0, 6);
-  }, [shown, reviewTasksByAgent, previewReviewId, huddleIds.length]);
+    const { walkToOwner, deskBubbleOnly } = partitionReviewDelivery(allIds, reviewTasksByAgent, reviewStyle);
+    return { walkReviewIds: walkToOwner, deskReviewIds: deskBubbleOnly };
+  }, [shown, reviewTasksByAgent, previewReviewId, huddleIds.length, offDuty, reviewStyle]);
+  const reviewAgentIds = walkReviewIds;
 
   const showTransient = (item: SpeechBubbleItem, ms = 3200, pixelKind?: BubbleKind) => {
     const expiresAt = Date.now() + ms;
@@ -284,57 +309,111 @@ export default function ReferenceOffice({
       }
       showTransient({ actorId: id, tone: 'coffee', badge: chosen.isCoffeeBar ? 'Coffee Bar' : 'Kitchen', text: chosen.label }, 3400, 'coffee');
     };
+    const dialog = (event: Event) => {
+      const detail = (event as CustomEvent<{
+        fromId: string;
+        toId: string;
+        fromName: string;
+        toName: string;
+        title: string;
+        kind: 'handoff' | 'assign' | 'revise' | 'review' | 'approve';
+      }>).detail;
+      if (!detail?.fromId || !detail?.toId) return;
+      const dlg = buildTwoWayDialog(detail);
+      showTransient(
+        { actorId: detail.fromId, tone: dlg.senderTone, badge: dlg.senderBadge, text: dlg.senderText },
+        3600,
+        dlg.senderPixel
+      );
+      setTimeout(() => {
+        showTransient(
+          { actorId: detail.toId, tone: dlg.replyTone, badge: dlg.replyBadge, text: dlg.replyText },
+          3600,
+          dlg.replyPixel
+        );
+      }, 1050);
+    };
     window.addEventListener('kantor:letter', receive);
     window.addEventListener('kantor:celebrate', celebrate);
     window.addEventListener('kantor:speech', speech);
     window.addEventListener('kantor:coffee', coffee);
+    window.addEventListener('kantor:dialog', dialog);
     return () => {
       clearTimeout(timer);
       window.removeEventListener('kantor:letter', receive);
       window.removeEventListener('kantor:celebrate', celebrate);
       window.removeEventListener('kantor:speech', speech);
       window.removeEventListener('kantor:coffee', coffee);
+      window.removeEventListener('kantor:dialog', dialog);
     };
   }, [agentSeats.length]);
 
   useEffect(() => { if (!ack) return; const timer = setTimeout(() => setAck(''), 4000); return () => clearTimeout(timer); }, [ack]);
 
-  // Door entry / exit animation when office switches open <-> closed
-  const prevOfficeOpen = useRef<boolean | null>(null);
+  // Door entry / exit animation when office switches open <-> closed OR work hours start (08:00) / end (17:30)
+  const prevOffDuty = useRef<boolean | null>(null);
   useEffect(() => {
-    if (prevOfficeOpen.current === null) {
-      prevOfficeOpen.current = officeOpen;
+    if (prevOffDuty.current === null) {
+      prevOffDuty.current = offDuty;
       return;
     }
-    if (prevOfficeOpen.current === officeOpen) return;
-    prevOfficeOpen.current = officeOpen;
+    if (prevOffDuty.current === offDuty) return;
+    prevOffDuty.current = offDuty;
     const s = scene.current;
     if (!s || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const timers: ReturnType<typeof setTimeout>[] = [];
-    if (officeOpen) {
-      setAck('Office opened · Agents walking in');
+    if (!offDuty) {
+      setAck('Jam kerja dimulai · Agen masuk kantor');
       shownRef.current.forEach((d, i) => {
         timers.push(setTimeout(() => {
           const a = s.get(d.agentId);
           if (!a) return;
           a.hidden = true;
           s.come(d.agentId);
-          s.bubble(d.agentId, 'sun', 3);
-        }, i * 240));
+          const greet = MORNING_GREETINGS[i % MORNING_GREETINGS.length];
+          if (i < 4) showTransient({ actorId: d.agentId, tone: 'approved', badge: 'Pagi', text: greet }, 3200, 'sun');
+          else s.bubble(d.agentId, 'sun', 3);
+        }, i * 260));
       });
     } else {
-      setAck('Office closed · Agents heading home');
+      setAck(officeOpen ? 'Jam kerja selesai (17:30) · Agen pulang' : 'Kantor ditutup · Agen pulang');
       shownRef.current.forEach((d, i) => {
         timers.push(setTimeout(() => {
           const a = s.get(d.agentId);
           if (!a || a.busy || a.hidden) return;
-          s.bubble(d.agentId, 'zz', 2.5);
+          a.reviewHold = false;
+          a.huddleHold = false;
+          const bye = GOODBYE_LINES[i % GOODBYE_LINES.length];
+          if (i < 3) showTransient({ actorId: d.agentId, tone: 'coffee', badge: 'Pulang', text: bye }, 2800, 'zz');
+          else s.bubble(d.agentId, 'zz', 2.5);
           s.leave(d.agentId);
-        }, i * 200));
+        }, i * 220));
       });
     }
     return () => { timers.forEach(clearTimeout); };
-  }, [officeOpen]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offDuty]);
+
+  // End of lunch break (13:15): gently call break-roaming agents back to their desks
+  const prevLunchRef = useRef(lunch);
+  useEffect(() => {
+    const wasLunch = prevLunchRef.current;
+    prevLunchRef.current = lunch;
+    if (!wasLunch || lunch) return;
+    const s = scene.current;
+    if (!s || offDuty) return;
+    shownRef.current.forEach((d, i) => {
+      const a = s.get(d.agentId);
+      if (!a || a.hidden || a.busy || a.huddleHold || a.reviewHold || a.state === 'seat' || a.state === 'held') return;
+      const desk = s.L.desks[a.desk];
+      const st = s.seatTile(desk);
+      a.target = null;
+      const p = s.path(a.x, a.y, st[0], st[1]);
+      if (p) { a.state = 'walk'; a.path = p; a.then = 'seat'; }
+      if (i < 3) showTransient({ actorId: d.agentId, tone: 'working', badge: '13:15', text: 'Balik kerja lagi 💪' }, 2800, 'sun');
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lunch, offDuty]);
 
   // Standup Huddle: walk participating agents to unique spots around the meeting table
   const prevHuddle = useRef<string[]>([]);
@@ -525,10 +604,11 @@ export default function ReferenceOffice({
         s.grab(dr.agentId);
       }
       s.hold(dr.agentId, pt.wx, pt.wy);
+      const { agentSeats: curAgentSeats, coworkerSeats: curCoworkerSeats, visibleHumans: curHumans } = latest.current;
       const zone = resolveDropZone(pt.wx, pt.wy, {
         draggedAgentId: dr.agentId,
-        agentDesks: shownRef.current.map((d, i) => ({ agentId: d.agentId, name: d.name, seatIndex: agentSeats[i] })),
-        humanDesks: visibleHumans.map((h, i) => ({ name: h.name, seatIndex: i === 0 ? OWNER_SEAT : coworkerSeats[i - 1] })),
+        agentDesks: shownRef.current.map((d, i) => ({ agentId: d.agentId, name: d.name, seatIndex: curAgentSeats[i] })),
+        humanDesks: curHumans.map((h, i) => ({ name: h.name, seatIndex: i === 0 ? OWNER_SEAT : curCoworkerSeats[i - 1] })),
       });
       dr.zone = zone;
       setDragUI({ agentId: dr.agentId, name: dr.desk.name, zone, x: pt.relX, y: pt.relY });
@@ -570,7 +650,7 @@ export default function ReferenceOffice({
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
     };
-  }, [agentSeats, coworkerSeats, visibleHumans]);
+  }, []);
 
   // Build prioritized live speech bubbles (position tracked smoothly at 24fps in s.onTick)
   const speechBubbles = useMemo<SpeechBubbleItem[]>(() => {
@@ -580,39 +660,59 @@ export default function ReferenceOffice({
     // 1. Working & Failed status bubbles at desk
     for (const d of shown) {
       const isPreviewWork = previewWorking && d.agentId === shown[0]?.agentId;
-      if (d.state === 'failed') {
+      if (d.state === 'failed' && !offDuty) {
         map.set(d.agentId, {
           actorId: d.agentId,
           tone: 'failed',
           badge: 'Blocked',
-          text: compactLabel(d.bubble || 'Needs retry', 30),
+          text: compactLabel(d.bubble || 'Gagal — klik untuk cek/retry 😅', 30),
           clickable: true,
         });
       } else if (d.state === 'working' || isPreviewWork) {
         map.set(d.agentId, {
           actorId: d.agentId,
           tone: 'working',
-          badge: 'Working',
-          text: isPreviewWork ? 'Working on Q4 Launch Brief…' : compactLabel(d.bubble || 'Working on task…', 30),
+          badge: offDuty && !isPreviewWork ? 'Lembur' : 'Working',
+          text: isPreviewWork ? 'Mengerjakan Q4 Launch Brief…' : compactLabel(d.bubble || 'Sedang mengerjakan task…', 30),
           clickable: true,
         });
       }
     }
 
-    // 2. Agents waiting for Human Owner Review (walking to or standing beside Owner's desk!)
-    for (const id of reviewAgentIds) {
+    // 2a. Alt 1 — Agents waiting for Human Owner Review by walking into Owner's room
+    for (const id of walkReviewIds) {
       const d = shown.find(x => x.agentId === id);
       if (!d) continue;
       const revTask = reviewTasksByAgent[id];
-      const title = revTask?.title ?? (id === previewReviewId ? 'Q4 Launch Brief' : d.bubble || 'Work ready');
+      const title = revTask?.title ?? (id === previewReviewId ? 'Q4 Launch Brief' : d.bubble || 'Hasil siap');
       const arrived = !!reviewArrived[id];
       map.set(id, {
         actorId: id,
         tone: arrived ? 'review' : 'handover',
-        badge: arrived ? 'Approval' : 'To Review',
+        badge: arrived ? 'Review' : 'Menuju ' + ownerLabel,
         text: arrived
-          ? `Waiting ${ownerLabel}: ${compactLabel(title, 26)}`
-          : `Bringing to ${ownerLabel}: ${compactLabel(title, 24)}`,
+          ? `Mohon review ${ownerLabel}: ${compactLabel(title, 24)}`
+          : `Bawa ke ${ownerLabel}: ${compactLabel(title, 24)}`,
+        issueId: revTask?.id,
+        ws: revTask?.ws,
+        clickable: true,
+      });
+    }
+
+    // 2b. Alt 2 — Agents notifying Human Owner from their desk via clickable bubble (questions or bubble-review mode)
+    for (const id of deskReviewIds) {
+      const d = shown.find(x => x.agentId === id);
+      if (!d) continue;
+      const revTask = reviewTasksByAgent[id];
+      const title = revTask?.title ?? d.bubble ?? 'Hasil siap';
+      const hasQ = (revTask?.questionCount ?? 0) > 0;
+      map.set(id, {
+        actorId: id,
+        tone: 'review',
+        badge: hasQ ? `Tanya ${ownerLabel}` : 'Review',
+        text: hasQ
+          ? `@${ownerLabel}, butuh keputusan: ${compactLabel(title, 22)} ❓`
+          : `@${ownerLabel}, mohon review: ${compactLabel(title, 22)} 👀`,
         issueId: revTask?.id,
         ws: revTask?.ws,
         clickable: true,
@@ -631,25 +731,30 @@ export default function ReferenceOffice({
       });
     }
 
-    // 4. Active handover walks (always visible with clear moving text!)
+    // 4. Active handover walks (Alt 1 — sender carries work with 2-way dialog text!)
     for (const w of walks) {
-      const payload = handoverSpeechPayload(w);
+      const dlg = buildTwoWayDialog({
+        kind: w.kind ?? 'handoff',
+        fromName: w.fromName,
+        toName: w.toName,
+        title: w.title,
+      });
       map.set(w.from, {
         actorId: w.from,
-        tone: payload.tone,
-        badge: payload.badge,
-        text: payload.text,
+        tone: dlg.senderTone,
+        badge: dlg.senderBadge,
+        text: dlg.senderText,
         clickable: false,
       });
     }
 
-    // 5. Highest priority: transient celebrations / delivered / revising reactions
+    // 5. Highest priority: transient celebrations / 2-way replies / natural activities
     for (const item of Object.values(transientBubbles)) {
       map.set(item.actorId, item);
     }
 
     return [...map.values()];
-  }, [shown, owner, previewWorking, reviewAgentIds, reviewTasksByAgent, previewReviewId, reviewArrived, huddleIds, walks, transientBubbles]);
+  }, [shown, owner, offDuty, previewWorking, walkReviewIds, deskReviewIds, reviewTasksByAgent, previewReviewId, reviewArrived, huddleIds, walks, transientBubbles]);
 
   // Sync bubble DOM coordinates immediately whenever the bubble list changes
   useEffect(() => {
@@ -686,6 +791,7 @@ export default function ReferenceOffice({
         const actor = s.get(d.agentId);
         if (actor) {
           actor.retinaFaceId = d.face;
+          actor.hidden = !actor.busy && (latest.current.offDuty || ['off', 'closed'].includes(d.state));
           if (d.face) usedAgentFaces.add(d.face);
         }
       });
@@ -717,13 +823,22 @@ export default function ReferenceOffice({
       }
 
       const pending = new Map<string, { h: OfficeWalk; delivered: boolean }>();
+      const lastSpeechPos = new Map<string, string>();
       const syncSpeechDOM = () => {
         speechElsRef.current.forEach((el, actorId) => {
           const a = s.get(actorId);
           if (!a || a.hidden) {
-            el.style.opacity = '0';
+            if (lastSpeechPos.get(actorId) !== 'hidden') {
+              el.style.opacity = '0';
+              lastSpeechPos.set(actorId, 'hidden');
+            }
             return;
           }
+          const rx = Math.round(a.fx * 2);
+          const ry = Math.round(a.fy * 2);
+          const key = `${rx},${ry}`;
+          if (lastSpeechPos.get(actorId) === key) return;
+          lastSpeechPos.set(actorId, key);
           el.style.opacity = '1';
           el.style.left = `${(a.fx / s.W) * 100}%`;
           el.style.top = `${(Math.max(24, a.fy - 36) / s.H) * 100}%`;
@@ -757,7 +872,7 @@ export default function ReferenceOffice({
             a._notifiedReviewArrived = false;
           }
 
-          a.hidden = !a.busy && !a.huddleHold && !a.reviewHold && ['home', 'off', 'closed'].includes(d.state) && a.state === 'seat';
+          a.hidden = !a.busy && !a.huddleHold && !a.reviewHold && (latest.current.offDuty || ['off', 'closed'].includes(d.state)) && a.state === 'seat';
           if (a.hidden) continue;
 
           // Live pixel bubbles driven by real Multica desk state
@@ -794,11 +909,17 @@ export default function ReferenceOffice({
           const a = s.get(p.h.from);
           if (!p.delivered && a?.state === 'errand') {
             p.delivered = true;
-            s.bubble(p.h.to, 'check', 3.2);
+            const dlg = buildTwoWayDialog({
+              kind: p.h.kind ?? 'handoff',
+              fromName: p.h.fromName,
+              toName: p.h.toName,
+              title: p.h.title,
+            });
+            s.bubble(p.h.to, dlg.replyPixel, 3.4);
             showTransient(
-              { actorId: p.h.to, tone: 'approved', badge: 'Received', text: `From ${p.h.fromName}: ${compactLabel(p.h.title, 26)}` },
-              2800,
-              'check'
+              { actorId: p.h.to, tone: dlg.replyTone, badge: dlg.replyBadge, text: dlg.replyText },
+              3400,
+              dlg.replyPixel
             );
             latest.current.onDelivered(p.h);
           }
@@ -834,34 +955,126 @@ export default function ReferenceOffice({
       }
 
       const reduced = matchMedia('(prefers-reduced-motion: reduce)');
-      const visibility = () => { if (document.visibilityState === 'visible' && !reduced.matches) s.start(); else { s.stop(); s.draw(); syncSpeechDOM(); } };
+      const visibility = () => { if (document.visibilityState === 'visible' && !reduced.matches && !latest.current.paused) s.start(); else { s.stop(); s.draw(); syncSpeechDOM(); } };
       visibility();
       document.addEventListener('visibilitychange', visibility);
       reduced.addEventListener('change', visibility);
       const clockTimer = setInterval(() => { if (!s.running && !document.hidden) s.draw(); }, 30000);
-      const lunchTimer = setInterval(() => {
-        if (!latest.current.lunch || document.hidden) return;
-        const breakSpots = [
-          ...OFFICE_PLAN.errands.filter(e => e.kind === 'coffee'),
-          { ...OFFICE_PLAN.lunch, face: 'down', kind: 'coffee' },
-        ];
-        latest.current.desks.forEach((d, idx) => {
+      let activitySeed = 1;
+      const lifeTimer = setInterval(() => {
+        if (document.hidden || latest.current.paused || latest.current.offDuty || !s.running) return;
+        const isBreak = latest.current.lunch;
+        const freeDesks = shownRef.current.filter(d => {
           const a = s.get(d.agentId);
-          if (a && ['home', 'ready', 'break'].includes(d.state) && a.state === 'seat' && !a.huddleHold && !a.reviewHold) {
-            const spot = breakSpots[idx % breakSpots.length] ?? { ...OFFICE_PLAN.lunch, face: 'down', kind: 'coffee' };
-            const target = { x: spot.x, y: spot.y, face: spot.face || 'up', kind: 'coffee' };
-            const path = s.path(a.x, a.y, target.x, target.y);
-            if (!path) return;
-            a.hidden = false; a.state = 'walk'; a.path = path; a.then = 'errand'; a.target = target;
-          }
+          return a && !a.hidden && !a.busy && !a.huddleHold && !a.reviewHold && a.state === 'seat' && ['home', 'ready', 'break'].includes(d.state);
         });
-      }, 15000);
-      cleanup = () => { s.stop(); clearInterval(clockTimer); clearInterval(lunchTimer); document.removeEventListener('visibilitychange', visibility); reduced.removeEventListener('change', visibility); scene.current = null; };
+        if (!freeDesks.length) return;
+
+        // Track currently roaming agents & occupied destinations so the floor looks lively, never crowded.
+        const roamingCount = shownRef.current.filter(d => {
+          const a = s.get(d.agentId);
+          return a && !a.hidden && !a.huddleHold && !a.reviewHold && (a.state === 'walk' || a.state === 'errand');
+        }).length;
+        const occupied = new Set<string>();
+        for (const ag of s.agents) {
+          if (ag.target && typeof ag.target.x === 'number') occupied.add(`${ag.target.x},${ag.target.y}`);
+        }
+
+        if (isBreak) {
+          // Lunch break (12:00–13:15): send up to 4 free agents to Pantry, Coffee Bar, and Lounge.
+          const slots = Math.max(0, 4 - roamingCount);
+          for (let i = 0; i < Math.min(slots, freeDesks.length); i++) {
+            const d = freeDesks[(activitySeed + i) % freeDesks.length];
+            const a = s.get(d.agentId);
+            const pick = pickNaturalActivity({
+              lunch: true,
+              seed: activitySeed++,
+              occupiedKeys: occupied,
+              isWalkable: (x, y) => !!s.walk[y]?.[x],
+            });
+            if (!a || !pick) continue;
+            const path = s.path(a.x, a.y, pick.spot.x, pick.spot.y);
+            if (!path || !path.length) continue;
+            occupied.add(`${pick.spot.x},${pick.spot.y}`);
+            a.state = 'walk';
+            a.path = path;
+            a.then = 'errand';
+            a.target = { x: pick.spot.x, y: pick.spot.y, face: pick.spot.face, kind: 'coffee' };
+            showTransient({ actorId: d.agentId, tone: 'coffee', badge: 'Istirahat', text: pick.line }, 3600, pick.spot.bubbleKind);
+          }
+          return;
+        }
+
+        // Regular work hours (08:00–12:00 & 13:15–17:30): keep up to 3 agents doing natural human activities.
+        if (roamingCount >= 3) return;
+        activitySeed++;
+
+        // 35% chance of a natural 2-way peer sync / watercooler chat between two free teammates!
+        if (freeDesks.length >= 2 && activitySeed % 3 === 0) {
+          const first = freeDesks[activitySeed % freeDesks.length];
+          const second = freeDesks[(activitySeed + 1) % freeDesks.length];
+          const a = s.get(first.agentId);
+          const b = s.get(second.agentId);
+          if (a && b) {
+            const script = PEER_CHAT_SCRIPTS[activitySeed % PEER_CHAT_SCRIPTS.length];
+            const qText = script[0].replace('{other}', second.name.split(/\s+/)[0]);
+            const rText = script[1].replace('{other}', first.name.split(/\s+/)[0]);
+            // Walk near teammate if a neighbor tile is free; otherwise chat from nearby desks.
+            const near = [[b.x - 1, b.y], [b.x + 1, b.y], [b.x, b.y + 1], [b.x, b.y - 1]].find(([x, y]) => s.walk[y]?.[x]);
+            if (near) {
+              const path = s.path(a.x, a.y, near[0], near[1]);
+              if (path && path.length && path.length <= 18) {
+                a.state = 'walk';
+                a.path = path;
+                a.then = 'errand';
+                a.target = { x: near[0], y: near[1], face: 'down', kind: 'chat' };
+              }
+            }
+            showTransient({ actorId: first.agentId, tone: 'standup', badge: 'Ngobrol', text: qText }, 3200, 'dots');
+            setTimeout(() => {
+              showTransient({ actorId: second.agentId, tone: 'approved', badge: 'Ngobrol', text: rText }, 3200, 'heart');
+            }, 1350);
+            return;
+          }
+        }
+
+        // Otherwise send 1 idle agent on a natural errand (coffee, pantry, washroom, lounge stretch, board check, notes).
+        const chosen = freeDesks[activitySeed % freeDesks.length];
+        const actor = s.get(chosen.agentId);
+        const pick = pickNaturalActivity({
+          lunch: false,
+          seed: activitySeed,
+          occupiedKeys: occupied,
+          isWalkable: (x, y) => !!s.walk[y]?.[x],
+        });
+        if (!actor || !pick) return;
+        const path = s.path(actor.x, actor.y, pick.spot.x, pick.spot.y);
+        if (!path || !path.length) return;
+        actor.state = 'walk';
+        actor.path = path;
+        actor.then = 'errand';
+        actor.target = { x: pick.spot.x, y: pick.spot.y, face: pick.spot.face, kind: pick.spot.kind === 'board' ? 'board' : pick.spot.kind === 'coffee' || pick.spot.kind === 'pantry' ? 'coffee' : 'chat' };
+        showTransient({ actorId: chosen.agentId, tone: 'coffee', badge: pick.spot.badge, text: pick.line }, 3400, pick.spot.bubbleKind);
+      }, 12000);
+      cleanup = () => { s.stop(); clearInterval(clockTimer); clearInterval(lifeTimer); document.removeEventListener('visibilitychange', visibility); reduced.removeEventListener('change', visibility); scene.current = null; };
     }).catch(e => { if (alive) setError(e.message); });
     return () => { alive = false; cleanup(); };
     // Rebuild only when seats or appearances change, not on polling updates.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [identity, humanIdentity]);
+
+  // Pause 60fps canvas loop while a foreground modal/drawer is open so typing stays lag-free.
+  useEffect(() => {
+    const s = scene.current;
+    if (!s) return;
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (paused || reduced || document.visibilityState !== 'visible') {
+      s.stop();
+      s.draw();
+    } else {
+      s.start();
+    }
+  }, [paused, sceneReady]);
 
   // Instant zero-rebuild floor sprite swap whenever any human member or agent changes avatar!
   const faceSignature = shown.map(d => `${d.agentId}:${d.face ?? ''}`).join('|')
@@ -1074,7 +1287,13 @@ export default function ReferenceOffice({
         </div>
       </div>
       {pages > 1 && <div className="floor-pages"><button disabled={!currentPage} onClick={() => setPage(p => p - 1)}>←</button> Agents {currentPage + 1}/{pages} <button disabled={currentPage === pages - 1} onClick={() => setPage(p => p + 1)}>→</button></div>}
-      {lunch && <span className="lunch-sign">Lunch break · until 13:00</span>}
+      {officePhase !== 'working' && (
+        <span className={`lunch-sign phase-${officePhase}`}>
+          {phaseLabel || (lunch ? 'Jam istirahat · 12:00–13:15' : 'Di luar jam kerja · 08:00–17:30')}
+        </span>
+      )}
     </div>
   );
-}
+});
+
+export default ReferenceOffice;

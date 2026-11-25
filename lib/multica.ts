@@ -4,6 +4,7 @@ import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { digest } from "./digest";
+import type { OfficeSchedule } from "./office-schedule";
 
 export type Agent = {
   id: string; name: string; description: string; avatar_url: string | null;
@@ -52,7 +53,13 @@ async function call<T>(method: string, path: string, workspaceId?: string, body?
   const headers: Record<string, string> = { Authorization: `Bearer ${token()}`, Accept: "application/json" };
   if (workspaceId) headers["X-Workspace-ID"] = workspaceId;
   if (body !== undefined) headers["Content-Type"] = "application/json";
-  const res = await fetch(API + path, { method, headers, cache: "no-store", body: body === undefined ? undefined : JSON.stringify(body) });
+  const res = await fetch(API + path, {
+    method,
+    headers,
+    cache: "no-store",
+    signal: AbortSignal.timeout(25_000),
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
   if (!res.ok) {
     const msg = await res.text().catch(() => "");
     throw new Error(`Multica ${method} ${path} → ${res.status} ${msg.slice(0, 200)}`);
@@ -275,12 +282,27 @@ export async function loadDirectory(wsPick?: string | null) {
 
 export async function allIssues(id: string) {
   const issues: Issue[] = [];
-  for (let offset = 0; offset < 2000; offset += 200) {
+  for (let offset = 0; offset < 4000; offset += 200) {
     const page = await get<{ issues: Issue[]; has_more: boolean }>(`/api/issues?limit=200&offset=${offset}`, id);
     issues.push(...page.issues);
     if (!page.has_more) break;
   }
   return issues;
+}
+
+const snapshotCache = new Map<string, { at: number; data: Snapshot }>();
+export function invalidateWorkspaceCache(wsId?: string | null) {
+  if (wsId) snapshotCache.delete(wsId);
+  else snapshotCache.clear();
+}
+
+export async function loadWorkspaceCached(wsPick?: string | null, ttlMs = 5000): Promise<Snapshot> {
+  const ws = await workspace(wsPick);
+  const hit = snapshotCache.get(ws.id);
+  if (hit && Date.now() - hit.at < ttlMs) return hit.data;
+  const data = await loadWorkspace(ws.id);
+  snapshotCache.set(ws.id, { at: Date.now(), data });
+  return data;
 }
 
 export async function loadWorkspace(wsPick?: string | null) {
@@ -305,35 +327,53 @@ export async function loadWorkspace(wsPick?: string | null) {
     const at = new Date(r.status === "online" ? Math.max(t, Date.now() - 60000) : Math.min(t, Date.now() - OFFICE_MS - 1000)).toISOString();
     if (!seen[m.name] || at > seen[m.name]) seen[m.name] = at;
   }
-  const asking = await waitingOnAnswer(id, issues, runs).catch(() => new Set<string>());
+  const { asking, digests } = await inspectReviewDigests(id, issues, runs).catch(() => ({ asking: new Set<string>(), digests: {} as Record<string, IssueDigestHint> }));
   const kantor = (settings.kantor ?? {}) as KantorSettings;
   const moved = (((settings.kantor_watch ?? {}) as { moved?: Moved }).moved ?? {}) as Moved;
   const reminders = everything.filter(isReminder);
-  return { ...dir, workspace: ws, issues, reminders, runs, kantor, seen, moved, asking };
+  return { ...dir, workspace: ws, issues, reminders, runs, kantor, seen, moved, asking, digests };
 }
-export type Snapshot = Awaited<ReturnType<typeof loadWorkspace>>;
+export type IssueDigestHint = { summary: string[]; questionCount: number };
+export type Snapshot = Omit<Awaited<ReturnType<typeof loadWorkspace>>, "digests"> & { digests?: Record<string, IssueDigestHint> };
 
-// Agents sometimes ask a question and stop, but leave the task "in progress". Those tasks wait on a person,
-// so find them: an agent task with nothing running whose newest comment is the agent's, with a Questions section.
+// Agents sometimes ask a question and stop, leaving the task "in progress" or "in_review".
+// Cache both the unanswered-question status and short summary bullets keyed by issue.updated_at.
 const RUNNING = new Set(["queued", "dispatched", "running", "in_progress", "preparing", "started"]);
-const askCache = new Map<string, { at: string; asking: boolean }>();
-async function waitingOnAnswer(wsId: string, issues: Issue[], runs: Run[]) {
+const askCache = new Map<string, { at: string; asking: boolean; summary: string[]; questionCount: number }>();
+async function inspectReviewDigests(wsId: string, issues: Issue[], runs: Run[]) {
   const busy = new Set(runs.filter(r => r.issue_id && RUNNING.has(r.status)).map(r => r.issue_id!));
-  const candidates = issues.filter(i => i.assignee_type === "agent" && ["todo", "in_progress"].includes(i.status) && !busy.has(i.id));
-  const out = new Set<string>();
+  const candidates = issues.filter(i => i.assignee_type === "agent" && ["todo", "in_progress", "in_review"].includes(i.status) && !busy.has(i.id));
+  const asking = new Set<string>();
+  const digests: Record<string, IssueDigestHint> = {};
   await Promise.all(candidates.map(async i => {
     const hit = askCache.get(i.id);
-    let asking = hit?.at === i.updated_at ? hit.asking : null;
-    if (asking === null) {
+    let entry = hit?.at === i.updated_at ? hit : null;
+    if (!entry) {
       const comments = await get<unknown>(`/api/issues/${i.id}/comments`, wsId).then(d => list<Comment>(d, "comments")).catch(() => null);
       if (!comments) return;
-      const last = comments.filter(c => !c.deleted_at).sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at)).pop();
-      asking = !!last && last.author_type === "agent" && (digest(last.content)?.questions.length ?? 0) > 0;
-      askCache.set(i.id, { at: i.updated_at, asking });
+      const ordered = comments.filter(c => !c.deleted_at).sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
+      const last = ordered[ordered.length - 1];
+      const lastAgent = [...ordered].reverse().find(c => c.author_type === "agent" && c.content?.trim());
+      const dg = lastAgent ? digest(lastAgent.content) : null;
+      const openQuestions = !!last && last.author_type === "agent" ? (dg?.questions.length ?? 0) : 0;
+      entry = {
+        at: i.updated_at,
+        asking: openQuestions > 0 && ["todo", "in_progress"].includes(i.status),
+        summary: dg?.summary.slice(0, 3) ?? [],
+        questionCount: openQuestions,
+      };
+      if (askCache.size >= 500) {
+        const oldest = askCache.keys().next().value;
+        if (oldest !== undefined) askCache.delete(oldest);
+      }
+      askCache.set(i.id, entry);
     }
-    if (asking) out.add(i.id);
+    if (entry.asking) asking.add(i.id);
+    if (entry.summary.length || entry.questionCount > 0) {
+      digests[i.id] = { summary: entry.summary, questionCount: entry.questionCount };
+    }
   }));
-  return out;
+  return { asking, digests };
 }
 
 // ---- Buka/Tutup kantor ----
@@ -341,6 +381,8 @@ export type KantorSettings = {
   open?: boolean; changedAt?: string; changedBy?: string;
   pausedAutopilots?: string[];
   transition?: { action: "open" | "close"; stopRunning?: boolean };
+  schedule?: OfficeSchedule;
+  autoHealStuck?: boolean;
 };
 type WorkspaceFull = Workspace & { settings?: Record<string, unknown> | null };
 

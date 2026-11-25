@@ -1,4 +1,4 @@
-import { loadWorkspace, workspaces, invitations, me } from "@/lib/multica";
+import { loadWorkspaceCached, workspaces, invitations, me } from "@/lib/multica";
 import { buildTeam } from "@/lib/crew";
 import Shell from "../shell";
 import TeamView from "./team-view";
@@ -9,7 +9,7 @@ export const metadata = { title: "Team Members · Virtual Office" };
 export default async function Page({ searchParams }: { searchParams: Promise<{ ws?: string }> }) {
   const { ws } = await searchParams;
   try {
-    const [all, snap, who] = await Promise.all([workspaces(), loadWorkspace(ws), me().catch(() => null)]);
+    const [all, snap, who] = await Promise.all([workspaces(), loadWorkspaceCached(ws, 4000), me().catch(() => null)]);
     const team = buildTeam(snap, await invitations(snap.workspace.id), who?.id ?? null);
     const buildings = all.map(w => ({ id: w.id, slug: w.slug, name: w.name }));
     return (

@@ -13,6 +13,10 @@ const EVENT_ICON: Record<ActivityEvent["kind"], PxName> = {
   coffee: "coffee",
   door: "office",
   drag: "wave",
+  chain: "play",
+  watchdog: "alert",
+  schedule: "clock",
+  chat: "chat",
 };
 
 export function QuickApprovalBar({
@@ -35,6 +39,7 @@ export function QuickApprovalBar({
 
   if (!items.length) return null;
   const current = items[Math.min(index, items.length - 1)];
+  const hasOpenQuestions = (current.questionCount ?? 0) > 0;
 
   if (collapsed) {
     return (
@@ -80,7 +85,7 @@ export function QuickApprovalBar({
     <aside className="hud-approve" aria-label="Quick approval queue">
       <div className="hud-approve-head">
         <span className="hud-kicker">
-          <Px name="eyes" /> Needs review
+          <Px name={hasOpenQuestions ? "person" : "eyes"} /> {hasOpenQuestions ? "Needs decision" : "Needs review"}
           <b>{Math.min(index, items.length - 1) + 1}/{items.length}</b>
         </span>
         <div className="hud-pager">
@@ -107,6 +112,20 @@ export function QuickApprovalBar({
         <small>{current.assignee ?? "Agent"}{current.project ? ` · ${current.project}` : ""}</small>
       </button>
 
+      {current.summary && current.summary.length > 0 && (
+        <ul className="hud-summary" aria-label="Agent summary preview">
+          {current.summary.slice(0, 2).map((line, i) => (
+            <li key={i}>{line}</li>
+          ))}
+        </ul>
+      )}
+
+      {hasOpenQuestions && (
+        <div className="hud-q-guard" role="note">
+          <Px name="alert" /> {current.questionCount} open question{current.questionCount === 1 ? "" : "s"} — answer before approving.
+        </div>
+      )}
+
       {revising ? (
         <form className="hud-revise-form" onSubmit={handleRevise}>
           <input
@@ -126,15 +145,23 @@ export function QuickApprovalBar({
         </form>
       ) : (
         <div className="hud-approve-actions">
-          <button type="button" className="btn sm primary" disabled={busy} onClick={handleApprove}>
-            {busy ? <><span className="spinner sm" /> Approving…</> : <><Px name="check" /> Approve</>}
-          </button>
+          {hasOpenQuestions ? (
+            <button type="button" className="btn sm primary" onClick={() => onOpenTask(current)}>
+              <Px name="chat" /> Answer &amp; Inspect
+            </button>
+          ) : (
+            <button type="button" className="btn sm primary" disabled={busy} onClick={handleApprove}>
+              {busy ? <><span className="spinner sm" /> Approving…</> : <><Px name="check" /> Approve</>}
+            </button>
+          )}
           <button type="button" className="btn sm" disabled={busy} onClick={() => setRevising(true)}>
             <Px name="edit" /> Revise
           </button>
-          <button type="button" className="btn sm ghost" onClick={() => onOpenTask(current)}>
-            Inspect
-          </button>
+          {!hasOpenQuestions && (
+            <button type="button" className="btn sm ghost" onClick={() => onOpenTask(current)}>
+              Inspect
+            </button>
+          )}
         </div>
       )}
       {err && <p className="hud-err" role="alert">{err}</p>}
@@ -170,7 +197,7 @@ export function LiveActivityFeed({
         <section className="hud-feed" aria-label="Live office activity feed">
           <header>
             <b>Live Activity</b>
-            <small>Desk handoffs, approvals &amp; events</small>
+            <small>Persisted handoffs, chains &amp; watchdog</small>
             <button type="button" aria-label="Close activity feed" onClick={onToggle}>×</button>
           </header>
           {events.length === 0 ? (
@@ -180,7 +207,7 @@ export function LiveActivityFeed({
               {events.map(ev => (
                 <li key={ev.id}>
                   <button type="button" onClick={() => onSelectEvent(ev)}>
-                    <span className="hud-ev-ic" aria-hidden="true"><Px name={EVENT_ICON[ev.kind]} /></span>
+                    <span className="hud-ev-ic" aria-hidden="true"><Px name={EVENT_ICON[ev.kind] ?? "mail"} /></span>
                     <span className="hud-ev-txt">
                       <b>{ev.title}</b>
                       {ev.detail && <small>{ev.detail}</small>}

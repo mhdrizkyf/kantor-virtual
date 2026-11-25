@@ -2,12 +2,13 @@
 // Messages only go out when a person presses "Approve & send" in Virtual Office.
 // The login is kept in data/wa-session/ on this computer (git-ignored). Optional: needs `npm install whatsapp-web.js`.
 import "server-only";
-import { existsSync, rmSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { existsSync, rmSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
 import { join } from "node:path";
 import { normalizePhone, normalizeTarget, isGroup } from "./whatsapp";
 import { call_, workspace } from "./multica";
+import { readJsonFile, updateJsonLocked } from "./json-store";
 
 export type BotState = {
   status: "missing" | "off" | "starting" | "code" | "ready" | "error";
@@ -161,31 +162,45 @@ export async function autoStartBot() {
 /** `trigger`: approved in advance, sent as soon as that task is done (instead of at a time). */
 export type Trigger = { issueId: string; ws: string; title: string };
 export type Queued = { id: string; phone: string; name: string; text: string; at: string; status: "waiting" | "sent" | "failed" | "cancelled"; error?: string; sentAt?: string; trigger?: Trigger };
-const QUEUE = join(process.cwd(), "data", "wa-queue.json");
-const readQueue = (): Queued[] => { try { return JSON.parse(readFileSync(QUEUE, "utf8")); } catch { return []; } };
-const writeQueue = (q: Queued[]) => {
-  mkdirSync(join(process.cwd(), "data"), { recursive: true });
+const queueFile = () => join(process.cwd(), "data", "wa-queue.json");
+const readQueue = (): Queued[] => readJsonFile<Queued[]>(queueFile(), () => [], { tolerateInvalid: true });
+const pruneQueue = (q: Queued[]) => {
   const weekAgo = Date.now() - 7 * 864e5; // keep sent/failed ones for a week
-  writeFileSync(QUEUE, JSON.stringify(q.filter(x => x.status === "waiting" || Date.parse(x.sentAt ?? x.at) > weekAgo), null, 2));
+  return q.filter(x => x.status === "waiting" || Date.parse(x.sentAt ?? x.at) > weekAgo);
 };
 export const listQueue = () => readQueue().filter(x => x.status !== "cancelled").sort((a, b) => a.at.localeCompare(b.at));
 
-export function scheduleSend(phone: string, name: string, text: string, at: Date, trigger?: Trigger) {
+export async function scheduleSend(phone: string, name: string, text: string, at: Date, trigger?: Trigger) {
   const to = normalizeTarget(phone);
   if (!to) throw new Error("That phone number doesn't look right.");
   if (!trigger && at.getTime() < Date.now() - 60_000) throw new Error("That time has already passed.");
-  // Approving the same message for the same task twice keeps one.
-  const dup = trigger && readQueue().find(x => x.status === "waiting" && x.trigger?.issueId === trigger.issueId && x.phone === to && x.text === text);
-  if (dup) return dup;
-  const item: Queued = { id: randomUUID(), phone: to, name, text, at: at.toISOString(), status: "waiting", ...(trigger ? { trigger } : {}) };
-  writeQueue([...readQueue(), item]);
-  return item;
+  return updateJsonLocked<Queued[], Queued>(
+    "wa-queue",
+    queueFile(),
+    () => [],
+    q => {
+      // Approving the same message for the same task twice keeps one.
+      const dup = trigger && q.find(x => x.status === "waiting" && x.trigger?.issueId === trigger.issueId && x.phone === to && x.text === text);
+      if (dup) return { next: pruneQueue(q), result: dup };
+      const item: Queued = { id: randomUUID(), phone: to, name, text, at: at.toISOString(), status: "waiting", ...(trigger ? { trigger } : {}) };
+      return { next: pruneQueue([...q, item]), result: item };
+    },
+    { tolerateInvalid: true },
+  );
 }
-export function cancelQueued(id: string) {
-  const q = readQueue();
-  const it = q.find(x => x.id === id);
-  if (!it || it.status !== "waiting") throw new Error("That message isn't waiting any more.");
-  it.status = "cancelled"; writeQueue(q);
+export async function cancelQueued(id: string) {
+  await updateJsonLocked<Queued[], void>(
+    "wa-queue",
+    queueFile(),
+    () => [],
+    q => {
+      const it = q.find(x => x.id === id);
+      if (!it || it.status !== "waiting") throw new Error("That message isn't waiting any more.");
+      it.status = "cancelled";
+      return { next: pruneQueue(q), result: undefined };
+    },
+    { tolerateInvalid: true },
+  );
 }
 
 let running = false;
@@ -207,17 +222,34 @@ export async function runDueSends() {
     }
     const gone = readQueue().filter(x => x.status === "waiting" && x.trigger && ["cancelled", "deleted"].includes(status.get(x.trigger.issueId) ?? ""));
     if (gone.length) {
-      const q = readQueue();
-      for (const g2 of gone) { const cur = q.find(x => x.id === g2.id); if (cur) Object.assign(cur, { status: "cancelled", error: "The task was cancelled, so the message wasn't sent.", sentAt: new Date().toISOString() }); }
-      writeQueue(q);
+      const goneIds = new Set(gone.map(g2 => g2.id));
+      await updateJsonLocked<Queued[], void>(
+        "wa-queue",
+        queueFile(),
+        () => [],
+        q => {
+          for (const cur of q) if (goneIds.has(cur.id)) Object.assign(cur, { status: "cancelled", error: "The task was cancelled, so the message wasn't sent.", sentAt: new Date().toISOString() });
+          return { next: pruneQueue(q), result: undefined };
+        },
+        { tolerateInvalid: true },
+      );
     }
     const due = (x: Queued) => x.status === "waiting" && (x.trigger ? status.get(x.trigger.issueId) === "done" : Date.parse(x.at) <= Date.now());
     for (const it of readQueue().filter(due)) {
       let r: Partial<Queued>;
       try { await botSend(it.phone, it.text); r = { status: "sent", sentAt: new Date().toISOString() }; }
       catch (e) { r = { status: "failed", error: String(e instanceof Error ? e.message : e).slice(0, 200), sentAt: new Date().toISOString() }; }
-      const q = readQueue(); const cur = q.find(x => x.id === it.id);
-      if (cur && cur.status === "waiting") { Object.assign(cur, r); writeQueue(q); }
+      await updateJsonLocked<Queued[], void>(
+        "wa-queue",
+        queueFile(),
+        () => [],
+        q => {
+          const cur = q.find(x => x.id === it.id);
+          if (cur && cur.status === "waiting") Object.assign(cur, r);
+          return { next: pruneQueue(q), result: undefined };
+        },
+        { tolerateInvalid: true },
+      );
       console.log("[whatsapp]", r.status, "to", it.name || it.phone);
     }
   } finally { running = false; }

@@ -36,7 +36,7 @@ export async function POST(req: Request) {
   const b = (await req.json()) as { action?: string; text?: string; activities?: Activity[]; ws?: string; from?: string };
   try {
     if (b.action === "keys") return NextResponse.json(await saveKeys(String(b.text ?? "")));
-    if (b.action === "forget") return NextResponse.json(forget());
+    if (b.action === "forget") return NextResponse.json(await forget());
     if (b.action === "log") {
       const list = (b.activities ?? []).slice(0, 40).map(a => ({
         title: String(a.title ?? ""), date: String(a.date ?? ""), start: String(a.start ?? ""),

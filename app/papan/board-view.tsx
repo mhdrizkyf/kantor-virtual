@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Board, Card } from "@/lib/crew";
 import { COLS } from "@/lib/board-cols";
@@ -78,7 +78,7 @@ function NewCard({ board, project, onDone }: { board: Board; project: string; on
 export default function BoardView({ board, initialProject }: { board: Board; initialProject: string }) {
   const router = useRouter();
   const [refreshing, start] = useTransition();
-  const refresh = () => start(() => router.refresh());
+  const refresh = useCallback(() => start(() => router.refresh()), [router]);
   const [proj, setProj] = useState(initialProject);
   const [dropCol, setDropCol] = useState<string | null>(null);
   const [moving, setMoving] = useState(false);

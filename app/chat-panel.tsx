@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { WaPre } from "./wa-card";
 import { GrowText } from "./auto-grow";
@@ -9,14 +9,23 @@ import FilePicker, { uploadAll } from "./file-picker";
 import FilePreview from "./file-preview";
 import { sharedJson, useVisiblePoll } from "./visible-poll";
 import { localAttachmentHref } from "@/lib/attachment-meta";
+import { pickContinuitySession, readActiveChatId, writeActiveChatId } from "@/lib/chat-continuity";
 import { Px, PxSpan, rehypePx, type PxName } from "./pixel-icon";
 import CharacterFace from "./character-face";
 
 type Session = { id: string; agentId: string; title: string; updatedAt: string; unread: number; last: string };
 type Msg = { id: string; mine: boolean; text: string; when: string; failed: string | null; files: { id: string; name: string; url: string }[] };
 
-const md = (t: string, ws: string) => <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypePx]}
-  components={{ a: ({ node: _node, ...p }) => <a {...p} href={localAttachmentHref(p.href, ws)} target="_blank" rel="noreferrer" />, span: PxSpan, pre: WaPre }}>{t}</ReactMarkdown>;
+const REMARK_PLUGINS = [remarkGfm];
+const REHYPE_PLUGINS = [rehypePx];
+const MemoChatMd = memo(function MemoChatMd({ text, ws }: { text: string; ws: string }) {
+  const components = useMemo(
+    () => ({ a: ({ node: _node, ...p }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { node?: unknown }) => <a {...p} href={localAttachmentHref(p.href, ws)} target="_blank" rel="noreferrer" />, span: PxSpan, pre: WaPre }),
+    [ws]
+  );
+  return <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS} components={components}>{text}</ReactMarkdown>;
+});
+const md = (t: string, ws: string) => <MemoChatMd text={t} ws={ws} />;
 
 /** Name of the office-manager agent. Set per install with NEXT_PUBLIC_KANTOR_MANAGER. */
 export const MANAGER = process.env.NEXT_PUBLIC_KANTOR_MANAGER?.trim() || "Mika";
@@ -48,17 +57,18 @@ const AgentIc = ({ a, size = 28 }: { a?: AgentInfo | null; size?: number }) => (
   </span>
 );
 
-/** Chat with your agents in a pop-up: a fresh chat each time you open it, past chats on the left (like Claude). */
-export default function ChatPanel({ ws, agent: start, laptopOn, initialPrompt, onClose, onMakeTask }: {
+/** Chat with your agents in a pop-up: continues the active conversation per agent by default, with explicit "+ New topic" for a separate thread. */
+export default function ChatPanel({ ws, agent: start, laptopOn, initialPrompt, initialSessionId, startFresh, onClose, onMakeTask }: {
   ws: string; agent: AgentInfo;
   isMika?: boolean; projectId?: string | null; laptopOn: boolean; initialPrompt?: string;
+  initialSessionId?: string | null; startFresh?: boolean;
   onClose: () => void; onMakeTask: (detail: string, agentId: string) => void;
 }) {
   const [agents, setAgents] = useState<AgentInfo[]>([start]);
   const [agent, setAgent] = useState<AgentInfo>(start);
   const [sessions, setSessions] = useState<Session[] | null>(null);
-  const [sid, setSid] = useState<string | null>(null);
-  const [msgs, setMsgs] = useState<Msg[] | null>([]);
+  const [sid, setSid] = useState<string | null>(startFresh ? null : (initialSessionId ?? null));
+  const [msgs, setMsgs] = useState<Msg[] | null>(startFresh || !initialSessionId ? [] : null);
   const [working, setWorking] = useState(false);
   const [text, setText] = useState("");
   const [files, setFiles] = useState<File[]>([]);
@@ -68,6 +78,7 @@ export default function ChatPanel({ ws, agent: start, laptopOn, initialPrompt, o
   const [histOpen, setHistOpen] = useState(false);
   const [pickAgent, setPickAgent] = useState(false);
   const body = useRef<HTMLDivElement>(null);
+  const hydratedRef = useRef(false);
   const [showHelp, setShowHelp] = useState(false);
   const isMika = isManager(agent.name);
   // Unsent text is kept per chat (and per agent for a new chat), so closing the pop-up loses nothing.
@@ -78,12 +89,33 @@ export default function ChatPanel({ ws, agent: start, laptopOn, initialPrompt, o
   useEffect(() => { if (initialPrompt) setText(initialPrompt); }, [initialPrompt]);
 
   useEffect(() => {
+    let alive = true;
     fetch(`/api/chat?ws=${ws}`).then(r => r.json()).then(j => {
+      if (!alive) return;
       if (j.error) throw new Error(j.error);
-      setSessions(j.sessions);
-      if (j.agents?.length) setAgents(j.agents);
-    }).catch(e => setErr(String(e.message ?? e)));
-  }, [ws]);
+      const list = (j.sessions ?? []) as Session[];
+      const agentList = (j.agents ?? []) as AgentInfo[];
+      if (agentList.length) setAgents(agentList);
+      if (!hydratedRef.current) {
+        hydratedRef.current = true;
+        const picked = pickContinuitySession(list, start.id, {
+          preferredId: initialSessionId,
+          savedId: readActiveChatId(ws, start.id),
+          startFresh,
+        });
+        if (picked) {
+          const matched = agentList.find(a => a.id === picked.agentId);
+          if (matched) setAgent(matched);
+          setSid(picked.id);
+          writeActiveChatId(ws, picked.agentId, picked.id);
+          setSessions(list.map(x => x.id === picked.id ? { ...x, unread: 0 } : x));
+          return;
+        }
+      }
+      setSessions(list);
+    }).catch(e => { if (alive) setErr(String(e.message ?? e)); });
+    return () => { alive = false; };
+  }, [ws, start.id, initialSessionId, startFresh]);
   useEffect(() => {
     const k = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     addEventListener("keydown", k); return () => removeEventListener("keydown", k);
@@ -101,8 +133,21 @@ export default function ChatPanel({ ws, agent: start, laptopOn, initialPrompt, o
   const byId = (id: string) => agents.find(a => a.id === id) ?? null;
   function openChat(sx: Session) {
     const a = byId(sx.agentId); if (a) setAgent(a);
-    setErr(null); setWorking(false); setShowHelp(false); setSid(sx.id); setHistOpen(false);
+    setErr(null); setWorking(false); setShowHelp(false); setSid(sx.id); setHistOpen(false); setPickAgent(false);
+    writeActiveChatId(ws, sx.agentId, sx.id);
     setSessions(cur => cur?.map(x => x.id === sx.id ? { ...x, unread: 0 } : x) ?? cur);
+  }
+  function switchAgent(a: AgentInfo) {
+    setAgent(a); setErr(null); setWorking(false); setShowHelp(false); setPickAgent(false); setHistOpen(false);
+    const picked = pickContinuitySession(sessions ?? [], a.id, { savedId: readActiveChatId(ws, a.id) });
+    if (picked) {
+      setSid(picked.id);
+      writeActiveChatId(ws, a.id, picked.id);
+      setSessions(cur => cur?.map(x => x.id === picked.id ? { ...x, unread: 0 } : x) ?? cur);
+    } else {
+      setSid(null);
+      setMsgs([]);
+    }
   }
   function newChat(a: AgentInfo = agent) {
     setAgent(a); setSid(null); setMsgs([]); setWorking(false); setErr(null); setShowHelp(false); setPickAgent(false); setHistOpen(false);
@@ -119,27 +164,38 @@ export default function ChatPanel({ ws, agent: start, laptopOn, initialPrompt, o
         const j = await r.json(); if (j.error) throw new Error(j.error);
         id = j.id as string;
         writeDraft(`chat:new:${agent.id}`, null); writeDraft(`chat:${id}`, { text: content }); // the draft moves to the new chat
+        writeActiveChatId(ws, agent.id, id);
         setSid(id);
-        setSessions(s => [{ id: id!, agentId: agent.id, title, updatedAt: new Date().toISOString(), unread: 0, last: "" }, ...(s ?? [])]);
+        setSessions(s => [{ id: id!, agentId: agent.id, title, updatedAt: new Date().toISOString(), unread: 0, last: content.trim().slice(0, 120) }, ...(s ?? [])]);
+      } else {
+        writeActiveChatId(ws, agent.id, id);
       }
       const fileIds = files.length ? await uploadAll(files, ws) : [];
       const r = await fetch(`/api/chat/${id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ws, text: content, files: fileIds }) });
       const j = await r.json(); if (j.error) throw new Error(j.error);
       setMsgs(j.messages); setWorking(true); setText(""); setFiles([]);
-      setSessions(s => s?.map(x => x.id === id ? { ...x, updatedAt: new Date().toISOString() } : x).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)) ?? s);
+      setSessions(s => s?.map(x => x.id === id ? { ...x, updatedAt: new Date().toISOString(), last: content.trim().slice(0, 120) || x.last } : x).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)) ?? s);
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)); } finally { setSending(null); }
   }
 
-  const lastReply = [...(msgs ?? [])].reverse().find(m => !m.mine && m.text)?.text ?? "";
-  const shown = (sessions ?? []).filter(x => !onlyThis || x.agentId === agent.id);
-  const groups: [string, Session[]][] = [];
-  for (const x of shown) { const g = groupOf(x.updatedAt); const last = groups[groups.length - 1]; if (last?.[0] === g) last[1].push(x); else groups.push([g, [x]]); }
+  const lastReply = useMemo(() => [...(msgs ?? [])].reverse().find(m => !m.mine && m.text)?.text ?? "", [msgs]);
+  const { shown, groups } = useMemo(() => {
+    const list = (sessions ?? []).filter(x => !onlyThis || x.agentId === agent.id);
+    const out: [string, Session[]][] = [];
+    for (const x of list) {
+      const g = groupOf(x.updatedAt);
+      const last = out[out.length - 1];
+      if (last?.[0] === g) last[1].push(x);
+      else out.push([g, [x]]);
+    }
+    return { shown: list, groups: out };
+  }, [sessions, onlyThis, agent.id]);
   const fresh = !sid;
 
   return (
     <div className={`chatmodal ${histOpen ? "hist-open" : ""}`} role="dialog" aria-modal="true" aria-label={`Chat with ${agent.name}`}>
       <aside className="ch-side" aria-label="Chat history">
-        <button className="btn primary ch-new" onClick={() => newChat()}><Px name="plus" size="0.9em" /> New chat</button>
+        <button className="btn primary ch-new" onClick={() => newChat()}><Px name="plus" size="0.9em" /> New topic</button>
         <div className="ch-filter" role="group" aria-label="Show chats">
           <button aria-pressed={onlyThis} onClick={() => setOnlyThis(true)}>This agent</button>
           <button aria-pressed={!onlyThis} onClick={() => setOnlyThis(false)}>All agents</button>
@@ -166,22 +222,25 @@ export default function ChatPanel({ ws, agent: start, laptopOn, initialPrompt, o
         <div className="dhead">
           <button className="btn sm ch-histbtn" onClick={() => setHistOpen(o => !o)} aria-expanded={histOpen}><Px name="clock" /> History</button>
           <div className="ch-who">
-            <button className="ch-agentbtn" onClick={() => fresh && setPickAgent(p => !p)} disabled={!fresh} aria-expanded={pickAgent}
-              title={fresh ? "Pick who to chat with" : undefined}>
+            <button className="ch-agentbtn" onClick={() => setPickAgent(p => !p)} aria-expanded={pickAgent}
+              title="Switch agent (resumes their ongoing chat)">
               <span className="avatar"><CharacterFace face={agent.face} size={42} shape="circle" /></span>
-              <span className="meta"><h2>{agent.name}{fresh && <span className="caret"> ▾</span>}</h2>
-                <span className="role">{fresh ? "New chat · nothing gets done until you ask" : (sessions?.find(x => x.id === sid)?.title ?? "Chat")}</span></span>
+              <span className="meta">
+                <h2>{agent.name}<span className="caret"> ▾</span><span className="ch-kind-pill">Chat · bukan task</span></h2>
+                <span className="role">{fresh ? "Topik baru · tidak jadi task sampai kamu klik 'Turn into a task'" : (sessions?.find(x => x.id === sid)?.title ?? "Active conversation")}</span>
+              </span>
             </button>
-            {pickAgent && fresh && (
+            {pickAgent && (
               <div className="ch-agents" role="listbox" aria-label="Pick an agent">
                 {agents.map(a => (
-                  <button key={a.id} role="option" aria-selected={a.id === agent.id} className="ch-item" onClick={() => newChat(a)}>
+                  <button key={a.id} role="option" aria-selected={a.id === agent.id} className="ch-item" onClick={() => switchAgent(a)}>
                     <AgentIc a={a} /><span className="ch-t"><b>{a.name}</b><small>{a.role ? a.role.split(/[.:\n]/)[0].slice(0, 50) : "AI agent"}</small></span>
                   </button>
                 ))}
               </div>
             )}
           </div>
+          {!fresh && <button className="btn sm" onClick={() => newChat()} title="Start a separate conversation for a new topic"><Px name="plus" size="0.85em" /> New topic</button>}
           {isMika && <button className="btn sm" onClick={() => setShowHelp(h => !h)} aria-expanded={showHelp}><Px name="idea" /> What can {MANAGER} do?</button>}
           <button className="x" onClick={onClose} aria-label="Close"><Px name="close" size="1em" /></button>
         </div>

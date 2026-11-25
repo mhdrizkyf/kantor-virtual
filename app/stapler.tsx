@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent,
 import { uploadAll } from "./file-picker";
 import { MANAGER } from "./chat-panel";
 import CharacterFace from "./character-face";
+import { readActiveChatId, writeActiveChatId } from "@/lib/chat-continuity";
 
 type Agent = { id: string; name: string; face?: string | null; role?: string | null };
 type Mode = "screenshot" | "meeting" | "voice" | "note";
@@ -130,7 +131,8 @@ export default function Stapler({ ws }: { ws: string }) {
   const [seconds, setSeconds] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [sent, setSent] = useState<{ agentId: string; name: string } | null>(null);
+  const [sent, setSent] = useState<{ agentId: string; name: string; sessionId: string } | null>(null);
+  const [startNewTopic, setStartNewTopic] = useState(false);
   const [celebrating, setCelebrating] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [fabDragOver, setFabDragOver] = useState(false);
@@ -141,7 +143,6 @@ export default function Stapler({ ws }: { ws: string }) {
   const nudgeCursor = useRef(0);
   const nudgePaused = useRef(false);
   const nudgeHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const recorder = useRef<MediaRecorder | null>(null);
   const stream = useRef<MediaStream | null>(null);
   const root = useRef<HTMLDivElement>(null);
@@ -478,23 +479,41 @@ export default function Stapler({ ws }: { ws: string }) {
       const bodyText = note.trim() || HINT[mode] || `Attached ${file?.name ?? "capture"}`;
       const title = bodyText.split("\n")[0].slice(0, 60) || (file?.name ?? "Stapler capture");
       const ids = file ? await uploadAll([file], ws) : [];
-      const created = await (await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ws, agentId, title }),
-      })).json();
-      if (created.error || !created.id) throw new Error(created.error || "Could not start chat.");
-      const result = await (await fetch(`/api/chat/${encodeURIComponent(created.id)}`, {
+      let sid = !startNewTopic ? readActiveChatId(ws, agentId) : null;
+      const ensureSession = async (reuseLatest: boolean) => {
+        const created = await (await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ws, agentId, title, reuseLatest }),
+        })).json();
+        if (created.error || !created.id) throw new Error(created.error || "Could not start chat.");
+        return created.id as string;
+      };
+      if (!sid) sid = await ensureSession(!startNewTopic);
+      writeActiveChatId(ws, agentId, sid);
+      let res = await fetch(`/api/chat/${encodeURIComponent(sid)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ws, text: bodyText, files: ids }),
-      })).json();
-      if (result.error) throw new Error(result.error);
+      });
+      if (!res.ok && res.status >= 400 && res.status < 500 && !startNewTopic) {
+        writeActiveChatId(ws, agentId, null);
+        sid = await ensureSession(true);
+        writeActiveChatId(ws, agentId, sid);
+        res = await fetch(`/api/chat/${encodeURIComponent(sid)}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ws, text: bodyText, files: ids }),
+        });
+      }
+      const result = await res.json();
+      if (!res.ok || result.error) throw new Error(result.error || "Could not send message.");
 
       const targetName = agents.find(a => a.id === agentId)?.name ?? "agent";
-      setSent({ agentId, name: targetName });
+      setSent({ agentId, name: targetName, sessionId: sid });
       setFile(null);
       setNote("");
+      setStartNewTopic(false);
       setCelebrating(true);
       setTimeout(() => setCelebrating(false), 2800);
 
@@ -507,8 +526,8 @@ export default function Stapler({ ws }: { ws: string }) {
     }
   }
 
-  const openAgentChat = (targetAgentId: string) => {
-    window.dispatchEvent(new CustomEvent("kantor:chat", { detail: { agentId: targetAgentId } }));
+  const openAgentChat = (targetAgentId: string, sessionId?: string | null) => {
+    window.dispatchEvent(new CustomEvent("kantor:chat", { detail: { agentId: targetAgentId, sessionId: sessionId ?? null } }));
     setOpen(false);
   };
 
@@ -778,6 +797,10 @@ export default function Stapler({ ws }: { ws: string }) {
               placeholder="Add context or instructions… (⌘↵ to send)"
               rows={3}
             />
+            <label className="stapler-check">
+              <input type="checkbox" checked={startNewTopic} onChange={e => setStartNewTopic(e.target.checked)} />
+              Start a new topic (otherwise continues active chat)
+            </label>
           </div>
 
           {error && <p className="stapler-error" role="alert">{error}</p>}
@@ -785,7 +808,7 @@ export default function Stapler({ ws }: { ws: string }) {
           {sent && (
             <div className="stapler-sent" role="status">
               <span>Sent to <b>{sent.name}</b></span>
-              <button type="button" onClick={() => openAgentChat(sent.agentId)}>Open chat →</button>
+              <button type="button" onClick={() => openAgentChat(sent.agentId, sent.sessionId)}>Open chat →</button>
             </div>
           )}
 

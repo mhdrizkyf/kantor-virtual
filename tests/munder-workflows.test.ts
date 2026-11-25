@@ -3,12 +3,17 @@ import assert from "node:assert/strict";
 import {
   bubbleKindForState,
   buildStandupSummary,
+  buildTwoWayDialog,
   handoverSpeechPayload,
   interactiveFloorProps,
   meetingSpotsFor,
+  NATURAL_ACTIVITIES,
   ownerReviewSpotsFor,
   parseGoalPlan,
+  partitionReviewDelivery,
+  pickNaturalActivity,
   resolveDropZone,
+  resolveHandoverDelivery,
 } from "../lib/munder-workflows";
 import { OFFICE_PLAN, OWNER_SEAT } from "../lib/floor-seats";
 
@@ -156,4 +161,40 @@ test("all 12 Retina character presets have distinct 44x64 sprites and matching p
     hashes.add(front.toString("base64"));
   }
   assert.equal(hashes.size, 12);
+});
+
+test("2-way workflow dialogs, dual handover/review delivery modes, and natural human activities", () => {
+  const ho = buildTwoWayDialog({ kind: "handoff", fromName: "Mika", toName: "Sari", title: "Deck Review" });
+  assert.match(ho.senderText, /Task dihandover ke Sari/);
+  assert.match(ho.replyText, /task diterima/i);
+
+  const appr = buildTwoWayDialog({ kind: "approve", fromName: "Owner", toName: "Bima", title: "Landing Page" });
+  assert.match(appr.senderText, /approved/i);
+  assert.match(appr.replyText, /terima kasih/i);
+
+  assert.equal(resolveHandoverDelivery("walk", 2), "walk");
+  assert.equal(resolveHandoverDelivery("bubble", 0), "bubble");
+  assert.equal(resolveHandoverDelivery("auto", 0), "walk");
+  assert.equal(resolveHandoverDelivery("auto", 1), "bubble");
+
+  // Review partitioning: questions stay at desk with bubble in auto mode, up to 3 walk to owner
+  const partAuto = partitionReviewDelivery(
+    ["a1", "a2", "a3", "a4", "a5"],
+    { a2: { questionCount: 1 } },
+    "auto"
+  );
+  assert.deepEqual(partAuto.walkToOwner, ["a1", "a3", "a4"]);
+  assert.deepEqual(partAuto.deskBubbleOnly, ["a2", "a5"]);
+  assert.deepEqual(partitionReviewDelivery(["a1", "a2"], {}, "bubble").walkToOwner, []);
+  assert.deepEqual(partitionReviewDelivery(["a1", "a2"], {}, "walk").walkToOwner, ["a1", "a2"]);
+
+  // All natural human activity coordinates lie inside campus bounds and filter cleanly for lunch
+  for (const act of NATURAL_ACTIVITIES) {
+    assert.ok(act.x >= 2 && act.x < OFFICE_PLAN.cols - 2);
+    assert.ok(act.y >= 3 && act.y < OFFICE_PLAN.rows - 2);
+  }
+  const lunchPick = pickNaturalActivity({ lunch: true, seed: 3 });
+  assert.ok(lunchPick && lunchPick.spot.lunchFriendly);
+  const workPick = pickNaturalActivity({ lunch: false, seed: 5 });
+  assert.ok(workPick && workPick.line.length > 0);
 });

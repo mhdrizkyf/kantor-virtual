@@ -27,16 +27,16 @@ export async function POST(req: Request) {
       if (!b.text?.trim()) return fail("The message is empty.", 400);
       const at = zonedTime(b.date ?? "", b.time ?? "");
       if (!at) return fail("Pick a date and time.", 400);
-      return NextResponse.json({ ok: true, item: scheduleSend(b.phone ?? "", b.name ?? "", b.text, at), queue: listQueue() });
+      return NextResponse.json({ ok: true, item: await scheduleSend(b.phone ?? "", b.name ?? "", b.text, at), queue: listQueue() });
     }
     if (b.action === "when-done") {
       if (!b.text?.trim()) return fail("The message is empty.", 400);
       if (!b.issueId) return fail("This card isn't on a task.", 400);
-      const item = scheduleSend(b.phone ?? "", b.name ?? "", b.text, new Date(), { issueId: b.issueId, ws: b.ws ?? "", title: b.title ?? "" });
+      const item = await scheduleSend(b.phone ?? "", b.name ?? "", b.text, new Date(), { issueId: b.issueId, ws: b.ws ?? "", title: b.title ?? "" });
       runDueSends().catch(() => {}); // the task may be done already
       return NextResponse.json({ ok: true, item, queue: listQueue() });
     }
-    if (b.action === "cancel") { cancelQueued(b.id ?? ""); return NextResponse.json({ ok: true, queue: listQueue() }); }
+    if (b.action === "cancel") { await cancelQueued(b.id ?? ""); return NextResponse.json({ ok: true, queue: listQueue() }); }
     return fail("Unknown action.", 400);
   } catch (e) { return fail(e); }
 }
