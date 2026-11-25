@@ -127,6 +127,17 @@ export default function OfficeView({ office, buildings, attention, people, seen,
   const [draft, setDraft] = useState("");
   const [person, setPerson] = useState<string>("All");
   const [toast, setToast] = useState<string | null>(null);
+  const [toastPaused, setToastPaused] = useState(false);
+  const [srToastText, setSrToastText] = useState("");
+  const announceToast = useCallback((msg: string) => {
+    if (!msg || typeof document === "undefined") return;
+    const docAny = document as unknown as { ariaNotify?: (text: string) => void };
+    if (typeof docAny.ariaNotify === "function") {
+      docAny.ariaNotify(msg);
+    } else {
+      setSrToastText(msg);
+    }
+  }, []);
   const [rerunning, setRerunning] = useState<string | null>(null);
   const [newProject, setNewProject] = useState(false);
   const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
@@ -192,7 +203,15 @@ export default function OfficeView({ office, buildings, attention, people, seen,
     } catch (e) { setToast("Couldn't retry: " + (e instanceof Error ? e.message : String(e))); }
     finally { setRerunning(null); }
   }
-  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 6000); return () => clearTimeout(t); }, [toast]);
+  useEffect(() => {
+    if (!toast) { setToastPaused(false); return; }
+    announceToast(toast);
+  }, [toast, announceToast]);
+  useEffect(() => {
+    if (!toast || toastPaused) return;
+    const t = setTimeout(() => setToast(null), 5000);
+    return () => clearTimeout(t);
+  }, [toast, toastPaused]);
 
   useVisiblePoll(refresh, REFRESH_MS);
   const allDesks = useMemo(() => [...office.rooms.flatMap(r => r.desks), ...office.idleDesks], [office.rooms, office.idleDesks]);
@@ -340,7 +359,16 @@ export default function OfficeView({ office, buildings, attention, people, seen,
     };
     addEventListener("kantor:workflow", f); return () => removeEventListener("kantor:workflow", f);
   }, [ownerActorId, ownerName, startWalks, uniqueDesks]);
-  useEffect(() => { if (!flowNotice) return; const t = setTimeout(() => setFlowNotice(""), 8500); return () => clearTimeout(t); }, [flowNotice]);
+  const [flowPaused, setFlowPaused] = useState(false);
+  useEffect(() => {
+    if (!flowNotice) { setFlowPaused(false); return; }
+    announceToast(flowNotice);
+  }, [flowNotice, announceToast]);
+  useEffect(() => {
+    if (!flowNotice || flowPaused) return;
+    const t = setTimeout(() => setFlowNotice(""), 5000);
+    return () => clearTimeout(t);
+  }, [flowNotice, flowPaused]);
   useEffect(() => {
     if (previewStep === null) return;
     const first = uniqueDesks[0];
@@ -378,12 +406,86 @@ export default function OfficeView({ office, buildings, attention, people, seen,
     !a.failed.length && "no failures",
   ].filter(Boolean) as string[];
   const [sending, setSending] = useState(false);
-  const [sendStatus, setSendStatus] = useState("");
+  const [sendStatus, setSendStatus] = useState<{ text: string; tone: "ok" | "error"; key: number } | null>(null);
+  const [sendPaused, setSendPaused] = useState(false);
+  const flowToastRef = useRef<HTMLDivElement>(null);
+  const sendToastRef = useRef<HTMLDivElement>(null);
+  const toastRegionRef = useRef<HTMLDivElement>(null);
   const sessions = useRef<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!sendStatus) { setSendPaused(false); return; }
+    announceToast(sendStatus.text);
+  }, [sendStatus, announceToast]);
+
+  useEffect(() => {
+    if (!sendStatus || sendPaused) return;
+    const ms = sendStatus.tone === "error" ? 7000 : 4000;
+    const t = setTimeout(() => setSendStatus(null), ms);
+    return () => clearTimeout(t);
+  }, [sendStatus, sendPaused]);
+
+  const modalDialogOpen = !!(chatWith || openTask || newProject || standupOpen || orchDraft);
+
+  // Sync toast region anchor coords with .office stage and promote active toasts via popover="manual" when supported
+  useEffect(() => {
+    const syncPos = () => {
+      const stageEl = officeRef.current;
+      const regionEl = toastRegionRef.current;
+      if (!stageEl || !regionEl) return;
+      const r = stageEl.getBoundingClientRect();
+      regionEl.style.setProperty("--toast-left", `${Math.max(12, Math.round(r.left + 16))}px`);
+      regionEl.style.setProperty("--toast-bottom", `${Math.max(16, Math.round(window.innerHeight - r.bottom + 82))}px`);
+    };
+    syncPos();
+    const ro = typeof ResizeObserver !== "undefined" && officeRef.current ? new ResizeObserver(syncPos) : null;
+    if (ro && officeRef.current) ro.observe(officeRef.current);
+    window.addEventListener("resize", syncPos);
+    return () => { ro?.disconnect(); window.removeEventListener("resize", syncPos); };
+  }, [flowNotice, sendStatus, modalDialogOpen]);
+
+  useEffect(() => {
+    if (typeof HTMLElement === "undefined" || !Object.hasOwn(HTMLElement.prototype, "popover")) return;
+    for (const [el, active] of [
+      [flowToastRef.current, !!flowNotice && previewStep === null && !modalDialogOpen],
+      [sendToastRef.current, !!sendStatus && !modalDialogOpen],
+    ] as const) {
+      if (!el) continue;
+      if (active) {
+        if (el.getAttribute("popover") !== "manual") el.setAttribute("popover", "manual");
+        try { if (!el.matches(":popover-open")) el.showPopover(); } catch { /* ignore */ }
+      } else {
+        try { if (el.matches(":popover-open")) el.hidePopover(); } catch { /* ignore */ }
+      }
+    }
+  }, [flowNotice, previewStep, sendStatus, modalDialogOpen]);
+
+  const dismissFlowNotice = useCallback((restoreFocus = false) => {
+    const wasFocused = restoreFocus && !!flowToastRef.current?.contains(document.activeElement);
+    setFlowNotice("");
+    if (wasFocused) {
+      requestAnimationFrame(() => {
+        const nextBtn = sendToastRef.current?.querySelector<HTMLButtonElement>("button.toast-close");
+        (nextBtn ?? document.getElementById("office-ask"))?.focus();
+      });
+    }
+  }, []);
+
+  const dismissSendStatus = useCallback((restoreFocus = false) => {
+    const wasFocused = restoreFocus && !!sendToastRef.current?.contains(document.activeElement);
+    setSendStatus(null);
+    if (wasFocused) {
+      requestAnimationFrame(() => {
+        const nextBtn = flowToastRef.current?.querySelector<HTMLButtonElement>("button.toast-close");
+        (nextBtn ?? document.getElementById("office-ask"))?.focus();
+      });
+    }
+  }, []);
+
   async function askManager() {
     if (!composeAgent || !compose.trim() || sending) return;
     const target = composeAgent, message = compose.trim();
-    setSending(true); setSendStatus("");
+    setSending(true); setSendStatus(null);
     try {
       const key = `${office.workspaceId}:${target.agentId}`;
       let id = sessions.current[key];
@@ -395,10 +497,10 @@ export default function OfficeView({ office, buildings, attention, people, seen,
       const response = await fetch(`/api/chat/${encodeURIComponent(id)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ws: office.workspaceId, text: message, files: [] }) });
       const data = await response.json(); if (!response.ok || data.error) throw new Error(data.error || "Message could not be sent.");
       setCompose(current => current.trim() === message ? "" : current);
-      setSendStatus(`Message delivered to ${target.name}`);
+      setSendStatus({ text: `Message delivered to ${target.name}`, tone: "ok", key: Date.now() });
       logEvent({ kind: "handoff", title: `Message → ${target.name}`, detail: message.slice(0, 80), agentId: target.agentId });
       window.dispatchEvent(new CustomEvent("kantor:letter", { detail: { agentId: target.agentId } }));
-    } catch(e) { setSendStatus(e instanceof Error ? e.message : String(e)); }
+    } catch(e) { setSendStatus({ text: e instanceof Error ? e.message : String(e), tone: "error", key: Date.now() }); }
     finally { setSending(false); }
   }
 
@@ -703,8 +805,59 @@ export default function OfficeView({ office, buildings, attention, people, seen,
           </div>
 
           {previewStep !== null && <div className="workflow-preview" role="status"><div><b>Workflow preview</b><button onClick={() => setPreviewStep(null)} aria-label="Stop preview">×</button></div><ol>{["Assigned", "Working", "Handed over", "Approved"].map((label, i) => <li key={label} className={i === previewStep ? "active" : i < previewStep ? "done" : ""}>{label}</li>)}</ol><small>Visual preview only. No tasks changed.</small></div>}
-          {flowNotice && previewStep === null && <div className="workflow-notice" role="status"><Px name="check" /> {flowNotice}</div>}
-          {sendStatus && <div className="composer-feedback" role="status">{sendStatus}</div>}
+
+          <div ref={toastRegionRef} role="region" aria-label="Notifications" className="office-toast-region">
+            {!modalDialogOpen && flowNotice && previewStep === null && (
+              <div
+                id="office-flow-toast"
+                ref={flowToastRef}
+                className="workflow-notice office-toast-item"
+                onMouseEnter={() => setFlowPaused(true)}
+                onMouseLeave={() => setFlowPaused(false)}
+                onFocus={() => setFlowPaused(true)}
+                onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFlowPaused(false); }}
+                onToggle={e => { if ((e as unknown as { newState?: string }).newState === "closed") dismissFlowNotice(true); }}
+              >
+                <span className="toast-ic is-ok" aria-hidden="true"><Px name="check" /></span>
+                <span className="toast-msg">{flowNotice}</span>
+                <button
+                  type="button"
+                  className="toast-close"
+                  aria-label="Close notification"
+                  {...({ popovertarget: "office-flow-toast", popovertargetaction: "hide" } as Record<string, string>)}
+                  onClick={() => dismissFlowNotice(true)}
+                >
+                  ×
+                </button>
+              </div>
+            )}
+            {!modalDialogOpen && sendStatus && (
+              <div
+                id="office-send-toast"
+                ref={sendToastRef}
+                className={`composer-feedback office-toast-item is-${sendStatus.tone}${flowNotice && previewStep === null ? " is-stacked" : ""}`}
+                onMouseEnter={() => setSendPaused(true)}
+                onMouseLeave={() => setSendPaused(false)}
+                onFocus={() => setSendPaused(true)}
+                onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setSendPaused(false); }}
+                onToggle={e => { if ((e as unknown as { newState?: string }).newState === "closed") dismissSendStatus(true); }}
+              >
+                <span className={`toast-ic is-${sendStatus.tone}`} aria-hidden="true">
+                  <Px name={sendStatus.tone === "error" ? "alert" : "check"} />
+                </span>
+                <span className="toast-msg">{sendStatus.text}</span>
+                <button
+                  type="button"
+                  className="toast-close"
+                  aria-label="Close notification"
+                  {...({ popovertarget: "office-send-toast", popovertargetaction: "hide" } as Record<string, string>)}
+                  onClick={() => dismissSendStatus(true)}
+                >
+                  ×
+                </button>
+              </div>
+            )}
+          </div>
 
           <form className="office-composer" onSubmit={submitComposer}>
             <div className="composer-mode" role="group" aria-label="Command bar mode">
@@ -1000,7 +1153,24 @@ export default function OfficeView({ office, buildings, attention, people, seen,
           onClose={() => setOrchDraft(null)}
         />
       )}
-      {toast && <div className="toast" role="status">{toast}</div>}
+      {/* Pre-populated live region fallback when document.ariaNotify() is unavailable */}
+      <div className="toast-sr-wrap">
+        {srToastText && <p className="toast-sr-only">Screen reader announcements</p>}
+        <div className="toast-sr-only" aria-live="polite" aria-atomic="true">{srToastText}</div>
+      </div>
+      {toast && (
+        <div
+          className="toast"
+          role="status"
+          onMouseEnter={() => setToastPaused(true)}
+          onMouseLeave={() => setToastPaused(false)}
+          onFocus={() => setToastPaused(true)}
+          onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setToastPaused(false); }}
+        >
+          <span>{toast}</span>
+          <button type="button" className="toast-dismiss-inline" onClick={() => setToast(null)} aria-label="Close notification">×</button>
+        </div>
+      )}
       {openTask && <TaskPanel id={openTask.id} ws={openTask.ws} onClose={() => setOpenTask(null)} onChanged={refresh} />}
     </>
   );
