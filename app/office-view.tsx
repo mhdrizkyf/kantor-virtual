@@ -395,6 +395,23 @@ export default function OfficeView({ office, buildings, attention, people, seen,
   const [chatPrompt, setChatPrompt] = useState("");
   const [attentionOpen, setAttentionOpen] = useState(false);
   const [controlsOpen, setControlsOpen] = useState(false);
+  const [codexOpen, setCodexOpen] = useState(false);
+  const codexWrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!codexOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (codexWrapRef.current && !codexWrapRef.current.contains(e.target as Node)) setCodexOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setCodexOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [codexOpen]);
   const [standupOpen, setStandupOpen] = useState(false);
   const [standupFocusId, setStandupFocusId] = useState<string | null>(null);
   const [coffeeTick, setCoffeeTick] = useState(0);
@@ -988,25 +1005,112 @@ export default function OfficeView({ office, buildings, attention, people, seen,
           </div>
           {(() => {
             const cq = office.codexQuota;
-            const pct5h = cq ? cq.remaining5h : (office.open ? 100 : 0);
-            const pctWk = cq ? cq.remainingWeekly : pct5h;
-            const minPct = Math.min(pct5h, pctWk);
-            const tone = !cq?.online ? "is-off" : minPct < 15 ? "is-low" : minPct < 40 ? "is-warn" : "is-ok";
+            const rem5h = cq ? cq.remaining5h : (office.open ? 100 : 0);
+            const remWk = cq ? cq.remainingWeekly : rem5h;
+            const used5h = Math.max(0, Math.min(100, 100 - rem5h));
+            const usedWk = Math.max(0, Math.min(100, 100 - remWk));
+            const toneOf = (used: number, online = true) =>
+              !online ? "is-off" : used >= 85 ? "is-low" : used >= 60 ? "is-warn" : "is-ok";
+            const tone5h = toneOf(used5h, !!cq?.online || !cq);
+            const toneWk = toneOf(usedWk, !!cq?.online || !cq);
+            const overallTone = toneOf(Math.max(used5h, cq ? usedWk : 0), cq ? cq.online : office.open);
+            const barVal5h = used5h > 0 ? Math.max(4, used5h) : 0;
+            const barValWk = usedWk > 0 ? Math.max(4, usedWk) : 0;
             const tipParts = [
               `Codex ${cq?.planType ? `(${cq.planType.toUpperCase()})` : ""}`.trim(),
-              `5h remaining: ${pct5h}%${cq?.reset5hAt ? ` · resets ${cq.reset5hAt}` : ""}`,
-              `Weekly remaining: ${pctWk}%${cq?.resetWeeklyAt ? ` · resets ${cq.resetWeeklyAt}` : ""}`,
+              `5h terpakai: ${used5h}% (${rem5h}% tersisa)${cq?.reset5hAt ? ` · reset ${cq.reset5hAt}` : ""}`,
+              cq ? `7d terpakai: ${usedWk}% (${remWk}% tersisa)${cq.resetWeeklyAt ? ` · reset ${cq.resetWeeklyAt}` : ""}` : null,
               cq?.creditsBalance ? `Extra credits: ${cq.creditsBalance}` : null,
               cq?.updatedAt ? `Synced ${cq.updatedAt}` : null,
             ].filter(Boolean);
             return (
-              <div className="header-engines">
-                <span className={`codex-meter ${tone}`} title={tipParts.join(" • ")}>
+              <div className="header-engines" ref={codexWrapRef}>
+                <button
+                  type="button"
+                  className={`codex-meter ${overallTone}`}
+                  title={tipParts.join(" • ")}
+                  aria-expanded={codexOpen}
+                  aria-label={`Codex credit terpakai: 5 jam ${used5h} persen${cq ? `, 7 hari ${usedWk} persen` : ""}`}
+                  onClick={() => {
+                    setControlsOpen(false);
+                    setAttentionOpen(false);
+                    setCodexOpen(v => !v);
+                  }}
+                >
+                  <span className={`codex-dot ${overallTone}`} aria-hidden="true" />
                   <b>Codex</b>
-                  <i><em style={{ width: `${pct5h}%` }} /></i>
-                  <small className="codex-pct">{`5h ${pct5h}%`}</small>
-                  {cq && <small className={`codex-wk${pctWk < 20 ? " is-low" : pctWk < 40 ? " is-warn" : ""}`}>{`7d ${pctWk}%`}</small>}
-                </span>
+                  <span className="codex-win">
+                    <small className="codex-pct">{`5h ${used5h}%`}</small>
+                    <progress
+                      className={`codex-progress ${tone5h}`}
+                      max={100}
+                      value={barVal5h}
+                      aria-label={`5-hour credit used ${used5h}%`}
+                    />
+                  </span>
+                  {cq && (
+                    <span className="codex-win is-wk">
+                      <small className={`codex-wk ${toneWk}`}>{`7d ${usedWk}%`}</small>
+                      <progress
+                        className={`codex-progress is-sm ${toneWk}`}
+                        max={100}
+                        value={barValWk}
+                        aria-label={`7-day credit used ${usedWk}%`}
+                      />
+                    </span>
+                  )}
+                  <small className="codex-used-tag">terpakai</small>
+                </button>
+                {codexOpen && (
+                  <div className="codex-popover" role="region" aria-label="Detail penggunaan credit Codex">
+                    <div className="codex-pop-head">
+                      <div>
+                        <b>Codex Credit Usage</b>
+                        {cq?.planType && <span className="codex-plan-pill">{cq.planType.toUpperCase()}</span>}
+                      </div>
+                      <button type="button" className="codex-pop-close" onClick={() => setCodexOpen(false)} aria-label="Tutup detail credit">×</button>
+                    </div>
+
+                    <div className="codex-pop-row">
+                      <div className="codex-pop-labels">
+                        <span>5-Hour Window</span>
+                        <strong>{used5h}% terpakai <small>({rem5h}% sisa)</small></strong>
+                      </div>
+                      <progress
+                        className={`codex-progress is-lg ${tone5h}`}
+                        max={100}
+                        value={barVal5h}
+                        aria-label={`5-hour credit terpakai ${used5h}%`}
+                      />
+                      <small className="codex-pop-meta">
+                        {cq?.reset5hAt ? `Reset otomatis pukul ${cq.reset5hAt}` : "Kuota bergulir 5 jam"}
+                      </small>
+                    </div>
+
+                    {cq && (
+                      <div className="codex-pop-row">
+                        <div className="codex-pop-labels">
+                          <span>7-Day Weekly</span>
+                          <strong>{usedWk}% terpakai <small>({remWk}% sisa)</small></strong>
+                        </div>
+                        <progress
+                          className={`codex-progress is-lg ${toneWk}`}
+                          max={100}
+                          value={barValWk}
+                          aria-label={`7-day weekly credit terpakai ${usedWk}%`}
+                        />
+                        <small className="codex-pop-meta">
+                          {cq.resetWeeklyAt ? `Reset otomatis ${cq.resetWeeklyAt}` : "Kuota bergulir 7 hari"}
+                        </small>
+                      </div>
+                    )}
+
+                    <div className="codex-pop-foot">
+                      <span>{cq?.online ? `Runtime aktif (${cq.onlineCount}/${Math.max(1, cq.totalCount)})` : "Runtime offline"}</span>
+                      <span>{cq?.creditsBalance ? `Extra: ${cq.creditsBalance}` : cq?.updatedAt ? `Sync ${cq.updatedAt}` : ""}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })()}
@@ -1099,18 +1203,32 @@ export default function OfficeView({ office, buildings, attention, people, seen,
               </div>
             </div>
             <div className="runtime-strip" aria-label="Codex credit status">
-              {office.codexQuota ? (
-                <>
-                  <span className="runtime-chip" title={`Codex 5h rolling window${office.codexQuota.reset5hAt ? ` · resets ${office.codexQuota.reset5hAt}` : ""}`}>
-                    <i className={office.codexQuota.online ? "on" : ""} />
-                    Codex 5h · {office.codexQuota.remaining5h}% left
-                  </span>
-                  <span className="runtime-chip" title={`Codex 7-day quota${office.codexQuota.resetWeeklyAt ? ` · resets ${office.codexQuota.resetWeeklyAt}` : ""}`}>
-                    <i className={office.codexQuota.remainingWeekly > 15 ? "on" : ""} />
-                    Weekly · {office.codexQuota.remainingWeekly}% left
-                  </span>
-                </>
-              ) : (
+              {office.codexQuota ? (() => {
+                const used5 = Math.max(0, Math.min(100, 100 - office.codexQuota.remaining5h));
+                const used7 = Math.max(0, Math.min(100, 100 - office.codexQuota.remainingWeekly));
+                const t5 = !office.codexQuota.online ? "is-off" : used5 >= 85 ? "is-low" : used5 >= 60 ? "is-warn" : "is-ok";
+                const t7 = !office.codexQuota.online ? "is-off" : used7 >= 85 ? "is-low" : used7 >= 60 ? "is-warn" : "is-ok";
+                return (
+                  <div className="runtime-credit-cards">
+                    <div className="runtime-credit-card" title={`Codex 5h rolling window${office.codexQuota.reset5hAt ? ` · resets ${office.codexQuota.reset5hAt}` : ""}`}>
+                      <div className="runtime-credit-top">
+                        <span><i className={office.codexQuota.online ? "on" : ""} /> Codex 5h</span>
+                        <b>{used5}% terpakai</b>
+                      </div>
+                      <progress className={`codex-progress is-lg ${t5}`} max={100} value={used5 > 0 ? Math.max(4, used5) : 0} aria-label={`Codex 5h used ${used5}%`} />
+                      <small>{office.codexQuota.remaining5h}% sisa{office.codexQuota.reset5hAt ? ` · reset ${office.codexQuota.reset5hAt}` : ""}</small>
+                    </div>
+                    <div className="runtime-credit-card" title={`Codex 7-day quota${office.codexQuota.resetWeeklyAt ? ` · resets ${office.codexQuota.resetWeeklyAt}` : ""}`}>
+                      <div className="runtime-credit-top">
+                        <span><i className={office.codexQuota.remainingWeekly > 15 ? "on" : ""} /> Weekly 7d</span>
+                        <b>{used7}% terpakai</b>
+                      </div>
+                      <progress className={`codex-progress is-lg ${t7}`} max={100} value={used7 > 0 ? Math.max(4, used7) : 0} aria-label={`Codex 7d used ${used7}%`} />
+                      <small>{office.codexQuota.remainingWeekly}% sisa{office.codexQuota.resetWeeklyAt ? ` · reset ${office.codexQuota.resetWeeklyAt}` : ""}</small>
+                    </div>
+                  </div>
+                );
+              })() : (
                 runtimeSummary.filter(([p]) => p === "codex").map(([provider, list]) => (
                   <span className="runtime-chip" key={provider} title={list.map(r => r.name).join(", ")}>
                     <i className={list.some(r => r.online) ? "on" : ""} />Codex {list.filter(r => r.online).length}/{list.length}
