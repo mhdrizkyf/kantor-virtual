@@ -195,9 +195,9 @@ export default function WorkflowHubModal({
               <>
                 <div className="wf-kpi-grid">
                   <div className="wf-kpi">
-                    <small>Run success rate</small>
+                    <small>Task run success rate</small>
                     <strong>{metrics.runs.successRate !== null ? `${metrics.runs.successRate}%` : "—"}</strong>
-                    <span>{metrics.runs.completed} ok · {metrics.runs.failed} failed</span>
+                    <span>{metrics.runs.completed} ok · {metrics.runs.failed} failed{metrics.runs.chatRuns > 0 ? ` · ${metrics.runs.chatRuns} chat replies excluded` : ""}</span>
                   </div>
                   <div className="wf-kpi">
                     <small>First-pass approval</small>

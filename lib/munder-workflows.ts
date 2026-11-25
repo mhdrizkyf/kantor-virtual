@@ -35,7 +35,7 @@ export type DropZone =
   | { kind: "server" }
   | { kind: "floor" };
 
-export type ActivityKind = "handoff" | "approve" | "revise" | "delegate" | "standup" | "coffee" | "door" | "drag" | "chain" | "watchdog" | "schedule";
+export type ActivityKind = "handoff" | "approve" | "revise" | "delegate" | "standup" | "coffee" | "door" | "drag" | "chain" | "watchdog" | "schedule" | "chat";
 
 export type ActivityEvent = {
   id: string;

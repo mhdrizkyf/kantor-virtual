@@ -35,6 +35,7 @@ import {
 } from "@/lib/munder-workflows";
 import { getOfficeClockStatus, type OfficeClockStatus } from "@/lib/office-time";
 import { DEFAULT_SCHEDULE, type OfficeSchedule } from "@/lib/office-schedule";
+import { readActiveChatId, writeActiveChatId } from "@/lib/chat-continuity";
 import {
   HARVEST_LIGHTING_STORAGE_KEY,
   harvestPhaseLabel,
@@ -98,20 +99,22 @@ const OfficeComposer = memo(function OfficeComposer({
   clearTick,
   onDelegate,
   onMessageSent,
+  onOpenChat,
 }: {
   workspaceId: string;
   desks: Desk[];
   defaultAgentId: string;
   clearTick: number;
   onDelegate: (goal: string) => void;
-  onMessageSent: (agent: Desk, message: string) => void;
+  onMessageSent: (agent: Desk, message: string, sessionId: string) => void;
+  onOpenChat: (agent: Desk, sessionId: string) => void;
 }) {
   const [compose, setCompose] = useState("");
   const [composeMode, setComposeMode] = useState<"message" | "delegate">("message");
   const [composeAgentId, setComposeAgentId] = useState("");
   const [sending, setSending] = useState(false);
   const [sendStatus, setSendStatus] = useState("");
-  const sessions = useRef<Record<string, string>>({});
+  const [lastSent, setLastSent] = useState<{ agent: Desk; sessionId: string } | null>(null);
 
   useEffect(() => {
     if (clearTick > 0) setCompose("");
@@ -126,22 +129,47 @@ const OfficeComposer = memo(function OfficeComposer({
     const message = compose.trim();
     setSending(true);
     setSendStatus("");
+    setLastSent(null);
     try {
-      const key = `${workspaceId}:${target.agentId}`;
-      let id = sessions.current[key];
-      if (!id) {
-        const response = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ws: workspaceId, agentId: target.agentId, title: message.slice(0, 60) }) });
+      const resolveSession = async (skipSaved = false): Promise<string> => {
+        if (!skipSaved) {
+          const saved = readActiveChatId(workspaceId, target.agentId);
+          if (saved) return saved;
+        }
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ws: workspaceId, agentId: target.agentId, title: message.slice(0, 60), reuseLatest: true }),
+        });
         const data = await response.json();
         if (!response.ok || data.error || !data.id) throw new Error(data.error || "Could not start conversation.");
-        id = data.id;
-        sessions.current[key] = id;
+        writeActiveChatId(workspaceId, target.agentId, data.id);
+        return data.id as string;
+      };
+
+      let id = await resolveSession(false);
+      let response = await fetch(`/api/chat/${encodeURIComponent(id)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ws: workspaceId, text: message, files: [] }),
+      });
+      if (!response.ok && response.status >= 400 && response.status < 500) {
+        // Saved session may have been archived/deleted; fall back cleanly to latest active or a new session.
+        writeActiveChatId(workspaceId, target.agentId, null);
+        id = await resolveSession(true);
+        response = await fetch(`/api/chat/${encodeURIComponent(id)}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ws: workspaceId, text: message, files: [] }),
+        });
       }
-      const response = await fetch(`/api/chat/${encodeURIComponent(id)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ws: workspaceId, text: message, files: [] }) });
       const data = await response.json();
       if (!response.ok || data.error) throw new Error(data.error || "Message could not be sent.");
+      writeActiveChatId(workspaceId, target.agentId, id);
       setCompose(current => current.trim() === message ? "" : current);
-      setSendStatus(`Message delivered to ${target.name}`);
-      onMessageSent(target, message);
+      setSendStatus(`Chat terkirim ke ${target.name} (bukan task)`);
+      setLastSent({ agent: target, sessionId: id });
+      onMessageSent(target, message, id);
       window.dispatchEvent(new CustomEvent("kantor:letter", { detail: { agentId: target.agentId } }));
     } catch (e) {
       setSendStatus(e instanceof Error ? e.message : String(e));
@@ -162,18 +190,31 @@ const OfficeComposer = memo(function OfficeComposer({
 
   return (
     <>
-      {sendStatus && <div className="composer-feedback" role="status">{sendStatus}</div>}
+      {sendStatus && (
+        <div className="composer-feedback" role="status">
+          <span>{sendStatus}</span>
+          {lastSent && (
+            <button
+              type="button"
+              className="btn sm"
+              onClick={() => { onOpenChat(lastSent.agent, lastSent.sessionId); setSendStatus(""); }}
+            >
+              Buka percakapan →
+            </button>
+          )}
+        </div>
+      )}
       <form className="office-composer" onSubmit={submitComposer}>
         <div className="composer-mode" role="group" aria-label="Command bar mode">
-          <button type="button" aria-pressed={composeMode === "message"} onClick={() => setComposeMode("message")}>Message</button>
-          <button type="button" aria-pressed={composeMode === "delegate"} onClick={() => setComposeMode("delegate")}>Delegate</button>
+          <button type="button" aria-pressed={composeMode === "message"} onClick={() => setComposeMode("message")} title="Ngobrol biasa — berlanjut di satu percakapan, bukan task">Chat</button>
+          <button type="button" aria-pressed={composeMode === "delegate"} onClick={() => setComposeMode("delegate")} title="Buat & delegasikan task resmi ke papan Multica">Delegate Task</button>
         </div>
         {composeMode === "message" && (
-          <select aria-label="Choose agent to message" value={target?.agentId ?? ""} onChange={e => setComposeAgentId(e.target.value)}>
+          <select aria-label="Choose agent to chat with" value={target?.agentId ?? ""} onChange={e => setComposeAgentId(e.target.value)}>
             {desks.map(d => <option key={d.agentId} value={d.agentId}>{d.name}</option>)}
           </select>
         )}
-        <label htmlFor="office-ask">{composeMode === "delegate" ? "Delegate goal" : "Message"}</label>
+        <label htmlFor="office-ask">{composeMode === "delegate" ? "Delegate goal" : "Chat"}</label>
         <input
           id="office-ask"
           value={compose}
@@ -182,13 +223,13 @@ const OfficeComposer = memo(function OfficeComposer({
             !desks.length
               ? "Add an agent to start collaborating"
               : composeMode === "delegate"
-                ? "Describe a goal to split & delegate across agents (use → to separate steps)…"
-                : "Write a message. Enter sends…"
+                ? "Describe a goal to split & delegate into Multica tasks (use → to separate steps)…"
+                : "Ngobrol dengan agent (masuk ke percakapan aktif, bukan task). Enter untuk kirim…"
           }
           disabled={!desks.length}
         />
         <button type="submit" disabled={!desks.length || sending || !compose.trim()}>
-          {sending ? "Sending…" : composeMode === "delegate" ? "Plan & Delegate →" : "Send →"}
+          {sending ? "Sending…" : composeMode === "delegate" ? "Plan & Delegate →" : "Chat →"}
         </button>
       </form>
     </>
@@ -205,7 +246,8 @@ export default function OfficeView({ office, buildings, attention, people, seen,
   const [drawerSession, setDrawerSession] = useState(0);
   const [openTask, setOpenTaskRaw] = useState<{ id: string; ws: string } | null>(null);
   const setOpenTask = (id: string | null, ws: string = office.workspaceId) => setOpenTaskRaw(id ? { id, ws } : null);
-  const [chatWith, setChatWith] = useState<Desk | null>(null);
+  const [chatTarget, setChatTarget] = useState<{ desk: Desk; sessionId?: string | null; startFresh?: boolean } | null>(null);
+  const chatWith = chatTarget?.desk ?? null;
   const [openHuman, setOpenHuman] = useState<string | null>(null);
   const [memberFacePatches, setMemberFacePatches] = useState<Record<string, string>>({});
   const [humanAvatarOpen, setHumanAvatarOpen] = useState(false);
@@ -443,7 +485,7 @@ export default function OfficeView({ office, buildings, attention, people, seen,
   const total = a.overdue.length + a.human.length + a.review.length + a.failed.length;
   const runs: RunView[] = openDesk ? office.agentsDetail[openDesk.agentId]?.runs ?? [] : [];
   const allTasks: TaskView[] = openDesk ? office.agentsDetail[openDesk.agentId]?.tasks ?? [] : [];
-  const closeAll = () => { setOpenTask(null); setOpenDeskId(null); setOpenHuman(null); setChatWith(null); };
+  const closeAll = () => { setOpenTask(null); setOpenDeskId(null); setOpenHuman(null); setChatTarget(null); };
   const visibleRooms = useMemo(() => {
     const rooms = roomId === "all" ? office.rooms : office.rooms.filter(r => r.id === roomId);
     return rooms.map(r => ({
@@ -473,9 +515,9 @@ export default function OfficeView({ office, buildings, attention, people, seen,
   useEffect(() => {
     const f = (event: Event) => { const id = (event as CustomEvent<{ agentId: string }>).detail?.agentId; if (id && uniqueDesks.some(d => d.agentId === id)) openAgentDrawer(id, "tasks"); };
     const openChat = (event: Event) => {
-      const id = (event as CustomEvent<{ agentId: string }>).detail?.agentId;
-      const target = id ? uniqueDesks.find(d => d.agentId === id) : null;
-      if (target) { setChatPrompt(""); setChatWith(target); }
+      const detail = (event as CustomEvent<{ agentId: string; sessionId?: string | null }>).detail;
+      const target = detail?.agentId ? uniqueDesks.find(d => d.agentId === detail.agentId) : null;
+      if (target) { setChatPrompt(""); setChatTarget({ desk: target, sessionId: detail?.sessionId ?? null }); }
     };
     addEventListener("kantor:desk", f);
     addEventListener("kantor:chat", openChat);
@@ -652,9 +694,15 @@ export default function OfficeView({ office, buildings, attention, people, seen,
     !a.failed.length && "no failures",
   ].filter(Boolean) as string[];
   const handleComposerDelegate = useCallback((goal: string) => setOrchDraft({ goal }), []);
-  const handleComposerMessageSent = useCallback((target: Desk, message: string) => {
-    logEvent({ kind: "handoff", title: `Message → ${target.name}`, detail: message.slice(0, 80), agentId: target.agentId });
+  const handleComposerMessageSent = useCallback((target: Desk, message: string, _sessionId: string) => {
+    logEvent({ kind: "chat", title: `Chat → ${target.name}`, detail: message.slice(0, 80), agentId: target.agentId });
   }, [logEvent]);
+  const handleComposerOpenChat = useCallback((target: Desk, sessionId: string) => {
+    setOpenDeskId(null);
+    setOpenHuman(null);
+    setChatPrompt("");
+    setChatTarget({ desk: target, sessionId, startFresh: false });
+  }, []);
 
   const standupParticipants = useMemo(() => {
     if (!standupOpen) return [];
@@ -1004,6 +1052,10 @@ export default function OfficeView({ office, buildings, attention, people, seen,
               onSelectEvent={ev => {
                 setFeedOpen(false);
                 if (ev.issueId) { setOpenTask(ev.issueId, ev.ws ?? office.workspaceId); return; }
+                if (ev.kind === "chat" && ev.agentId) {
+                  const target = uniqueDesks.find(x => x.agentId === ev.agentId);
+                  if (target) { setChatPrompt(""); setChatTarget({ desk: target }); return; }
+                }
                 if (ev.agentId) {
                   if (uniqueDesks.some(x => x.agentId === ev.agentId)) openAgentDrawer(ev.agentId, "tasks");
                 }
@@ -1027,6 +1079,7 @@ export default function OfficeView({ office, buildings, attention, people, seen,
             clearTick={composerClearTick}
             onDelegate={handleComposerDelegate}
             onMessageSent={handleComposerMessageSent}
+            onOpenChat={handleComposerOpenChat}
           />
         </section>
 
@@ -1103,11 +1156,11 @@ export default function OfficeView({ office, buildings, attention, people, seen,
           preferredProjectId={createdProjectId}
           onClose={closeAll}
           onOpenTask={(id, ws) => setOpenTask(id, ws)}
-          onOpenChat={() => {
+          onOpenChat={(sessionId, startFresh) => {
             const target = openDesk;
             setOpenDeskId(null);
             setChatPrompt("");
-            setChatWith(target);
+            setChatTarget({ desk: target, sessionId: sessionId ?? null, startFresh: !!startFresh });
           }}
           onOpenNewProject={() => setNewProject(true)}
           onStartHuddle={() => {
@@ -1267,14 +1320,23 @@ export default function OfficeView({ office, buildings, attention, people, seen,
       )}
 
       {chatWith && (
-        <ChatPanel ws={office.workspaceId} agent={{ id: chatWith.agentId, name: chatWith.name, emoji: chatWith.emoji, face: chatWith.face, role: chatWith.description }}
-          isMika={isManager(chatWith.name)} projectId={null} laptopOn={office.open} initialPrompt={chatPrompt}
-          onClose={() => { setChatWith(null); setChatPrompt(""); }}
-          onMakeTask={(detail, agentId) => { const d = allDesks.find(x => x.agentId === agentId) ?? chatWith; setChatWith(null); openAgentDrawer(d.agentId, "create", detail); }} />
+        <ChatPanel
+          key={`${chatWith.agentId}:${chatTarget?.sessionId ?? (chatTarget?.startFresh ? "fresh" : "resume")}`}
+          ws={office.workspaceId}
+          agent={{ id: chatWith.agentId, name: chatWith.name, emoji: chatWith.emoji, face: chatWith.face, role: chatWith.description }}
+          isMika={isManager(chatWith.name)}
+          projectId={null}
+          laptopOn={office.open}
+          initialPrompt={chatPrompt}
+          initialSessionId={chatTarget?.sessionId ?? null}
+          startFresh={chatTarget?.startFresh}
+          onClose={() => { setChatTarget(null); setChatPrompt(""); }}
+          onMakeTask={(detail, agentId) => { const d = allDesks.find(x => x.agentId === agentId) ?? chatWith; setChatTarget(null); openAgentDrawer(d.agentId, "create", detail); }}
+        />
       )}
       {/* Floating button to chat with the office manager, like a help button on a website. */}
       {mika && !chatWith && !openDesk && !openTask && !openHuman && (
-        <button className="mikafab" onClick={() => { setChatPrompt(""); setChatWith(mika); }} aria-label={`Chat with ${MANAGER}, the office manager`}>
+        <button className="mikafab" onClick={() => { setChatPrompt(""); setChatTarget({ desk: mika }); }} aria-label={`Chat with ${MANAGER}, the office manager`}>
           <span className="mf-av"><CharacterFace face={mika.face} size={38} shape="circle" /></span>
           <span className="mf-txt"><b>Ask {MANAGER}</b><small>ideas, tasks, new agents</small></span>
         </button>
@@ -1294,7 +1356,7 @@ export default function OfficeView({ office, buildings, attention, people, seen,
             setStandupFocusId(null);
             if (meetingAgent) {
               setChatPrompt(prompt);
-              setChatWith(meetingAgent);
+              setChatTarget({ desk: meetingAgent });
             }
           }}
           onClose={() => { setStandupOpen(false); setStandupFocusId(null); }}

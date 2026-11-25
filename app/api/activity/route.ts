@@ -6,7 +6,7 @@ import type { ActivityKind } from "@/lib/munder-workflows";
 export const dynamic = "force-dynamic";
 
 const ALLOWED_KINDS = new Set<ActivityKind>([
-  "handoff", "approve", "revise", "delegate", "standup", "coffee", "door", "drag", "chain", "watchdog", "schedule",
+  "handoff", "approve", "revise", "delegate", "standup", "coffee", "door", "drag", "chain", "watchdog", "schedule", "chat",
 ]);
 
 export async function GET(req: Request) {

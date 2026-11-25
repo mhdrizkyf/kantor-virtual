@@ -1,12 +1,30 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import type { Desk, Office, RunView, TaskView } from "@/lib/office";
+import { pickContinuitySession, readActiveChatId } from "@/lib/chat-continuity";
 import CharacterFace from "./character-face";
 import CharacterPicker from "./character-picker";
 import FilePicker, { uploadAll } from "./file-picker";
 import { Px, PxText, StateIcon } from "./pixel-icon";
 
-export type DeskDrawerTab = "tasks" | "assign" | "create" | "setup";
+export type DeskDrawerTab = "tasks" | "chats" | "assign" | "create" | "setup";
+
+type AgentChatSession = {
+  id: string;
+  agentId: string;
+  title: string;
+  updatedAt: string;
+  unread: number;
+  last: string;
+};
+
+function relChatTime(iso: string) {
+  const mins = Math.round((Date.now() - Date.parse(iso)) / 60000);
+  if (!Number.isFinite(mins) || mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  if (mins < 60 * 24) return `${Math.round(mins / 60)}h ago`;
+  return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).format(new Date(iso));
+}
 
 const pillOf = (s: string) => (s === "in_review" ? "review" : s === "in_progress" ? "doing" : "queued");
 
@@ -54,7 +72,7 @@ export default function AgentDeskDrawer({
   preferredProjectId?: string | null;
   onClose: () => void;
   onOpenTask: (id: string, ws?: string) => void;
-  onOpenChat: () => void;
+  onOpenChat: (sessionId?: string | null, startFresh?: boolean) => void;
   onOpenNewProject: () => void;
   onStartHuddle: () => void;
   onStartHandoff: () => void;
@@ -68,6 +86,28 @@ export default function AgentDeskDrawer({
   onRefresh: () => void;
 }) {
   const [tab, setTab] = useState<DeskDrawerTab>(initialTab);
+  const [chatSessions, setChatSessions] = useState<AgentChatSession[] | null>(null);
+  const [chatErr, setChatErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    setChatErr(null);
+    fetch(`/api/chat?ws=${encodeURIComponent(office.workspaceId)}&agent=${encodeURIComponent(desk.agentId)}`)
+      .then(r => r.json())
+      .then(j => {
+        if (!alive) return;
+        if (j.error) throw new Error(j.error);
+        setChatSessions(Array.isArray(j.sessions) ? j.sessions : []);
+      })
+      .catch(e => { if (alive) setChatErr(e instanceof Error ? e.message : String(e)); });
+    return () => { alive = false; };
+  }, [office.workspaceId, desk.agentId]);
+
+  const taskRuns = useMemo(() => runs.filter(r => r.kind !== "chat" && !!r.issueId), [runs]);
+  const activeChat = useMemo(
+    () => pickContinuitySession(chatSessions ?? [], desk.agentId, { savedId: readActiveChatId(office.workspaceId, desk.agentId) }),
+    [chatSessions, desk.agentId, office.workspaceId]
+  );
 
   // ---- Create New Task state ----
   const [title, setTitle] = useState("");
@@ -348,7 +388,7 @@ export default function AgentDeskDrawer({
 
       {/* Quick Interactive Actions Strip */}
       <div className="desk-actions-bar" aria-label="Quick agent actions">
-        <button type="button" className="desk-act primary" onClick={onOpenChat}>
+        <button type="button" className="desk-act primary" onClick={() => onOpenChat(activeChat?.id ?? null, false)}>
           <Px name="chat" /><span>Chat</span>
         </button>
         <button type="button" className={`desk-act${tab === "create" ? " on" : ""}`} onClick={() => setTab("create")}>
@@ -373,8 +413,11 @@ export default function AgentDeskDrawer({
         <button type="button" role="tab" aria-selected={tab === "tasks"} onClick={() => setTab("tasks")}>
           Tasks <small>{tasks.length}</small>
         </button>
+        <button type="button" role="tab" aria-selected={tab === "chats"} onClick={() => setTab("chats")}>
+          Chats {chatSessions !== null && <small>{chatSessions.length}</small>}
+        </button>
         <button type="button" role="tab" aria-selected={tab === "assign"} onClick={() => setTab("assign")}>
-          Assign card <small>{assignablePool.length}</small>
+          Assign <small>{assignablePool.length}</small>
         </button>
         <button type="button" role="tab" aria-selected={tab === "create"} onClick={() => setTab("create")}>
           New task
@@ -487,9 +530,9 @@ export default function AgentDeskDrawer({
             </div>
 
             <div>
-              <div className="sect">Recent work</div>
+              <div className="sect">Recent task runs</div>
               <div className="tasks">
-                {runs.length ? runs.map(r => (
+                {taskRuns.length ? taskRuns.map(r => (
                   <div key={r.id} className="failrow">
                     <button type="button" className="tasklink" onClick={() => r.issueId && onOpenTask(r.issueId, r.ws)}>
                       <span className="t">
@@ -514,7 +557,7 @@ export default function AgentDeskDrawer({
                       </button>
                     )}
                   </div>
-                )) : <p className="desc">Hasn&apos;t worked yet.</p>}
+                )) : <p className="desc">No task runs yet. Casual chats stay in the Chats tab.</p>}
               </div>
             </div>
 
@@ -525,6 +568,50 @@ export default function AgentDeskDrawer({
               </details>
             )}
           </>
+        )}
+
+        {tab === "chats" && (
+          <div className="desk-chats-pane">
+            <div className="note">
+              <span><Px name="chat" /> Ngobrol dengan {desk.name} terpisah dari Task — satu konteks tetap masuk dalam satu percakapan.</span>
+            </div>
+            <div className="chiprow">
+              <button type="button" className="btn sm primary" onClick={() => onOpenChat(activeChat?.id ?? null, false)}>
+                <Px name="chat" /> {activeChat ? "Continue active chat" : `Start chat with ${desk.name}`}
+              </button>
+              <button type="button" className="btn sm" onClick={() => onOpenChat(null, true)}>
+                <Px name="plus" size="0.9em" /> New topic
+              </button>
+            </div>
+            {chatErr && <div className="note bad">{chatErr}</div>}
+            {chatSessions === null && !chatErr ? (
+              <div className="loading"><span className="spinner sm" /> Loading conversations…</div>
+            ) : chatSessions && chatSessions.length === 0 ? (
+              <div className="desk-empty-card">
+                <p className="desc">Belum ada percakapan dengan {desk.name}. Mulai ngobrol santai atau brainstorming tanpa membuat task dulu.</p>
+              </div>
+            ) : (
+              <div className="tasks">
+                {(chatSessions ?? []).map(sx => (
+                  <button
+                    key={sx.id}
+                    type="button"
+                    className={`tasklink${activeChat?.id === sx.id ? " is-active-chat" : ""}`}
+                    onClick={() => onOpenChat(sx.id, false)}
+                  >
+                    <span className="t">
+                      {sx.title}
+                      <small>{sx.last ? `${sx.last} · ` : ""}{relChatTime(sx.updatedAt)}</small>
+                    </span>
+                    <span className="meta">
+                      {activeChat?.id === sx.id && <span className="pill p-doing">Active</span>}
+                      {sx.unread > 0 && <span className="sl-badge">{sx.unread}</span>}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         )}
 
         {tab === "assign" && (
