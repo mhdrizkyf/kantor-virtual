@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { createProject } from "@/lib/multica";
+import { createProject, workspace } from "@/lib/multica";
+import { emitOfficeChange } from "@/lib/office-events";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,8 @@ export async function POST(req: Request) {
     const lead = b.leadType && b.leadId ? { lead_type: b.leadType, lead_id: b.leadId } : null;
     // If Multica rejects the lead, still create the project without one.
     const p = lead ? await createProject(b.ws ?? null, { ...base, ...lead }).catch(() => createProject(b.ws ?? null, base)) : await createProject(b.ws ?? null, base);
+    const resolvedWs = await workspace(b.ws ?? null).catch(() => null);
+    emitOfficeChange(resolvedWs?.id ?? b.ws ?? null, "project.created");
     return NextResponse.json({ id: p.id, title: p.title });
   } catch (e) {
     return NextResponse.json({ error: String(e instanceof Error ? e.message : e) }, { status: 500 });

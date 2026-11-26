@@ -15,7 +15,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ w
     const selected = all.find(w => w.slug === ws || w.id === ws)
       ?? all.find(w => w.id === process.env.MULTICA_WORKSPACE_ID) ?? all[0];
     // Only the selected workspace needs issues, agent task history, and question comments.
-    const snap = await loadWorkspaceCached(selected.id, 4000);
+    // SWR + local disk warm cache keeps cold starts instant while refreshing in the background.
+    const snap = await loadWorkspaceCached(selected.id, 4000, { swrMs: 30_000, allowDiskWarm: true });
     const built: Office = buildOffice(snap);
     const liveCodex = await fetchLiveCodexQuota({ runtimes: built.runtimes, timeZone: built.timeZone }).catch(() => built.codexQuota);
     const current: Office = liveCodex ? { ...built, codexQuota: liveCodex } : built;

@@ -1,0 +1,928 @@
+/* ==========================================================================
+   Warm Editorial Studio Illustrated Avatars (.char-face)
+   ========================================================================== */
+
+.char-face {
+  display: block;
+  flex: none;
+  box-shadow: var(--shadow-xs);
+}
+
+.avatar > .char-face {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  box-shadow: none;
+}
+
+.avatar .status-dot {
+  z-index: 2;
+}
+
+.mf-av > .char-face,
+.ch-ic > .char-face,
+.kc-who i > .char-face,
+.mp-av > .char-face {
+  width: 100%;
+  height: 100%;
+  box-shadow: none;
+}
+
+.ch-ic,
+.kc-who.agent i,
+.kc-who.member i,
+.mp-av {
+  overflow: hidden;
+  padding: 0;
+}
+
+.kc-who.agent i,
+.kc-who.member i {
+  background: transparent;
+  border-color: var(--line);
+}
+
+.from-who {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.orch-agent-pick {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.orch-agent-pick select {
+  flex: 1;
+  min-width: 0;
+}
+
+.character-preview .char-face {
+  box-shadow: var(--shadow-sm);
+}
+
+.character-grid button {
+  padding: 8px 4px 7px;
+  gap: 5px;
+  background: var(--panel);
+}
+
+.character-grid button:active {
+  transform: scale(0.96);
+}
+
+.character-grid button[aria-pressed="true"] {
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+/* ==========================================================================
+   Harvest Moon Farmhouse Theme Controls & Storybook Stage Framing
+   ========================================================================== */
+
+.world-seg {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--sunk);
+  border: 1px solid var(--line);
+}
+
+.world-light-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.world-light-seg {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--sunk);
+  border: 1px solid var(--line);
+}
+
+.world-light-seg .theme-seg-btn {
+  padding: 4px 2px;
+  font-size: 10.5px;
+  min-height: 28px;
+}
+
+.reference-office.harvest-office {
+  background: #509a3b;
+}
+
+.reference-office.harvest-office.harvest-sunset {
+  background: #7c673b;
+}
+
+.reference-office.harvest-office.harvest-night {
+  background: #232b42;
+}
+
+.reference-office.harvest-office .reference-stage {
+  box-shadow: none;
+  background: transparent;
+}
+
+.reference-office.harvest-office .hs-seat > span {
+  border-color: color-mix(in oklab, var(--accent) 45%, var(--line-strong));
+}
+
+/* ==========================================================================
+   Codex Credit Usage Progress Meter, Breakdown Popover & Sound Mixer
+   ========================================================================== */
+
+.header-engines {
+  position: relative;
+}
+
+.header-engines .codex-meter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 5px 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--ink);
+  font-family: var(--f-body);
+  font-size: 12px;
+  box-shadow: var(--shadow-xs);
+  cursor: pointer;
+  transition: background-color 140ms ease-out, border-color 140ms ease-out, box-shadow 140ms ease-out, transform 120ms ease-out;
+}
+
+.header-engines .codex-meter:hover {
+  background: var(--sunk);
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-sm);
+}
+
+.header-engines .codex-meter:active {
+  transform: scale(0.98);
+}
+
+.header-engines .codex-meter[aria-expanded="true"] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.codex-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--ok);
+}
+
+.codex-dot.is-warn {
+  background: color-mix(in oklab, var(--accent) 55%, var(--wait));
+}
+
+.codex-dot.is-low {
+  background: var(--danger);
+}
+
+.codex-dot.is-off {
+  background: var(--off);
+}
+
+.codex-win {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 50px;
+}
+
+.codex-win.is-wk {
+  padding-left: 7px;
+  border-left: 1px solid var(--line);
+  min-width: 46px;
+}
+
+/* Native <progress> custom styling (separate -webkit- and -moz- pseudo-element rules) */
+progress.codex-progress {
+  appearance: none;
+  border: 0 solid;
+  overflow: clip;
+  display: block;
+  inline-size: 52px;
+  block-size: 6px;
+  --progress-bar-radius: 999px;
+  --progress-bar-track: color-mix(in oklab, var(--sunk) 70%, var(--line-strong));
+  --progress-bar-fill: var(--ok);
+  border-radius: var(--progress-bar-radius);
+  background: var(--progress-bar-track);
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.12);
+}
+
+progress.codex-progress.is-sm {
+  inline-size: 46px;
+}
+
+progress.codex-progress.is-lg {
+  inline-size: 100%;
+  block-size: 8px;
+}
+
+progress.codex-progress.is-warn {
+  --progress-bar-fill: color-mix(in oklab, var(--accent) 52%, var(--wait));
+}
+
+progress.codex-progress.is-low {
+  --progress-bar-fill: var(--danger);
+}
+
+progress.codex-progress.is-off {
+  --progress-bar-fill: var(--off);
+}
+
+progress.codex-progress::-webkit-progress-bar {
+  background: transparent;
+}
+
+progress.codex-progress::-webkit-progress-value {
+  background: var(--progress-bar-fill);
+  border-radius: var(--progress-bar-radius);
+}
+
+progress.codex-progress::-moz-progress-bar {
+  background: var(--progress-bar-fill);
+  border-radius: var(--progress-bar-radius);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  progress.codex-progress::-webkit-progress-value {
+    transition: inline-size 0.3s ease-out;
+  }
+  progress.codex-progress::-moz-progress-bar {
+    transition: inline-size 0.3s ease-out;
+  }
+}
+
+.header-engines .codex-pct,
+.header-engines .codex-wk {
+  font-size: 10.5px;
+  line-height: 1;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.header-engines .codex-wk.is-warn {
+  color: var(--wait);
+}
+
+.header-engines .codex-wk.is-low {
+  color: var(--danger);
+}
+
+.codex-used-tag {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--sunk);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+@media (max-width: 1180px) {
+  .codex-used-tag {
+    display: none;
+  }
+}
+
+.codex-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(296px, calc(100vw - 28px));
+  padding: 13px 14px;
+  border-radius: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow-lg);
+  display: grid;
+  gap: 11px;
+  z-index: 60;
+}
+
+.codex-pop-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.codex-pop-head > div {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.codex-plan-pill {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-link);
+}
+
+.codex-pop-close {
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--sunk);
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.codex-pop-close:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.codex-pop-row {
+  display: grid;
+  gap: 5px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  background: var(--sunk);
+  border: 1px solid var(--line);
+}
+
+.codex-pop-labels {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.codex-pop-labels strong {
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.codex-pop-labels strong small {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.codex-pop-meta {
+  font-size: 10.5px;
+  color: var(--subtle);
+}
+
+.codex-pop-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.runtime-credit-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+
+.runtime-credit-card {
+  display: grid;
+  gap: 5px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--sunk);
+  border: 1px solid var(--line);
+}
+
+.runtime-credit-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.runtime-credit-top span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.runtime-credit-top i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--off);
+}
+
+.runtime-credit-top i.on {
+  background: var(--ok);
+}
+
+.runtime-credit-top b {
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.runtime-credit-card small {
+  font-size: 10.5px;
+  color: var(--subtle);
+  font-variant-numeric: tabular-nums;
+}
+
+.sound-wrap {
+  position: relative;
+}
+
+.office-top-button.is-sound-on {
+  border-color: color-mix(in oklab, var(--ok) 48%, var(--line-strong));
+  color: var(--ok);
+}
+
+.sound-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 244px;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--panel-glass);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow-lg);
+  display: grid;
+  gap: 10px;
+  z-index: 60;
+}
+
+.sound-pop-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12.5px;
+  color: var(--ink);
+}
+
+.sound-pop-head small {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.sound-seg {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--sunk);
+  border: 1px solid var(--line);
+}
+
+.sound-seg .theme-seg-btn {
+  padding: 5px 3px;
+  font-size: 11px;
+  min-height: 28px;
+}
+
+.sound-vol-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.sound-slider {
+  width: 100%;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.sound-vol-val {
+  min-width: 32px;
+  text-align: right;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-muted);
+}
+
+.sound-hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--ink-muted);
+}
+
+/* ==========================================================================
+   Interactive Avatar Picker Trigger & Inline Tray (Humans & Agents)
+   ========================================================================== */
+
+.avatar-edit-btn {
+  position: relative;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  transition: transform 140ms ease-out;
+}
+
+.avatar-edit-btn:hover {
+  transform: scale(1.05);
+}
+
+.avatar-edit-btn:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.avatar-edit-badge {
+  position: absolute;
+  right: -2px;
+  top: -2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  line-height: 18px;
+  text-align: center;
+  border: 1.5px solid var(--panel);
+  box-shadow: var(--shadow-sm);
+  opacity: 0.92;
+  transition: transform 140ms ease-out, opacity 140ms ease-out;
+}
+
+.avatar-edit-btn:hover .avatar-edit-badge {
+  transform: scale(1.12);
+  opacity: 1;
+}
+
+.avatar-quick-tray {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--sunk);
+  border: 1px solid var(--line);
+}
+
+.avatar-quick-tray.in-drawer {
+  margin: 0 18px 10px;
+}
+
+.mate-avatar-tray {
+  margin: 4px 0 6px;
+}
+
+/* ==========================================================================
+   Multica Workflow Advancement: Summary Guard, Playbooks, Chains, Metrics, Schedule
+   ========================================================================== */
+
+.hud-summary {
+  margin: 0;
+  padding: 6px 10px 6px 22px;
+  border-radius: 8px;
+  background: var(--sunk);
+  border: 1px solid var(--line);
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--ink);
+  display: grid;
+  gap: 3px;
+}
+
+.hud-q-guard {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.orch-playbooks {
+  display: grid;
+  gap: 6px;
+}
+
+.orch-pb-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.orch-pb-chip {
+  cursor: pointer;
+}
+
+.orch-mode-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.orch-stage-pick {
+  width: 96px;
+  flex: 0 0 auto;
+}
+
+.orch-save-pb {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.handoff-box {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--sunk);
+  border: 1px solid var(--line);
+}
+
+.wfhub-modal {
+  width: min(760px, 94vw);
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.wfhub-body {
+  overflow-y: auto;
+  display: grid;
+  gap: 12px;
+  padding-right: 2px;
+}
+
+.wfhub-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.wfhub-chains {
+  display: grid;
+  gap: 10px;
+}
+
+.wf-chain {
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--sunk);
+  border: 1px solid var(--line);
+  display: grid;
+  gap: 8px;
+}
+
+.wf-chain-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.wf-chain-head small {
+  display: block;
+  font-size: 11.5px;
+  color: var(--ink-muted);
+}
+
+.wf-chain-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.wf-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.wf-progress i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 200ms ease;
+}
+
+.wf-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+
+.wf-steps li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+
+.wf-steps li.is-done {
+  opacity: 0.72;
+}
+
+.wf-stage-tag {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--sunk);
+  border: 1px solid var(--line);
+  color: var(--ink-muted);
+}
+
+.wf-step-link {
+  flex: 1 1 auto;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  color: var(--ink);
+  display: grid;
+  gap: 2px;
+}
+
+.wf-step-link b {
+  font-size: 12.5px;
+}
+
+.wf-step-link small {
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+
+.wf-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.wf-kpi {
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--sunk);
+  border: 1px solid var(--line);
+  display: grid;
+  gap: 4px;
+}
+
+.wf-kpi small {
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+
+.wf-kpi strong {
+  font-size: 22px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.wf-kpi span {
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+
+.wf-prov-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.wf-table-wrap {
+  overflow-x: auto;
+  margin-top: 6px;
+}
+
+.wf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.wf-table th,
+.wf-table td {
+  padding: 7px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+
+.wf-table th {
+  font-size: 11px;
+  color: var(--ink-muted);
+  font-weight: 600;
+}
+
+.office-schedule-box {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--sunk);
+  border: 1px solid var(--line);
+}
+
+.office-schedule-box summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  list-style: none;
+}
+
+.office-schedule-body {
+  margin-top: 8px;
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.sched-times {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.sched-times label {
+  display: grid;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+
+.office-controls-hub-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.instr-health-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .orch-mode-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Safari/WebKit paint & layout isolation for TaskPanel typing performance */
+.tp-out,
+.tp-you {
+  contain: layout paint style;
+}
+
+.pv-body,
+.pv-doc {
+  contain: layout style;
+}
+

@@ -1,51 +1,41 @@
 "use client";
 import OfficeAmbience from "./office-ambience";
 import { memo, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import type { Office, Desk, TaskView, RunView } from "@/lib/office";
-import TaskPanel from "./task-panel";
 import type { Building } from "./page";
 import OfficeSwitch from "./office-switch";
-
-import ChatPanel, { MANAGER, isManager } from "./chat-panel";
+import { MANAGER, isManager } from "@/lib/manager";
 import { Px, PxText, type PxName } from "./pixel-icon";
 import CharacterFace from "./character-face";
-import CharacterPicker from "./character-picker";
-import { useHandoverDetector, type Handover } from "./handover";
-import NewProject from "./new-project";
-import { useVisiblePoll } from "./visible-poll";
-import AgentDeskDrawer, { type DeskDrawerTab } from "./agent-desk-drawer";
-import ReferenceOffice, { type OfficeWalk, type ReviewTaskInfo } from "./reference-office";
+import type { DeskDrawerTab } from "./agent-desk-drawer";
+import ReferenceOffice, { type ReviewTaskInfo } from "./reference-office";
 import ThemeToggle from "./theme-toggle";
-import StandupModal from "./standup-modal";
-import OrchestratorModal, { type LaunchedWorkflow } from "./orchestrator-modal";
-import WorkflowHubModal from "./workflow-hub-modal";
+import type { LaunchedWorkflow } from "./orchestrator-modal";
 import { LiveActivityFeed, QuickApprovalBar } from "./office-hud";
+import { useOfficeSync } from "./use-office-sync";
+import { useOfficePreferences } from "./use-office-preferences";
+import { useOfficeWalks } from "./use-office-walks";
 import {
   formatClockNow,
-  HANDOVER_STYLE_KEY,
-  resolveHandoverDelivery,
-  REVIEW_STYLE_KEY,
   type ActivityEvent,
   type DropZone,
   type FloorPropKind,
   type GoalStepDraft,
-  type HandoverStyle,
-  type ReviewStyle,
 } from "@/lib/munder-workflows";
-import { getOfficeClockStatus, type OfficeClockStatus } from "@/lib/office-time";
 import { DEFAULT_SCHEDULE, type OfficeSchedule } from "@/lib/office-schedule";
 import { readActiveChatId, writeActiveChatId } from "@/lib/chat-continuity";
-import {
-  HARVEST_LIGHTING_STORAGE_KEY,
-  harvestPhaseLabel,
-  parseHarvestLighting,
-  resolveHarvestPhase,
-  type HarvestLightingMode,
-  type HarvestPhase,
-} from "@/lib/harvest-theme";
+import { harvestPhaseLabel } from "@/lib/harvest-theme";
 
-const REFRESH_MS = 15_000;
+const TaskPanel = dynamic(() => import("./task-panel"), { ssr: false });
+const ChatPanel = dynamic(() => import("./chat-panel"), { ssr: false });
+const CharacterPicker = dynamic(() => import("./character-picker"), { ssr: false });
+const NewProject = dynamic(() => import("./new-project"), { ssr: false });
+const AgentDeskDrawer = dynamic(() => import("./agent-desk-drawer"), { ssr: false });
+const StandupModal = dynamic(() => import("./standup-modal"), { ssr: false });
+const OrchestratorModal = dynamic(() => import("./orchestrator-modal"), { ssr: false });
+const WorkflowHubModal = dynamic(() => import("./workflow-hub-modal"), { ssr: false });
 
 function DueChip({ t }: { t: TaskView }) {
   if (!t.dueText) return null;
@@ -426,39 +416,25 @@ export default function OfficeView({ office, buildings, attention, people, seen,
   const [autoHealStuck, setAutoHealStuck] = useState<boolean>(!!office.autoHealStuck);
   const [savingSched, setSavingSched] = useState(false);
   const [orchDraft, setOrchDraft] = useState<{ goal: string; heading?: string; steps?: GoalStepDraft[] } | null>(null);
-  const [previewStep, setPreviewStep] = useState<number | null>(null);
-  const [flowNotice, setFlowNotice] = useState("");
-  const [harvestLighting, setHarvestLightingState] = useState<HarvestLightingMode>("auto");
-  const [harvestPhase, setHarvestPhase] = useState<HarvestPhase>("day");
-  const [handoverStyle, setHandoverStyleState] = useState<HandoverStyle>("auto");
-  const [reviewStyle, setReviewStyleState] = useState<ReviewStyle>("auto");
+  const {
+    harvestLighting,
+    setHarvestLighting,
+    harvestPhase,
+    handoverStyle,
+    setHandoverStyle,
+    reviewStyle,
+    setReviewStyle,
+    clockStatus,
+    lunchHour,
+  } = useOfficePreferences({
+    timeZone: office.timeZone,
+    switchOpen: office.switchOpen,
+    workCalendar: office.workCalendar,
+  });
   useEffect(() => {
     setSchedule(office.schedule ?? DEFAULT_SCHEDULE);
     setAutoHealStuck(!!office.autoHealStuck);
   }, [office.workspaceId, office.schedule, office.autoHealStuck]);
-  useEffect(() => {
-    try {
-      setHarvestLightingState(parseHarvestLighting(localStorage.getItem(HARVEST_LIGHTING_STORAGE_KEY)));
-      const hs = localStorage.getItem(HANDOVER_STYLE_KEY);
-      if (hs === "auto" || hs === "walk" || hs === "bubble") setHandoverStyleState(hs);
-      const rs = localStorage.getItem(REVIEW_STYLE_KEY);
-      if (rs === "auto" || rs === "walk" || rs === "bubble") setReviewStyleState(rs);
-    } catch {
-      // Ignore storage access failures in private browsing.
-    }
-  }, []);
-  const setHarvestLighting = useCallback((next: HarvestLightingMode) => {
-    setHarvestLightingState(next);
-    try { localStorage.setItem(HARVEST_LIGHTING_STORAGE_KEY, next); } catch { /* ignore */ }
-  }, []);
-  const setHandoverStyle = useCallback((next: HandoverStyle) => {
-    setHandoverStyleState(next);
-    try { localStorage.setItem(HANDOVER_STYLE_KEY, next); } catch { /* ignore */ }
-  }, []);
-  const setReviewStyle = useCallback((next: ReviewStyle) => {
-    setReviewStyleState(next);
-    try { localStorage.setItem(REVIEW_STYLE_KEY, next); } catch { /* ignore */ }
-  }, []);
   const wsSlug = buildings.find(b => b.id === office.workspaceId)?.slug ?? office.workspaceId;
   const logEvent = useCallback((ev: Omit<ActivityEvent, "id" | "at">, persist = true) => {
     setActivity(cur => [{ ...ev, id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, at: formatClockNow() }, ...cur].slice(0, 40));
@@ -511,20 +487,6 @@ export default function OfficeView({ office, buildings, attention, people, seen,
     }
   }
   const activeWork = office.rooms.some(r => r.desks.some(d => d.state === "working")) || office.idleDesks.some(d => d.state === "working");
-  const [clockStatus, setClockStatus] = useState<OfficeClockStatus>(() => getOfficeClockStatus(office.timeZone, new Date(), office.workCalendar));
-  const lunchHour = office.switchOpen && clockStatus.isLunch;
-  useEffect(() => {
-    const update = () => {
-      const now = new Date();
-      setClockStatus(getOfficeClockStatus(office.timeZone, now, office.workCalendar));
-      setHarvestPhase(resolveHarvestPhase(harvestLighting, office.timeZone, office.switchOpen, now));
-    };
-    let timer: ReturnType<typeof setTimeout>;
-    const tick = () => { update(); timer = setTimeout(tick, 60_000 - Date.now() % 60_000 + 50); };
-    tick();
-    document.addEventListener("visibilitychange", update);
-    return () => { clearTimeout(timer); document.removeEventListener("visibilitychange", update); };
-  }, [office.timeZone, office.switchOpen, office.workCalendar, harvestLighting]);
   // Mark "I'm online" every 2 minutes while this tab is open and visible.
   useEffect(() => {
     const beat = () => { if (document.visibilityState === "visible") fetch("/api/presence", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ws: office.workspaceId }) }).catch(() => {}); };
@@ -542,7 +504,6 @@ export default function OfficeView({ office, buildings, attention, people, seen,
     finally { setRerunning(null); }
   }
   const [toastPaused, setToastPaused] = useState(false);
-  const [flowPaused, setFlowPaused] = useState(false);
   useEffect(() => {
     if (!toast) { setToastPaused(false); return; }
   }, [toast]);
@@ -552,31 +513,36 @@ export default function OfficeView({ office, buildings, attention, people, seen,
     return () => clearTimeout(t);
   }, [toast, toastPaused]);
 
-  // Smart delta polling: check lightweight server fingerprint first; only run full SSR router.refresh() when changed.
-  const syncFp = useRef<string | null>(null);
-  useEffect(() => { syncFp.current = null; }, [office.workspaceId]);
-  const pollOffice = useCallback(async () => {
-    try {
-      const qs = new URLSearchParams({ ws: office.workspaceId });
-      if (syncFp.current) qs.set("fp", syncFp.current);
-      const r = await fetch(`/api/office/sync?${qs.toString()}`);
-      if (r.status === 304) return;
-      if (!r.ok) { refresh(); return; }
-      const j = (await r.json()) as { fp?: string };
-      if (!j.fp) return;
-      const hadPrev = syncFp.current !== null;
-      if (syncFp.current !== j.fp) {
-        syncFp.current = j.fp;
-        if (hadPrev) refresh();
-      }
-    } catch {
-      refresh();
-    }
-  }, [office.workspaceId, refresh]);
-  useVisiblePoll(pollOffice, REFRESH_MS);
+  // Local real-time SSE stream (<50ms local push) with automatic visibility sleep & /api/office/sync fallback
+  const { liveConnected } = useOfficeSync(office.workspaceId, refresh);
   const allDesks = useMemo(() => [...office.rooms.flatMap(r => r.desks), ...office.idleDesks], [office.rooms, office.idleDesks]);
   const uniqueDesks = useMemo(() => [...new Map(allDesks.map(d => [d.agentId, d])).values()].map(d => (deskPatches[d.agentId] ? { ...d, ...deskPatches[d.agentId] } : d)), [allDesks, deskPatches]);
   useEffect(() => { setDeskPatches({}); setMemberFacePatches({}); }, [office]);
+  const resetRoom = useCallback(() => setRoomId("all"), []);
+  const {
+    walks,
+    ownerName,
+    ownerActorId,
+    nameOf,
+    startWalks,
+    flowNotice,
+    setFlowNotice,
+    setFlowPaused,
+    previewStep,
+    setPreviewStep,
+    handleFloorDone,
+    handleFloorDelivered,
+  } = useOfficeWalks({
+    office,
+    allDesks,
+    uniqueDesks,
+    seen,
+    people,
+    meId,
+    handoverStyle,
+    onResetRoom: resetRoom,
+    logEvent,
+  });
   const openDesk = useMemo(() => {
     if (!openDeskId) return null;
     return uniqueDesks.find(d => d.agentId === openDeskId) ?? null;
@@ -604,7 +570,7 @@ export default function OfficeView({ office, buildings, attention, people, seen,
       }
     };
     addEventListener("keydown", k); return () => removeEventListener("keydown", k);
-  }, [openTask, hubTab, newProject, orchDraft, standupOpen, openDeskId, openHuman, attentionOpen, controlsOpen, feedOpen, previewStep]);
+  }, [openTask, hubTab, newProject, orchDraft, standupOpen, openDeskId, openHuman, attentionOpen, controlsOpen, feedOpen, previewStep, setPreviewStep]);
 
   const a = attention;
   const human = useMemo(() => (person === "All" ? a.human : a.human.filter(t => t.assignee === person)), [a.human, person]);
@@ -620,7 +586,6 @@ export default function OfficeView({ office, buildings, attention, people, seen,
       desks: r.desks.map(d => (deskPatches[d.agentId] ? { ...d, ...deskPatches[d.agentId] } : d)),
     }));
   }, [office.rooms, roomId, deskPatches]);
-  const ownerName = office.members.find(m => m.id === meId)?.name ?? people[0] ?? null;
   const meetingAgent = uniqueDesks.find(d => /meeting|secretary/i.test(`${d.name} ${d.description}`)) ?? uniqueDesks.find(d => isManager(d.name)) ?? uniqueDesks[0];
   const mika = allDesks.find(d => isManager(d.name));
   const floorDesks = useMemo(() => (roomId.startsWith("squad:") ? visibleRooms.flatMap(r => r.desks) : uniqueDesks), [roomId, visibleRooms, uniqueDesks]);
@@ -628,8 +593,6 @@ export default function OfficeView({ office, buildings, attention, people, seen,
   const handleFloorDesk = useCallback((d: Desk) => openAgentDrawer(d.agentId, "tasks"), [openAgentDrawer]);
   const handleFloorHuman = useCallback((name: string) => { setOpenHuman(name); setHumanAvatarOpen(false); setHumanFaceErr(null); setOpenDeskId(null); }, []);
   const handleFloorOpenTask = useCallback((id: string, ws: string) => setOpenTaskRaw({ id, ws }), []);
-  const handleFloorDone = useCallback((key: string) => setWalks(items => items.filter(x => x.key !== key)), []);
-  const handleFloorDelivered = useCallback((h: Handover) => { if (h.title === "Preview handover") setPreviewStep(step => step === 2 ? 3 : step); }, []);
   const runtimeSummary = useMemo(() => {
     const groups = new Map<string, Office["runtimes"]>();
     for (const runtime of office.runtimes) groups.set(runtime.provider, [...(groups.get(runtime.provider) ?? []), runtime]);
@@ -654,161 +617,7 @@ export default function OfficeView({ office, buildings, attention, people, seen,
     };
   }, [uniqueDesks, openAgentDrawer]);
 
-  // Agents walk over to hand work off.
   const officeRef = useRef<HTMLElement>(null);
-  const [walks, setWalks] = useState<OfficeWalk[]>([]);
-  const walkingIds = useMemo(() => new Set(walks.map(w => w.from)), [walks]);
-  const here = (p: string) => !!seen[p] && Date.now() - Date.parse(seen[p]) < 5 * 60000;
-  const reviewer = (ownerName && here(ownerName) ? ownerName : people.find(here)) ?? ownerName;
-  const ownerActorId = useMemo(() => {
-    const o = office.members.find(m => m.id === meId) ?? office.members[0];
-    return o ? `person:${o.id}` : null;
-  }, [office.members, meId]);
-  const resolveActorKey = useCallback((k: string) => {
-    if (!k.startsWith("person:")) return k;
-    const raw = k.slice(7);
-    const byId = office.members.find(m => m.id === raw);
-    if (byId) return `person:${byId.id}`;
-    const byName = office.members.find(m => m.name === raw);
-    if (byName) return `person:${byName.id}`;
-    return ownerActorId ?? k;
-  }, [office.members, ownerActorId]);
-  const nameOf = (k: string) => {
-    if (!k.startsWith("person:")) return allDesks.find(d => d.agentId === k)?.name ?? "Agent";
-    const raw = k.slice(7);
-    return office.members.find(m => m.id === raw || m.name === raw)?.name ?? raw;
-  };
-  const startWalks = useCallback((hs: (Handover & { kind?: OfficeWalk["kind"] })[]) => {
-    if (!hs.length) return;
-    setRoomId("all");
-    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const resolved = hs.map(h => ({
-      ...h,
-      from: resolveActorKey(h.from),
-      to: resolveActorKey(h.to),
-      face: uniqueDesks.find(d => d.agentId === h.from)?.face ?? null,
-      key: h.from + ":" + Date.now() + Math.random(),
-    }));
-
-    const walkList: typeof resolved = [];
-    const bubbleList: typeof resolved = [];
-    resolved.forEach((h, idx) => {
-      const delivery = reduced ? "bubble" : resolveHandoverDelivery(handoverStyle, idx);
-      if (delivery === "bubble") bubbleList.push(h);
-      else walkList.push(h);
-    });
-
-    if (walkList.length) {
-      setWalks(cur => [...cur, ...walkList.filter(h => !cur.some(c => c.from === h.from))]);
-    }
-    bubbleList.forEach((h, idx) => {
-      setTimeout(() => {
-        window.dispatchEvent(new CustomEvent("kantor:dialog", {
-          detail: {
-            fromId: h.from,
-            toId: h.to,
-            fromName: h.fromName,
-            toName: h.toName,
-            title: h.title,
-            kind: h.kind ?? "handoff",
-          },
-        }));
-      }, idx * 500);
-    });
-
-    setFlowNotice(resolved.map(h => `${h.fromName} → ${h.toName}: ${h.title}`).join(" · "));
-    resolved.forEach(h => logEvent({ kind: "handoff", title: `${h.fromName} → ${h.toName}`, detail: h.title, agentId: h.to.startsWith("person:") ? undefined : h.to }));
-  }, [uniqueDesks, logEvent, resolveActorKey, handoverStyle]);
-  useHandoverDetector(office, reviewer, nameOf, startWalks);
-  const handoverRef = useRef({ startWalks, nameOf });
-  handoverRef.current = { startWalks, nameOf };
-  useEffect(() => {
-    const f = (e: Event) => {
-      const d = (e as CustomEvent).detail;
-      const { startWalks: go, nameOf: nm } = handoverRef.current;
-      go([{ ...d, fromName: nm(d.from), toName: nm(d.to) }]);
-    };
-    addEventListener("kantor:handover", f);
-    return () => removeEventListener("kantor:handover", f);
-  }, []);
-  useEffect(() => {
-    const f = (event: Event) => {
-      const detail = (event as CustomEvent<{ action: string; title: string; agentId: string | null }>).detail;
-      if (!detail) return;
-      if (detail.action === "approve" || detail.action === "done") {
-        setFlowNotice(`Approved: ${detail.title}`);
-        const agent = uniqueDesks.find(d => d.agentId === detail.agentId);
-        if (agent && ownerActorId) {
-          window.dispatchEvent(new CustomEvent("kantor:dialog", {
-            detail: { fromId: ownerActorId, toId: agent.agentId, fromName: ownerName ?? "You", toName: agent.name, title: detail.title, kind: "approve" },
-          }));
-          const cheer = uniqueDesks.find(d => d.agentId !== agent.agentId && d.squad === agent.squad && !["off", "closed"].includes(d.state));
-          if (cheer) {
-            setTimeout(() => {
-              window.dispatchEvent(new CustomEvent("kantor:speech", {
-                detail: { actorId: cheer.agentId, tone: "approved", badge: "Apresiasi", text: `Keren ${agent.name.split(/\s+/)[0]}! 👏`, pixelKind: "heart", ms: 2600 },
-              }));
-            }, 1900);
-          }
-        } else if (detail.agentId) {
-          window.dispatchEvent(new CustomEvent("kantor:speech", {
-            detail: { actorId: detail.agentId, tone: "approved", badge: "Selesai", text: "Siap, terima kasih! 🙌", pixelKind: "heart", ms: 3400 },
-          }));
-        }
-      } else if (detail.action === "assigned" || detail.action === "queued") {
-        setFlowNotice(`${detail.action === "assigned" ? "Assigned" : "Queued"}: ${detail.title}`);
-        const agent = uniqueDesks.find(d => d.agentId === detail.agentId);
-        if (agent && ownerActorId) {
-          startWalks([{ from: ownerActorId, to: agent.agentId, title: detail.title, fromName: ownerName ?? "You", toName: agent.name, kind: "assign" }]);
-        }
-      } else if (detail.action === "revise" || detail.action === "reply") {
-        setFlowNotice(`Feedback sent: ${detail.title}`);
-        const agent = uniqueDesks.find(d => d.agentId === detail.agentId);
-        if (agent) {
-          if (ownerActorId) {
-            startWalks([{ from: ownerActorId, to: agent.agentId, title: detail.title, fromName: ownerName ?? "You", toName: agent.name, kind: "revise" }]);
-          } else {
-            window.dispatchEvent(new CustomEvent("kantor:speech", {
-              detail: { actorId: agent.agentId, tone: "revise", badge: "Revisi", text: "Oke, langsung saya perbaiki! ✎", pixelKind: "mail", ms: 3200 },
-            }));
-          }
-        }
-      }
-    };
-    addEventListener("kantor:workflow", f); return () => removeEventListener("kantor:workflow", f);
-  }, [ownerActorId, ownerName, startWalks, uniqueDesks]);
-  useEffect(() => {
-    if (!flowNotice) { setFlowPaused(false); return; }
-  }, [flowNotice]);
-  useEffect(() => {
-    if (!flowNotice || flowPaused) return;
-    const t = setTimeout(() => setFlowNotice(""), 5000);
-    return () => clearTimeout(t);
-  }, [flowNotice, flowPaused]);
-  useEffect(() => {
-    if (previewStep === null) return;
-    const first = uniqueDesks[0];
-    if (previewStep === 0 && first) {
-      const fromId = ownerActorId ?? uniqueDesks[1]?.agentId;
-      const fromLabel = ownerActorId ? (ownerName ?? "Owner") : (uniqueDesks[1]?.name ?? "Manager");
-      if (fromId && fromId !== first.agentId) {
-        startWalks([{ from: fromId, to: first.agentId, title: "Q4 Launch Brief", fromName: fromLabel, toName: first.name, kind: "assign" }]);
-      }
-    } else if (previewStep === 3 && first) {
-      if (ownerActorId) {
-        window.dispatchEvent(new CustomEvent("kantor:dialog", {
-          detail: { fromId: ownerActorId, toId: first.agentId, fromName: ownerName ?? "Owner", toName: first.name, title: "Q4 Launch Brief", kind: "approve" },
-        }));
-      } else {
-        window.dispatchEvent(new CustomEvent("kantor:speech", {
-          detail: { actorId: first.agentId, tone: "approved", badge: "Selesai", text: "Siap, terima kasih! 🙌", pixelKind: "heart", ms: 3400 },
-        }));
-      }
-    }
-    const durations = [4200, 3200, 7500, 3200];
-    const timer = setTimeout(() => setPreviewStep(step => step === 3 ? null : step === null ? null : step + 1), durations[previewStep] ?? 3200);
-    return () => clearTimeout(timer);
-  }, [previewStep, ownerActorId, ownerName, startWalks, uniqueDesks]);
 
   const reviewTasksByAgent = useMemo(() => {
     const out: Record<string, ReviewTaskInfo> = {};
@@ -1116,7 +925,15 @@ export default function OfficeView({ office, buildings, attention, people, seen,
             );
           })()}
           <div className="office-top-actions">
-            <button type="button" className="office-top-button" onClick={refresh} disabled={refreshing} title={`Last synced at ${office.updatedAt}. Click to sync with Multica now.`}><Px name="refresh" /> {refreshing ? "Syncing…" : "Sync"}</button>
+            <button
+              type="button"
+              className="office-top-button"
+              onClick={refresh}
+              disabled={refreshing}
+              title={`Last synced at ${office.updatedAt}${liveConnected ? " · Live SSE stream connected" : " · Delta sync active"}. Click to sync with Multica now.`}
+            >
+              <Px name="refresh" /> {refreshing ? "Syncing…" : liveConnected ? "Live" : "Sync"}
+            </button>
             <OfficeAmbience open={office.switchOpen} timeZone={office.timeZone} calendar={office.workCalendar} activeWork={activeWork} />
             <button type="button" className="office-top-button" aria-label="Team Standup" aria-expanded={standupOpen} onClick={() => openStandup()}><Px name="team" /><span className="btn-label">Standup</span></button>
             <button type="button" className="office-top-button" aria-label="Workflows and Insights" onClick={() => { setControlsOpen(false); setAttentionOpen(false); setHubTab("chains"); }}><Px name="rocket" /><span className="btn-label">Workflows</span></button>

@@ -1,18 +1,21 @@
 "use client";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { Team, Mate, Load } from "@/lib/crew";
-import TaskPanel from "../task-panel";
-import ChatPanel, { isManager } from "../chat-panel";
-import { openChat } from "../messages";
+import { isManager } from "@/lib/manager";
+import { openChat } from "@/lib/dm-events";
 import { Px, Emo, PxText, StateIcon, type PxName } from "../pixel-icon";
 import { GrowText } from "../auto-grow";
 import CharacterFace from "../character-face";
-import CharacterPicker from "../character-picker";
-import WorkflowHubModal from "../workflow-hub-modal";
 import { useVisiblePoll } from "../visible-poll";
+
+const TaskPanel = dynamic(() => import("../task-panel"), { ssr: false });
+const ChatPanel = dynamic(() => import("../chat-panel"), { ssr: false });
+const CharacterPicker = dynamic(() => import("../character-picker"), { ssr: false });
+const WorkflowHubModal = dynamic(() => import("../workflow-hub-modal"), { ssr: false });
 
 const LEVEL: Record<Load["level"], { icon: PxName; label: string; tip: string }> = {
   santai: { icon: "dot-on", label: "Free", tip: "no open tasks" },

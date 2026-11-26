@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { chatMessages, chatPending, sendChat, markChatRead, workspace } from "@/lib/multica";
+import { emitOfficeChange } from "@/lib/office-events";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ sid: string }>
   if (!b.text?.trim() && !b.files?.length) return NextResponse.json({ error: "The message is empty." }, { status: 400 });
   try {
     await sendChat(b.ws ?? null, sid, b.text?.trim() ?? "", b.files ?? []);
+    const resolvedWs = await workspace(b.ws ?? null).catch(() => null);
+    emitOfficeChange(resolvedWs?.id ?? b.ws ?? null, "chat.sent");
     return NextResponse.json(await view(b.ws ?? null, sid));
   } catch (e) { return NextResponse.json({ error: String(e instanceof Error ? e.message : e) }, { status: 500 }); }
 }

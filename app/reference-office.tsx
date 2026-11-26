@@ -7,15 +7,11 @@ import { floorSeats, OFFICE_PLAN, OWNER_SEAT, seatBounds } from '@/lib/floor-sea
 import {
   bubbleKindForState,
   buildTwoWayDialog,
-  compactLabel,
   GOODBYE_LINES,
   interactiveFloorProps,
   meetingSpotsFor,
   MORNING_GREETINGS,
   ownerReviewSpotsFor,
-  partitionReviewDelivery,
-  PEER_CHAT_SCRIPTS,
-  pickNaturalActivity,
   resolveDropZone,
   tileRectBounds,
   type BubbleKind,
@@ -25,6 +21,22 @@ import {
   type SpeechBubbleItem,
   type SpeechBubbleTone,
 } from '@/lib/munder-workflows';
+import {
+  buildFloorSpeechBubbles,
+  clampNum,
+  computeFloorScale,
+  computeHoverCardPlacement,
+  computeReviewAssignments,
+  computeSpeechBubblePlacement,
+  describeDropTarget,
+  getBreakCoffeeSpots,
+  isActorAbsentFromDesk,
+  planLunchErrands,
+  planWorkdayLifeStep,
+  resolveHumanFaces,
+  seatPointFor,
+  walkableAdjacentTiles,
+} from '@/lib/office-engine';
 import type { Handover } from './handover';
 import { floorPropLabel, type FloorTheme, type HarvestPhase } from '@/lib/harvest-theme';
 import type { OfficePhase } from '@/lib/office-time';
@@ -53,27 +65,7 @@ function load() {
   })().catch(e => { loading = undefined; throw e; });
 }
 
-const seatPoint = (n: number) => OFFICE_PLAN.desks[n];
 const FLOOR_PROPS = interactiveFloorProps();
-
-function describeDropTarget(draggedName: string, zone: DropZone): string {
-  switch (zone.kind) {
-    case 'desk':
-      return `Hand off task to ${zone.name}`;
-    case 'human':
-      return `Send update to ${zone.name}`;
-    case 'meeting':
-      return `Call Standup Huddle with ${draggedName}`;
-    case 'coffee':
-      return `Send ${draggedName} for a coffee break`;
-    case 'board':
-      return 'Open Task Board';
-    case 'server':
-      return 'Inspect AI Engines';
-    default:
-      return `Drop ${draggedName} on floor`;
-  }
-}
 
 export type ReviewTaskInfo = { id: string; ws: string; title: string; questionCount?: number };
 export type OfficeWalk = Handover & { key: string; kind?: 'assign' | 'revise' | 'review' | 'handoff' };
@@ -87,8 +79,6 @@ type HoverCardState = {
   detail: string;
   tip?: string;
 };
-
-const clampNum = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
 const ReferenceOffice = memo(function ReferenceOffice({
   desks,
@@ -151,8 +141,7 @@ const ReferenceOffice = memo(function ReferenceOffice({
     if (!frame.current) return;
     const observer = new ResizeObserver(([entry]) => {
       const { width, height } = entry.contentRect;
-      const w = Math.min(width, height * OFFICE_PLAN.cols / OFFICE_PLAN.rows);
-      setSize({ width: w, height: w * OFFICE_PLAN.rows / OFFICE_PLAN.cols, frameWidth: width + 16, frameHeight: height + 16 });
+      setSize(computeFloorScale(width, height, OFFICE_PLAN));
     });
     observer.observe(frame.current);
     return () => observer.disconnect();
@@ -197,18 +186,6 @@ const ReferenceOffice = memo(function ReferenceOffice({
 
   // Two real break destinations: Kitchen Pantry (x=7, y=7) & Dedicated Coffee Machine Bar (x=35, y=5)
   const breakSpotCursorRef = useRef(0);
-  const getBreakCoffeeSpots = () => {
-    const spots = OFFICE_PLAN.errands.filter(e => e.kind === 'coffee');
-    if (spots.length >= 2) {
-      return spots.map(e => ({
-        ...e,
-        isCoffeeBar: e.x >= 30,
-        label: e.x >= 30 ? 'Pulling an espresso at the coffee bar ☕' : 'Grabbing a brew in the kitchen 🍳',
-      }));
-    }
-    const fallback = spots[0] ?? OFFICE_PLAN.lunch;
-    return [{ ...fallback, face: 'up', kind: 'coffee', isCoffeeBar: false, label: 'Grabbing a quick coffee ☕' }];
-  };
 
   const [letter, setLetter] = useState<string | null>(null);
   const [ack, setAck] = useState('');
@@ -256,28 +233,14 @@ const ReferenceOffice = memo(function ReferenceOffice({
       }
       const ar = anchorEl.getBoundingClientRect();
       const fr = frame.current?.getBoundingClientRect();
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      const cw = cardEl.offsetWidth || 210;
-      const ch = cardEl.offsetHeight || 78;
-
-      const safeLeft = Math.max(10, Math.round((fr?.left ?? 0) + 8));
-      const safeRight = Math.min(vw - 10, Math.round((fr?.right ?? vw) - 8));
-      const safeTop = Math.max(70, Math.round((fr?.top ?? 0) + 8));
-      const safeBottom = Math.min(vh - 12, Math.round((fr?.bottom ?? vh) - 8));
-
-      const gap = 9;
-      const aboveTop = ar.top - gap - ch;
-      const belowTop = ar.bottom + gap;
-      const placeBelow = aboveTop < safeTop && (vh - ar.bottom) > (ar.top - safeTop);
-      const rawTop = placeBelow ? belowTop : aboveTop;
-      const top = Math.round(clampNum(rawTop, safeTop, Math.max(safeTop, safeBottom - ch)));
-
-      const anchorCx = ar.left + ar.width / 2;
-      const left = Math.round(clampNum(anchorCx - cw / 2, safeLeft, Math.max(safeLeft, safeRight - cw)));
-      const arrowX = Math.round(clampNum(anchorCx - left, 16, Math.max(16, cw - 16)));
-
-      setHoverCardPos({ left, top, arrowX, below: placeBelow });
+      setHoverCardPos(computeHoverCardPlacement({
+        anchor: ar,
+        frame: fr,
+        viewportW: window.innerWidth,
+        viewportH: window.innerHeight,
+        cardW: cardEl.offsetWidth || 210,
+        cardH: cardEl.offsetHeight || 78,
+      }));
     };
     update();
     window.addEventListener('resize', update);
@@ -311,20 +274,10 @@ const ReferenceOffice = memo(function ReferenceOffice({
   shownRef.current = shown;
 
   // Agents currently awaiting human owner review (partitioned into Alt 1: Walk to Owner vs Alt 2: Desk Bubble)
-  const { walkReviewIds, deskReviewIds } = useMemo(() => {
-    if (huddleIds.length > 0) return { walkReviewIds: [] as string[], deskReviewIds: [] as string[] };
-    const allIds = shown
-      .filter(d => {
-        if (offDuty && !previewReviewId) return false;
-        return d.state === 'review' || !!reviewTasksByAgent[d.agentId];
-      })
-      .map(d => d.agentId);
-    if (previewReviewId && shown.some(d => d.agentId === previewReviewId) && !allIds.includes(previewReviewId)) {
-      allIds.unshift(previewReviewId);
-    }
-    const { walkToOwner, deskBubbleOnly } = partitionReviewDelivery(allIds, reviewTasksByAgent, reviewStyle);
-    return { walkReviewIds: walkToOwner, deskReviewIds: deskBubbleOnly };
-  }, [shown, reviewTasksByAgent, previewReviewId, huddleIds.length, offDuty, reviewStyle]);
+  const { walkReviewIds, deskReviewIds } = useMemo(
+    () => computeReviewAssignments({ shown, reviewTasksByAgent, previewReviewId, huddleCount: huddleIds.length, offDuty, reviewStyle }),
+    [shown, reviewTasksByAgent, previewReviewId, huddleIds.length, offDuty, reviewStyle]
+  );
   const reviewAgentIds = walkReviewIds;
 
   const showTransient = (item: SpeechBubbleItem, ms = 3200, pixelKind?: BubbleKind) => {
@@ -745,109 +698,24 @@ const ReferenceOffice = memo(function ReferenceOffice({
     };
   }, []);
 
-  // Build prioritized live speech bubbles (position tracked smoothly at 24fps in s.onTick)
-  const speechBubbles = useMemo<SpeechBubbleItem[]>(() => {
-    const map = new Map<string, SpeechBubbleItem>();
-    const ownerLabel = owner?.name ?? 'Owner';
-
-    // 1. Working & Failed status bubbles at desk
-    for (const d of shown) {
-      const isPreviewWork = previewWorking && d.agentId === shown[0]?.agentId;
-      if (d.state === 'failed' && !offDuty) {
-        map.set(d.agentId, {
-          actorId: d.agentId,
-          tone: 'failed',
-          badge: 'Blocked',
-          text: compactLabel(d.bubble || 'Gagal — klik untuk cek/retry 😅', 30),
-          clickable: true,
-        });
-      } else if (d.state === 'working' || isPreviewWork) {
-        map.set(d.agentId, {
-          actorId: d.agentId,
-          tone: 'working',
-          badge: offDuty && !isPreviewWork ? 'Lembur' : 'Working',
-          text: isPreviewWork ? 'Mengerjakan Q4 Launch Brief…' : compactLabel(d.bubble || 'Sedang mengerjakan task…', 30),
-          clickable: true,
-        });
-      }
-    }
-
-    // 2a. Alt 1 — Agents waiting for Human Owner Review by walking into Owner's room
-    for (const id of walkReviewIds) {
-      const d = shown.find(x => x.agentId === id);
-      if (!d) continue;
-      const revTask = reviewTasksByAgent[id];
-      const title = revTask?.title ?? (id === previewReviewId ? 'Q4 Launch Brief' : d.bubble || 'Hasil siap');
-      const arrived = !!reviewArrived[id];
-      map.set(id, {
-        actorId: id,
-        tone: arrived ? 'review' : 'handover',
-        badge: arrived ? 'Review' : 'Menuju ' + ownerLabel,
-        text: arrived
-          ? `Mohon review ${ownerLabel}: ${compactLabel(title, 24)}`
-          : `Bawa ke ${ownerLabel}: ${compactLabel(title, 24)}`,
-        issueId: revTask?.id,
-        ws: revTask?.ws,
-        clickable: true,
-      });
-    }
-
-    // 2b. Alt 2 — Agents notifying Human Owner from their desk via clickable bubble (questions or bubble-review mode)
-    for (const id of deskReviewIds) {
-      const d = shown.find(x => x.agentId === id);
-      if (!d) continue;
-      const revTask = reviewTasksByAgent[id];
-      const title = revTask?.title ?? d.bubble ?? 'Hasil siap';
-      const hasQ = (revTask?.questionCount ?? 0) > 0;
-      map.set(id, {
-        actorId: id,
-        tone: 'review',
-        badge: hasQ ? `Tanya ${ownerLabel}` : 'Review',
-        text: hasQ
-          ? `@${ownerLabel}, butuh keputusan: ${compactLabel(title, 22)} ❓`
-          : `@${ownerLabel}, mohon review: ${compactLabel(title, 22)} 👀`,
-        issueId: revTask?.id,
-        ws: revTask?.ws,
-        clickable: true,
-      });
-    }
-
-    // 3. Standup huddle lead bubble
-    if (huddleIds.length > 0) {
-      const leadId = huddleIds[0];
-      map.set(leadId, {
-        actorId: leadId,
-        tone: 'standup',
-        badge: 'Standup',
-        text: `Huddle · ${huddleIds.length} teammates synced`,
-        clickable: true,
-      });
-    }
-
-    // 4. Active handover walks (Alt 1 — sender carries work with 2-way dialog text!)
-    for (const w of walks) {
-      const dlg = buildTwoWayDialog({
-        kind: w.kind ?? 'handoff',
-        fromName: w.fromName,
-        toName: w.toName,
-        title: w.title,
-      });
-      map.set(w.from, {
-        actorId: w.from,
-        tone: dlg.senderTone,
-        badge: dlg.senderBadge,
-        text: dlg.senderText,
-        clickable: false,
-      });
-    }
-
-    // 5. Highest priority: transient celebrations / 2-way replies / natural activities
-    for (const item of Object.values(transientBubbles)) {
-      map.set(item.actorId, item);
-    }
-
-    return [...map.values()];
-  }, [shown, owner, offDuty, previewWorking, walkReviewIds, deskReviewIds, reviewTasksByAgent, previewReviewId, reviewArrived, huddleIds, walks, transientBubbles]);
+  // Build prioritized live speech bubbles via lib/office-engine/dialog-overlay
+  const speechBubbles = useMemo<SpeechBubbleItem[]>(
+    () => buildFloorSpeechBubbles({
+      shown,
+      ownerName: owner?.name ?? 'Owner',
+      offDuty,
+      previewWorking,
+      walkReviewIds,
+      deskReviewIds,
+      reviewTasksByAgent,
+      previewReviewId,
+      reviewArrived,
+      huddleIds,
+      walks,
+      transientBubbles,
+    }),
+    [shown, owner, offDuty, previewWorking, walkReviewIds, deskReviewIds, reviewTasksByAgent, previewReviewId, reviewArrived, huddleIds, walks, transientBubbles]
+  );
 
   // Position any speech bubble strictly inside the visible office frame with automatic top/bottom flip & dynamic tail
   const placeSpeechEl = useCallback((el: HTMLElement, a: { fx: number; fy: number }, s: { W: number; H: number }) => {
@@ -860,31 +728,22 @@ const ReferenceOffice = memo(function ReferenceOffice({
       el.style.top = `${(Math.max(28, a.fy - 36) / s.H) * 100}%`;
       return;
     }
-    const frameW = frameEl?.clientWidth || stageW;
-    const frameH = frameEl?.clientHeight || stageH;
-    const extraX = Math.max(0, (frameW - stageW) / 2 - 8);
-    const extraY = Math.max(0, (frameH - stageH) / 2 - 8);
-    const minX = -extraX + 6;
-    const maxX = stageW + extraX - 6;
-    const minY = -extraY + 6;
-    const maxY = stageH + extraY - 6;
-
-    const bw = el.offsetWidth || 88;
-    const bh = el.offsetHeight || 26;
-    const ax = (a.fx / s.W) * stageW;
-    const headY = ((a.fy - 36) / s.H) * stageH;
-    const feetY = ((a.fy + 8) / s.H) * stageH;
-
-    const flipBelow = headY - bh < minY;
-    const rawTop = flipBelow ? feetY : headY - bh;
-    const topPx = Math.round(clampNum(rawTop, minY, Math.max(minY, maxY - bh)));
-    const leftPx = Math.round(clampNum(ax - bw / 2, minX, Math.max(minX, maxX - bw)));
-    const tailX = Math.round(clampNum(ax - leftPx, 12, Math.max(12, bw - 12)));
-
-    el.classList.toggle('is-below', flipBelow);
-    el.style.left = `${leftPx}px`;
-    el.style.top = `${topPx}px`;
-    el.style.setProperty('--tail-x', `${tailX}px`);
+    const placed = computeSpeechBubblePlacement({
+      actorX: a.fx,
+      actorY: a.fy,
+      worldW: s.W,
+      worldH: s.H,
+      stageW,
+      stageH,
+      frameW: frameEl?.clientWidth || stageW,
+      frameH: frameEl?.clientHeight || stageH,
+      bubbleW: el.offsetWidth || 88,
+      bubbleH: el.offsetHeight || 26,
+    });
+    el.classList.toggle('is-below', placed.flipBelow);
+    el.style.left = `${placed.left}px`;
+    el.style.top = `${placed.top}px`;
+    el.style.setProperty('--tail-x', `${placed.tailX}px`);
   }, []);
 
   // Sync bubble DOM coordinates immediately whenever the bubble list, hover expansion, or stage size changes
@@ -899,7 +758,7 @@ const ReferenceOffice = memo(function ReferenceOffice({
     }
   }, [speechBubbles, hoveredActorId, size, placeSpeechEl]);
 
-  const letterPoint = seatPoint(agentSeats[Math.max(0, shown.findIndex(d => d.agentId === letter))]);
+  const letterPoint = seatPointFor(agentSeats[Math.max(0, shown.findIndex(d => d.agentId === letter))], OFFICE_PLAN);
   const letterX = letterPoint.x;
   const letterY = letterPoint.y;
   const identity = shown.map(d => d.agentId).join('|');
@@ -921,15 +780,14 @@ const ReferenceOffice = memo(function ReferenceOffice({
         const actor = s.get(d.agentId);
         if (actor) {
           actor.retinaFaceId = d.face;
-          actor.hidden = !actor.busy && (latest.current.offDuty || ['off', 'closed'].includes(d.state));
+          actor.hidden = isActorAbsentFromDesk({ busy: !!actor.busy, offDuty: latest.current.offDuty, deskState: d.state });
           if (d.face) usedAgentFaces.add(d.face);
         }
       });
-      const allFaceIds = ['yusuf', 'reno', 'mira', 'danu', 'lia', 'tari', 'raya', 'niko', 'sari', 'bima', 'ardi', 'nala'];
-      const humanPool = [...allFaceIds.filter(id => !usedAgentFaces.has(id)), ...allFaceIds.filter(id => usedAgentFaces.has(id))];
-      visibleHumans.forEach((h, i) => {
+      const humanFaces = resolveHumanFaces(visibleHumans, usedAgentFaces);
+      visibleHumans.forEach(h => {
         const actor = s.get(`person:${h.id}`);
-        if (actor) actor.retinaFaceId = h.face || humanPool[i % humanPool.length];
+        if (actor) actor.retinaFaceId = humanFaces[h.id];
       });
       const params = new URLSearchParams(window.location.search);
       const retinaEnabled = params.get('retina') !== '0';
@@ -1002,7 +860,14 @@ const ReferenceOffice = memo(function ReferenceOffice({
             a._notifiedReviewArrived = false;
           }
 
-          a.hidden = !a.busy && !a.huddleHold && !a.reviewHold && (latest.current.offDuty || ['off', 'closed'].includes(d.state)) && a.state === 'seat';
+          a.hidden = isActorAbsentFromDesk({
+            busy: !!a.busy,
+            huddleHold: !!a.huddleHold,
+            reviewHold: !!a.reviewHold,
+            offDuty: latest.current.offDuty,
+            deskState: d.state,
+            actorState: a.state,
+          });
           if (a.hidden) continue;
 
           // Live pixel bubbles driven by real Multica desk state
@@ -1022,7 +887,7 @@ const ReferenceOffice = memo(function ReferenceOffice({
           if (pending.has(h.key)) continue;
           const a = s.get(h.from), b = s.get(h.to);
           if (!a || !b) { latest.current.onDone(h.key); continue; }
-          const candidates = [[b.x - 1, b.y], [b.x + 1, b.y], [b.x, b.y + 1], [b.x, b.y - 1]].filter(([x, y]) => s.walk[y]?.[x]);
+          const candidates = walkableAdjacentTiles(s.walk, b.x, b.y, a.x, a.y);
           const path = candidates.map(([x, y]) => s.path(a.x, a.y, x, y)).filter(Boolean).sort((p: number[][], q: number[][]) => p.length - q.length)[0];
           if (!path) { latest.current.onDone(h.key); continue; }
           a.hidden = false;
@@ -1111,80 +976,68 @@ const ReferenceOffice = memo(function ReferenceOffice({
         }
 
         if (isBreak) {
-          // Lunch break (12:00–13:15): send up to 4 free agents to Pantry, Coffee Bar, and Lounge.
-          const slots = Math.max(0, 4 - roamingCount);
-          for (let i = 0; i < Math.min(slots, freeDesks.length); i++) {
-            const d = freeDesks[(activitySeed + i) % freeDesks.length];
-            const a = s.get(d.agentId);
-            const pick = pickNaturalActivity({
-              lunch: true,
-              seed: activitySeed++,
-              occupiedKeys: occupied,
-              isWalkable: (x, y) => !!s.walk[y]?.[x],
-            });
-            if (!a || !pick) continue;
-            const path = s.path(a.x, a.y, pick.spot.x, pick.spot.y);
+          const { errands, nextSeed } = planLunchErrands({
+            freeDesks,
+            roamingCount,
+            occupiedKeys: occupied,
+            seed: activitySeed,
+            isWalkable: (x, y) => !!s.walk[y]?.[x],
+          });
+          activitySeed = nextSeed;
+          for (const item of errands) {
+            const a = s.get(item.agentId);
+            if (!a) continue;
+            const path = s.path(a.x, a.y, item.spot.x, item.spot.y);
             if (!path || !path.length) continue;
-            occupied.add(`${pick.spot.x},${pick.spot.y}`);
             a.state = 'walk';
             a.path = path;
             a.then = 'errand';
-            a.target = { x: pick.spot.x, y: pick.spot.y, face: pick.spot.face, kind: 'coffee' };
-            showTransient({ actorId: d.agentId, tone: 'coffee', badge: 'Istirahat', text: pick.line }, 3600, pick.spot.bubbleKind);
+            a.target = { x: item.spot.x, y: item.spot.y, face: item.spot.face, kind: 'coffee' };
+            showTransient({ actorId: item.agentId, tone: 'coffee', badge: 'Istirahat', text: item.line }, 3600, item.spot.bubbleKind);
           }
           return;
         }
 
-        // Regular work hours (08:00–12:00 & 13:15–17:30): keep up to 3 agents doing natural human activities.
-        if (roamingCount >= 3) return;
-        activitySeed++;
-
-        // 35% chance of a natural 2-way peer sync / watercooler chat between two free teammates!
-        if (freeDesks.length >= 2 && activitySeed % 3 === 0) {
-          const first = freeDesks[activitySeed % freeDesks.length];
-          const second = freeDesks[(activitySeed + 1) % freeDesks.length];
-          const a = s.get(first.agentId);
-          const b = s.get(second.agentId);
-          if (a && b) {
-            const script = PEER_CHAT_SCRIPTS[activitySeed % PEER_CHAT_SCRIPTS.length];
-            const qText = script[0].replace('{other}', second.name.split(/\s+/)[0]);
-            const rText = script[1].replace('{other}', first.name.split(/\s+/)[0]);
-            // Walk near teammate if a neighbor tile is free; otherwise chat from nearby desks.
-            const near = [[b.x - 1, b.y], [b.x + 1, b.y], [b.x, b.y + 1], [b.x, b.y - 1]].find(([x, y]) => s.walk[y]?.[x]);
-            if (near) {
-              const path = s.path(a.x, a.y, near[0], near[1]);
-              if (path && path.length && path.length <= 18) {
-                a.state = 'walk';
-                a.path = path;
-                a.then = 'errand';
-                a.target = { x: near[0], y: near[1], face: 'down', kind: 'chat' };
-              }
-            }
-            showTransient({ actorId: first.agentId, tone: 'standup', badge: 'Ngobrol', text: qText }, 3200, 'dots');
-            setTimeout(() => {
-              showTransient({ actorId: second.agentId, tone: 'approved', badge: 'Ngobrol', text: rText }, 3200, 'heart');
-            }, 1350);
-            return;
-          }
-        }
-
-        // Otherwise send 1 idle agent on a natural errand (coffee, pantry, washroom, lounge stretch, board check, notes).
-        const chosen = freeDesks[activitySeed % freeDesks.length];
-        const actor = s.get(chosen.agentId);
-        const pick = pickNaturalActivity({
-          lunch: false,
-          seed: activitySeed,
+        const step = planWorkdayLifeStep({
+          freeDesks,
+          roamingCount,
           occupiedKeys: occupied,
+          seed: activitySeed,
           isWalkable: (x, y) => !!s.walk[y]?.[x],
         });
-        if (!actor || !pick) return;
-        const path = s.path(actor.x, actor.y, pick.spot.x, pick.spot.y);
+        if (!step) return;
+        activitySeed = step.nextSeed;
+
+        if (step.kind === 'peer-chat') {
+          const a = s.get(step.firstId);
+          const b = s.get(step.secondId);
+          if (!a || !b) return;
+          const near = walkableAdjacentTiles(s.walk, b.x, b.y, a.x, a.y)[0];
+          if (near) {
+            const path = s.path(a.x, a.y, near[0], near[1]);
+            if (path && path.length && path.length <= 18) {
+              a.state = 'walk';
+              a.path = path;
+              a.then = 'errand';
+              a.target = { x: near[0], y: near[1], face: 'down', kind: 'chat' };
+            }
+          }
+          showTransient({ actorId: step.firstId, tone: 'standup', badge: 'Ngobrol', text: step.questionText }, 3200, 'dots');
+          setTimeout(() => {
+            showTransient({ actorId: step.secondId, tone: 'approved', badge: 'Ngobrol', text: step.replyText }, 3200, 'heart');
+          }, 1350);
+          return;
+        }
+
+        const actor = s.get(step.agentId);
+        if (!actor) return;
+        const path = s.path(actor.x, actor.y, step.spot.x, step.spot.y);
         if (!path || !path.length) return;
         actor.state = 'walk';
         actor.path = path;
         actor.then = 'errand';
-        actor.target = { x: pick.spot.x, y: pick.spot.y, face: pick.spot.face, kind: pick.spot.kind === 'board' ? 'board' : pick.spot.kind === 'coffee' || pick.spot.kind === 'pantry' ? 'coffee' : 'chat' };
-        showTransient({ actorId: chosen.agentId, tone: 'coffee', badge: pick.spot.badge, text: pick.line }, 3400, pick.spot.bubbleKind);
+        actor.target = { x: step.spot.x, y: step.spot.y, face: step.spot.face, kind: step.targetKind };
+        showTransient({ actorId: step.agentId, tone: 'coffee', badge: step.spot.badge, text: step.line }, 3400, step.bubbleKind);
       }, 12000);
       cleanup = () => { s.stop(); clearInterval(clockTimer); clearInterval(lifeTimer); document.removeEventListener('visibilitychange', visibility); reduced.removeEventListener('change', visibility); scene.current = null; };
     }).catch(e => { if (alive) setError(e.message); });

@@ -10,8 +10,10 @@ import FilePreview from "./file-preview";
 import { sharedJson, useVisiblePoll } from "./visible-poll";
 import { localAttachmentHref } from "@/lib/attachment-meta";
 import { pickContinuitySession, readActiveChatId, writeActiveChatId } from "@/lib/chat-continuity";
+import { MANAGER, isManager } from "@/lib/manager";
 import { Px, PxSpan, rehypePx, type PxName } from "./pixel-icon";
 import CharacterFace from "./character-face";
+export { MANAGER, isManager };
 
 type Session = { id: string; agentId: string; title: string; updatedAt: string; unread: number; last: string };
 type Msg = { id: string; mine: boolean; text: string; when: string; failed: string | null; files: { id: string; name: string; url: string }[] };
@@ -26,10 +28,6 @@ const MemoChatMd = memo(function MemoChatMd({ text, ws }: { text: string; ws: st
   return <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS} components={components}>{text}</ReactMarkdown>;
 });
 const md = (t: string, ws: string) => <MemoChatMd text={t} ws={ws} />;
-
-/** Name of the office-manager agent. Set per install with NEXT_PUBLIC_KANTOR_MANAGER. */
-export const MANAGER = process.env.NEXT_PUBLIC_KANTOR_MANAGER?.trim() || "Mika";
-export const isManager = (name: string) => name.trim().toLowerCase() === MANAGER.toLowerCase();
 
 /** What the office manager can help with, shown as a reminder in the chat. */
 const MIKA_CAN: { icon: PxName; label: string; hint: string; prompt: string }[] = [

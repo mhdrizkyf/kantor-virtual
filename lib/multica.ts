@@ -5,6 +5,8 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { digest } from "./digest";
 import type { OfficeSchedule } from "./office-schedule";
+import { mapLimit } from "./concurrency";
+import { readJsonFile, writeJsonAtomic } from "./json-store";
 
 export type Agent = {
   id: string; name: string; description: string; avatar_url: string | null;
@@ -290,19 +292,124 @@ export async function allIssues(id: string) {
   return issues;
 }
 
+const MULTICA_CONCURRENCY = 6;
+const DISK_WARM_MAX_AGE_MS = 5 * 60_000;
+
+type SerializedSnapshot = Omit<Snapshot, "asking"> & { asking: string[] };
+type DiskSnapshotStore = Record<string, { at: number; data: SerializedSnapshot }>;
+type DigestEntry = { at: string; asking: boolean; summary: string[]; questionCount: number };
+
 const snapshotCache = new Map<string, { at: number; data: Snapshot }>();
-export function invalidateWorkspaceCache(wsId?: string | null) {
-  if (wsId) snapshotCache.delete(wsId);
-  else snapshotCache.clear();
+const inFlightLoad = new Map<string, Promise<Snapshot>>();
+const inFlightRefresh = new Map<string, Promise<void>>();
+
+const snapKey = (wsId: string) => `${process.cwd()}::${wsId}`;
+const snapCacheFile = () => join(process.cwd(), "data", "cache", "snapshots.json");
+const digestCacheFile = () => join(process.cwd(), "data", "cache", "digests.json");
+
+function saveDiskSnapshot(wsId: string, data: Snapshot, at = Date.now()) {
+  try {
+    const file = snapCacheFile();
+    const cur = readJsonFile<DiskSnapshotStore>(file, () => ({}), { tolerateInvalid: true });
+    const serialized: SerializedSnapshot = { ...data, asking: [...(data.asking ?? [])] };
+    cur[wsId] = { at, data: serialized };
+    writeJsonAtomic(file, cur);
+  } catch { /* ignore disk cache write errors */ }
 }
 
-export async function loadWorkspaceCached(wsPick?: string | null, ttlMs = 5000): Promise<Snapshot> {
+function readDiskSnapshot(wsId: string, maxAgeMs = DISK_WARM_MAX_AGE_MS): { at: number; data: Snapshot } | null {
+  try {
+    const store = readJsonFile<DiskSnapshotStore>(snapCacheFile(), () => ({}), { tolerateInvalid: true });
+    const hit = store[wsId];
+    if (!hit || !hit.data || Date.now() - hit.at > maxAgeMs) return null;
+    return {
+      at: hit.at,
+      data: { ...hit.data, asking: new Set(Array.isArray(hit.data.asking) ? hit.data.asking : []) },
+    };
+  } catch {
+    return null;
+  }
+}
+
+function clearDiskSnapshot(wsId?: string | null) {
+  try {
+    const file = snapCacheFile();
+    if (!existsSync(file)) return;
+    if (!wsId) {
+      writeJsonAtomic(file, {});
+      return;
+    }
+    const cur = readJsonFile<DiskSnapshotStore>(file, () => ({}), { tolerateInvalid: true });
+    if (wsId in cur) {
+      delete cur[wsId];
+      writeJsonAtomic(file, cur);
+    }
+  } catch { /* ignore disk cache errors */ }
+}
+
+export function invalidateWorkspaceCache(wsId?: string | null) {
+  if (wsId) {
+    snapshotCache.delete(snapKey(wsId));
+    clearDiskSnapshot(wsId);
+  } else {
+    const prefix = `${process.cwd()}::`;
+    for (const k of [...snapshotCache.keys()]) {
+      if (k.startsWith(prefix)) snapshotCache.delete(k);
+    }
+    clearDiskSnapshot(null);
+  }
+}
+
+async function loadWorkspaceSingleFlight(wsId: string): Promise<Snapshot> {
+  const key = snapKey(wsId);
+  const existing = inFlightLoad.get(key);
+  if (existing) return existing;
+  const p = loadWorkspace(wsId).then(data => {
+    const at = Date.now();
+    snapshotCache.set(key, { at, data });
+    saveDiskSnapshot(wsId, data, at);
+    return data;
+  }).finally(() => {
+    inFlightLoad.delete(key);
+  });
+  inFlightLoad.set(key, p);
+  return p;
+}
+
+function triggerBackgroundRefresh(wsId: string) {
+  const key = snapKey(wsId);
+  if (inFlightRefresh.has(key) || inFlightLoad.has(key)) return;
+  const p = loadWorkspaceSingleFlight(wsId).then(() => undefined, () => undefined).finally(() => {
+    inFlightRefresh.delete(key);
+  });
+  inFlightRefresh.set(key, p);
+}
+
+export async function loadWorkspaceCached(
+  wsPick?: string | null,
+  ttlMs = 5000,
+  opts?: { swrMs?: number; allowDiskWarm?: boolean; maxDiskAgeMs?: number }
+): Promise<Snapshot> {
   const ws = await workspace(wsPick);
-  const hit = snapshotCache.get(ws.id);
-  if (hit && Date.now() - hit.at < ttlMs) return hit.data;
-  const data = await loadWorkspace(ws.id);
-  snapshotCache.set(ws.id, { at: Date.now(), data });
-  return data;
+  const key = snapKey(ws.id);
+  const hit = snapshotCache.get(key);
+  const now = Date.now();
+  if (hit) {
+    const age = now - hit.at;
+    if (age < ttlMs) return hit.data;
+    if (opts?.swrMs && age < opts.swrMs) {
+      triggerBackgroundRefresh(ws.id);
+      return hit.data;
+    }
+  } else if (opts?.allowDiskWarm) {
+    const warm = readDiskSnapshot(ws.id, opts.maxDiskAgeMs ?? DISK_WARM_MAX_AGE_MS);
+    if (warm) {
+      snapshotCache.set(key, warm);
+      triggerBackgroundRefresh(ws.id);
+      return warm.data;
+    }
+  }
+  return loadWorkspaceSingleFlight(ws.id);
 }
 
 export async function loadWorkspace(wsPick?: string | null) {
@@ -313,7 +420,10 @@ export async function loadWorkspace(wsPick?: string | null) {
   // Private chats and the presence board are stored as hidden issues; they never show up as work.
   const issues = everything.filter(i => !isHiddenIssue(i));
   const [runs, settings] = await Promise.all([
-    Promise.all(dir.agents.map(a => get<unknown>(`/api/agents/${a.id}/tasks?limit=20`, id).then(d => list<Run>(d, "tasks")).catch(() => [] as Run[]))).then(pages => pages.flat()),
+    // Bounded concurrency keeps cold loads smooth even for workspaces with 20-50+ agents.
+    mapLimit(dir.agents, MULTICA_CONCURRENCY, a =>
+      get<unknown>(`/api/agents/${a.id}/tasks?limit=20`, id).then(d => list<Run>(d, "tasks")).catch(() => [] as Run[])
+    ).then(pages => pages.flat()),
     get<WorkspaceFull>(`/api/workspaces/${id}`, id).then(f => (f.settings ?? {}) as Record<string, unknown>).catch(() => ({} as Record<string, unknown>)),
   ]);
   const seen = await presence(id, everything, settings).catch(() => ({} as Record<string, string>));
@@ -337,16 +447,46 @@ export type IssueDigestHint = { summary: string[]; questionCount: number };
 export type Snapshot = Omit<Awaited<ReturnType<typeof loadWorkspace>>, "digests"> & { digests?: Record<string, IssueDigestHint> };
 
 // Agents sometimes ask a question and stop, leaving the task "in progress" or "in_review".
-// Cache both the unanswered-question status and short summary bullets keyed by issue.updated_at.
+// Cache both the unanswered-question status and short summary bullets keyed by issue.updated_at,
+// persisted locally under data/cache/digests.json so server restarts skip unchanged comment threads.
 const RUNNING = new Set(["queued", "dispatched", "running", "in_progress", "preparing", "started"]);
-const askCache = new Map<string, { at: string; asking: boolean; summary: string[]; questionCount: number }>();
+const askCachesByCwd = new Map<string, Map<string, DigestEntry>>();
+
+function getDigestCache(): Map<string, DigestEntry> {
+  const cwd = process.cwd();
+  let cache = askCachesByCwd.get(cwd);
+  if (cache) return cache;
+  cache = new Map();
+  const saved = readJsonFile<Record<string, DigestEntry>>(digestCacheFile(), () => ({}), { tolerateInvalid: true });
+  for (const [k, v] of Object.entries(saved)) {
+    if (v && typeof v.at === "string") cache.set(k, v);
+  }
+  if (askCachesByCwd.size > 16) {
+    const oldest = askCachesByCwd.keys().next().value;
+    if (oldest !== undefined) askCachesByCwd.delete(oldest);
+  }
+  askCachesByCwd.set(cwd, cache);
+  return cache;
+}
+
+function flushDigestCache(cache: Map<string, DigestEntry>) {
+  try {
+    const obj: Record<string, DigestEntry> = {};
+    for (const [k, v] of cache) obj[k] = v;
+    writeJsonAtomic(digestCacheFile(), obj);
+  } catch { /* ignore disk cache errors */ }
+}
+
 async function inspectReviewDigests(wsId: string, issues: Issue[], runs: Run[]) {
   const busy = new Set(runs.filter(r => r.issue_id && RUNNING.has(r.status)).map(r => r.issue_id!));
   const candidates = issues.filter(i => i.assignee_type === "agent" && ["todo", "in_progress", "in_review"].includes(i.status) && !busy.has(i.id));
   const asking = new Set<string>();
   const digests: Record<string, IssueDigestHint> = {};
-  await Promise.all(candidates.map(async i => {
-    const hit = askCache.get(i.id);
+  const cache = getDigestCache();
+  let dirty = false;
+  await mapLimit(candidates, MULTICA_CONCURRENCY, async i => {
+    const cacheId = `${wsId}:${i.id}`;
+    const hit = cache.get(cacheId);
     let entry = hit?.at === i.updated_at ? hit : null;
     if (!entry) {
       const comments = await get<unknown>(`/api/issues/${i.id}/comments`, wsId).then(d => list<Comment>(d, "comments")).catch(() => null);
@@ -362,17 +502,19 @@ async function inspectReviewDigests(wsId: string, issues: Issue[], runs: Run[]) 
         summary: dg?.summary.slice(0, 3) ?? [],
         questionCount: openQuestions,
       };
-      if (askCache.size >= 500) {
-        const oldest = askCache.keys().next().value;
-        if (oldest !== undefined) askCache.delete(oldest);
+      if (cache.size >= 600) {
+        const oldest = cache.keys().next().value;
+        if (oldest !== undefined) cache.delete(oldest);
       }
-      askCache.set(i.id, entry);
+      cache.set(cacheId, entry);
+      dirty = true;
     }
     if (entry.asking) asking.add(i.id);
     if (entry.summary.length || entry.questionCount > 0) {
       digests[i.id] = { summary: entry.summary, questionCount: entry.questionCount };
     }
-  }));
+  });
+  if (dirty) flushDigestCache(cache);
   return { asking, digests };
 }
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { createIssue, invalidateWorkspaceCache, kantorSettings, setIssueMeta } from "@/lib/multica";
+import { createIssue, kantorSettings, setIssueMeta, workspace } from "@/lib/multica";
+import { emitOfficeChange } from "@/lib/office-events";
 import { PARK_KEY } from "@/lib/office-control";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +31,8 @@ export async function POST(req: Request) {
     });
     // Kantor tutup: task diparkir dan otomatis dikerjakan saat kantor dibuka.
     if (closed && b.now !== false) await setIssueMeta(b.ws ?? null, created.id, PARK_KEY, "todo");
-    invalidateWorkspaceCache(b.ws ?? null);
+    const resolvedWs = await workspace(b.ws ?? null).catch(() => null);
+    emitOfficeChange(resolvedWs?.id ?? b.ws ?? null, "task.created");
     return NextResponse.json({ id: created.id, parked: closed && b.now !== false });
   } catch (e) {
     return NextResponse.json({ error: String(e instanceof Error ? e.message : e) }, { status: 500 });

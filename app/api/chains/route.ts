@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { loadWorkspaceCached, workspace } from "@/lib/multica";
+import { emitOfficeChange } from "@/lib/office-events";
 import { listChains, runChains, stagesOf, updateChainState } from "@/lib/chain";
 import { friendlyTitle } from "@/lib/titles";
 
@@ -52,9 +53,10 @@ export async function GET(req: Request) {
 export async function PATCH(req: Request) {
   try {
     const b = (await req.json()) as { ws?: string; id?: string; action?: "pause" | "resume" | "cancel" | "skip" | "delete" | "run"; issueId?: string };
-    await workspace(b.ws ?? null);
+    const resolvedWs = await workspace(b.ws ?? null);
     if (b.action === "run") {
       const started = await runChains({ settleMs: 1500 });
+      if (started.length) emitOfficeChange(resolvedWs.id, "chain.advanced");
       return NextResponse.json({ ok: true, started });
     }
     if (!b.id || !b.action || !["pause", "resume", "cancel", "skip", "delete"].includes(b.action)) {
@@ -64,6 +66,7 @@ export async function PATCH(req: Request) {
     if (b.action === "resume" || b.action === "skip") {
       void runChains({ settleMs: 1500 }).catch(() => {});
     }
+    emitOfficeChange(resolvedWs.id, `chain.${b.action}`);
     return NextResponse.json({ ok: true, chain: updated });
   } catch (e) {
     return NextResponse.json({ error: String(e instanceof Error ? e.message : e) }, { status: 500 });

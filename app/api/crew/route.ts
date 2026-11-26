@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { inviteMember, createAgent, loadDirectory, updateAgent, workspace, me, call_ } from "@/lib/multica";
+import { emitOfficeChange } from "@/lib/office-events";
 import { AGENT_REPORT_FORMAT, FORMAT_MARKER } from "@/lib/digest";
 import { AGENT_REMINDERS, REMIND_MARKER } from "@/lib/reminders";
 import { AGENT_WHATSAPP, WA_MARKER } from "@/lib/whatsapp";
@@ -44,6 +45,7 @@ export async function POST(req: Request) {
       let faceWarning = "";
       try { if (b.face) await saveCharacter(dir.workspace.id, agent.id, b.face); }
       catch { faceWarning = " Character could not be saved locally; choose it again from Edit profile."; }
+      emitOfficeChange(dir.workspace.id, "crew.agent_created");
       return NextResponse.json({ ok: true, id: agent.id, message: `${name} joined the team! Give them a first task from the Task Board.${faceWarning}` });
     }
     return NextResponse.json({ error: "Unknown team member type." }, { status: 400 });
@@ -91,12 +93,14 @@ export async function PATCH(req: Request) {
       if (!member) return NextResponse.json({ error: "Member not found." }, { status: 404 });
       if (!b.face || !faceById(b.face)) return NextResponse.json({ error: "Unknown character." }, { status: 400 });
       await saveCharacter(ws.id, memberCharacterKey(member.user_id), b.face);
+      emitOfficeChange(ws.id, "crew.avatar");
       return NextResponse.json({ ok: true, face: b.face, message: "Avatar saved on this computer." });
     }
     if (!b.agentId || !dir.agents.some(a => a.id === b.agentId)) return NextResponse.json({ error: "Agent not found." }, { status: 404 });
     if (b.face) {
       if (!faceById(b.face)) return NextResponse.json({ error: "Unknown character." }, { status: 400 });
       await saveCharacter(ws.id, b.agentId, b.face);
+      emitOfficeChange(ws.id, "crew.avatar");
       return NextResponse.json({ ok: true, face: b.face, message: "Character saved on this computer." });
     }
     if (b.profile) {
@@ -113,6 +117,7 @@ export async function PATCH(req: Request) {
       let faceWarning = "";
       try { if (p.face) await saveCharacter(ws.id, b.agentId, p.face); }
       catch { faceWarning = " Character could not be saved locally; try again."; }
+      emitOfficeChange(ws.id, "crew.profile");
       return NextResponse.json({ ok: true, message: `${name}'s profile is saved.${faceWarning}` });
     }
     if (!b.runtimeId) return NextResponse.json({ error: "Nothing to change." }, { status: 400 });
@@ -124,6 +129,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: `${rt.name} is a private engine on ${owner ? owner + "'s" : "someone else's"} laptop. Only its owner can move agents onto it.` }, { status: 403 });
     }
     await updateAgent(ws.id, b.agentId, { runtime_id: rt.id });
+    emitOfficeChange(ws.id, "crew.runtime");
     return NextResponse.json({ ok: true, message: `Switched to ${rt.name}.` });
   } catch (e) {
     return NextResponse.json({ error: String(e instanceof Error ? e.message : e) }, { status: 500 });
