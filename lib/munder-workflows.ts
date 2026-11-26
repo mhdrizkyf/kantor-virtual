@@ -446,8 +446,8 @@ export type NaturalActivitySpot = {
 export const NATURAL_ACTIVITIES: NaturalActivitySpot[] = [
   {
     id: "coffee-bar",
-    x: 35,
-    y: 5,
+    x: 32,
+    y: 20,
     face: "up",
     kind: "coffee",
     badge: "Coffee Bar",
@@ -479,9 +479,9 @@ export const NATURAL_ACTIVITIES: NaturalActivitySpot[] = [
   },
   {
     id: "lounge-side",
-    x: 14,
-    y: 21,
-    face: "up",
+    x: 17,
+    y: 19,
+    face: "down",
     kind: "lounge",
     badge: "Lounge",
     bubbleKind: "sun",
@@ -501,8 +501,8 @@ export const NATURAL_ACTIVITIES: NaturalActivitySpot[] = [
   },
   {
     id: "board-check",
-    x: 21,
-    y: 8,
+    x: 22,
+    y: 7,
     face: "up",
     kind: "board",
     badge: "Task Board",
@@ -512,16 +512,304 @@ export const NATURAL_ACTIVITIES: NaturalActivitySpot[] = [
   },
   {
     id: "reading",
-    x: 31,
-    y: 11,
-    face: "down",
+    x: 23,
+    y: 14,
+    face: "up",
     kind: "reading",
-    badge: "Notes",
-    bubbleKind: "idea",
-    lines: ["Baca catatan & referensi 📚", "Catat ide untuk sprint 💡", "Cek dokumentasi tim 📖"],
+    badge: "Studio Hub",
+    bubbleKind: "drop",
+    lines: ["Refill air minum dulu 💧", "Catat ide untuk sprint 💡", "Cek dokumentasi tim 📖"],
     lunchFriendly: false,
   },
 ];
+
+export type OwnerActivityKind = "coffee" | "pantry" | "washroom" | "lounge" | "board" | "hub" | "boardroom";
+
+export type OwnerActivitySpot = {
+  id: string;
+  x: number;
+  y: number;
+  face: "up" | "down";
+  kind: OwnerActivityKind;
+  badge: string;
+  bubbleKind: BubbleKind;
+  tone: SpeechBubbleTone;
+  staySecs: number;
+  lunchFriendly: boolean;
+  departLines: string[];
+  arriveLines: string[];
+};
+
+export const OWNER_ACTIVITIES: OwnerActivitySpot[] = [
+  {
+    id: "owner-coffee-bar",
+    x: 32,
+    y: 20,
+    face: "up",
+    kind: "coffee",
+    badge: "Coffee Bar",
+    bubbleKind: "coffee",
+    tone: "coffee",
+    staySecs: 5.5,
+    lunchFriendly: true,
+    departLines: [
+      "Bikin espresso dulu di Coffee Bar ☕",
+      "Ngopi sebentar biar makin fokus ☕",
+      "Waktunya isi ulang kafein ☕",
+    ],
+    arriveLines: [
+      "Aroma kopinya mantap banget ☕✨",
+      "Latte hangat siap, lanjut lagi! ☕",
+      "Seruput kopi dulu sambil santai ☕",
+    ],
+  },
+  {
+    id: "owner-pantry",
+    x: 7,
+    y: 7,
+    face: "up",
+    kind: "pantry",
+    badge: "Pantry",
+    bubbleKind: "coffee",
+    tone: "coffee",
+    staySecs: 5,
+    lunchFriendly: true,
+    departLines: [
+      "Ke pantry ambil air minum dulu 💧",
+      "Cari camilan sebentar di pantry 🍪",
+      "Ke dapur seduh teh hangat 🍵",
+    ],
+    arriveLines: [
+      "Segar! Minum air biar tetap fit 💧",
+      "Ambil snack dikit buat di meja 🥐",
+      "Pantry bersih & nyaman banget 🍳",
+    ],
+  },
+  {
+    id: "owner-washroom",
+    x: 6,
+    y: 14,
+    face: "down",
+    kind: "washroom",
+    badge: "Washroom",
+    bubbleKind: "drop",
+    tone: "coffee",
+    staySecs: 4,
+    lunchFriendly: true,
+    departLines: [
+      "Ke washroom sebentar ya 🚻",
+      "Cuci muka dulu biar fresh 💧",
+    ],
+    arriveLines: [
+      "Sudah segar lagi, siap fokus ✨",
+      "Fresh! Balik lanjut kerja lagi 💧",
+    ],
+  },
+  {
+    id: "owner-lounge",
+    x: 17,
+    y: 21,
+    face: "up",
+    kind: "lounge",
+    badge: "Lounge",
+    bubbleKind: "sun",
+    tone: "approved",
+    staySecs: 6,
+    lunchFriendly: true,
+    departLines: [
+      "Peregangan sebentar di lounge 🛋️",
+      "Istirahatkan mata 2 menit di sofa 🌿",
+      "Rehat sejenak di breakout lounge ✨",
+    ],
+    arriveLines: [
+      "Nyaman banget suasana lounge-nya 🛋️",
+      "Tarik napas dulu, recharge energi 🌿",
+      "Lagi cari ide santai di lounge 💡",
+    ],
+  },
+  {
+    id: "owner-board",
+    x: 22,
+    y: 7,
+    face: "up",
+    kind: "board",
+    badge: "Task Board",
+    bubbleKind: "idea",
+    tone: "standup",
+    staySecs: 4.5,
+    lunchFriendly: false,
+    departLines: [
+      "Cek papan prioritas tim dulu 📋",
+      "Keliling lihat progress sprint 📌",
+    ],
+    arriveLines: [
+      "Progress sprint-nya makin rapi 📋",
+      "Prioritas hari ini sudah on track ✅",
+    ],
+  },
+  {
+    id: "owner-hub",
+    x: 23,
+    y: 14,
+    face: "up",
+    kind: "hub",
+    badge: "Studio Hub",
+    bubbleKind: "drop",
+    tone: "coffee",
+    staySecs: 4,
+    lunchFriendly: false,
+    departLines: [
+      "Jalan keliling studio sebentar 🚶",
+      "Refill air di tengah studio 💧",
+    ],
+    arriveLines: [
+      "Suasana studio hari ini asyik ✨",
+      "Botol minum terisi, lanjut! 💧",
+    ],
+  },
+  {
+    id: "owner-boardroom",
+    x: 40,
+    y: 8,
+    face: "up",
+    kind: "boardroom",
+    badge: "Boardroom",
+    bubbleKind: "idea",
+    tone: "standup",
+    staySecs: 4.5,
+    lunchFriendly: false,
+    departLines: [
+      "Cek ruang meeting sebentar 🏛️",
+      "Siapin catatan untuk sync tim 📝",
+    ],
+    arriveLines: [
+      "Ruang meeting rapi & siap dipakai 👍",
+      "Agenda sync berikutnya sudah siap 📝",
+    ],
+  },
+];
+
+export const OWNER_AGENT_CHAT_SCRIPTS: Record<"working" | "review" | "idle", [string, string][]> = {
+  working: [
+    ["Semangat {agent}! Progress lancar? 💪", "Lancar bos! Lagi fokus beresin 🚀"],
+    ["Mampir cek sebentar, aman {agent}?", "Aman banget! Sebentar lagi kelar 👍"],
+    ["Butuh konteks tambahan gak, {agent}?", "Sudah jelas semua, makasih bos! ✨"],
+    ["Fokus banget nih {agent}, mantap 👏", "Siap bos, biar hasilnya maksimal! 🔥"],
+  ],
+  review: [
+    ["Aku mampir cek hasilmu ya, {agent} 👀", "Siap bos, detailnya sudah siap! 📋"],
+    ["Yuk kita lihat bareng, {agent} 🤝", "Makasih bos, langsung ketemu nih! 🙌"],
+  ],
+  idle: [
+    ["Hei {agent}, gimana hari ini? 😊", "Mantap bos! Siap bantu kapan saja 🙌"],
+    ["Abis ini ngopi bareng yuk, {agent} ☕", "Siap, gas ke Coffee Bar! ☕"],
+    ["Santai dulu {agent}, kabari kalau ada ide 💡", "Oke bos, lagi nyusun ide keren nih ✨"],
+    ["Lagi recharge energi ya {agent}? 🌿", "Iya bos, siap tancap gas lagi! 💪"],
+  ],
+};
+
+export type OwnerVisitCandidate = {
+  agentId: string;
+  name: string;
+  state: string;
+};
+
+export type OwnerStrollPlan =
+  | {
+      type: "visit-agent";
+      agent: OwnerVisitCandidate;
+      departLine: string;
+      ownerLine: string;
+      agentReply: string;
+      staySecs: number;
+    }
+  | {
+      type: "spot";
+      spot: OwnerActivitySpot;
+      departLine: string;
+      arriveLine: string;
+      staySecs: number;
+    };
+
+/**
+ * Choose a natural human owner interaction: either strolling to a studio area
+ * (Coffee Bar, Pantry, Washroom, Lounge, Task Board, Hub, Boardroom) or
+ * walking over to check in & chat 2-way with an agent at their desk.
+ */
+export function pickOwnerInteraction(opts: {
+  lunch: boolean;
+  seed: number;
+  agents: OwnerVisitCandidate[];
+  preferredKind?: OwnerActivityKind | "agent";
+  lastTargetKey?: string | null;
+  occupiedKeys?: Set<string>;
+  isWalkable?: (x: number, y: number) => boolean;
+}): OwnerStrollPlan | null {
+  const s = Math.abs(Math.floor(opts.seed));
+  const pickAgentVisit = (): OwnerStrollPlan | null => {
+    if (!opts.agents.length) return null;
+    const fresh = opts.agents.filter(a => `agent:${a.agentId}` !== opts.lastTargetKey);
+    const pool = fresh.length ? fresh : opts.agents;
+    const agent = pool[s % pool.length];
+    const firstName = agent.name.split(/\s+/)[0] || agent.name;
+    const bucket: "working" | "review" | "idle" =
+      agent.state === "working" ? "working" : agent.state === "review" || agent.state === "failed" ? "review" : "idle";
+    const scripts = OWNER_AGENT_CHAT_SCRIPTS[bucket];
+    const [rawQ, rawA] = scripts[Math.floor(s * 3 + pool.length) % scripts.length];
+    return {
+      type: "visit-agent",
+      agent,
+      departLine: `Mampir sapa ${firstName} dulu 👋`,
+      ownerLine: rawQ.replace("{agent}", firstName),
+      agentReply: rawA.replace("{agent}", firstName),
+      staySecs: 5,
+    };
+  };
+
+  const pickSpot = (kindFilter?: OwnerActivityKind): OwnerStrollPlan | null => {
+    let pool = OWNER_ACTIVITIES.filter(spot => {
+      if (kindFilter && spot.kind !== kindFilter) return false;
+      if (!kindFilter && opts.lunch && !spot.lunchFriendly) return false;
+      if (opts.occupiedKeys?.has(`${spot.x},${spot.y}`)) return false;
+      if (opts.isWalkable && !opts.isWalkable(spot.x, spot.y)) return false;
+      return true;
+    });
+    if (!pool.length && kindFilter) {
+      // Relax occupied check if user explicitly requested this spot
+      pool = OWNER_ACTIVITIES.filter(spot => spot.kind === kindFilter && (!opts.isWalkable || opts.isWalkable(spot.x, spot.y)));
+    }
+    if (!pool.length) return null;
+    const fresh = pool.filter(sp => `spot:${sp.id}` !== opts.lastTargetKey);
+    const choices = fresh.length ? fresh : pool;
+    const spot = choices[s % choices.length];
+    const departLine = opts.lunch && spot.kind === "pantry"
+      ? "Makan siang dulu di pantry 🍱"
+      : spot.departLines[Math.floor(s * 5) % spot.departLines.length];
+    const arriveLine = spot.arriveLines[Math.floor(s * 7) % spot.arriveLines.length];
+    return {
+      type: "spot",
+      spot,
+      departLine,
+      arriveLine,
+      staySecs: spot.staySecs,
+    };
+  };
+
+  if (opts.preferredKind === "agent") {
+    return pickAgentVisit() ?? pickSpot();
+  }
+  if (opts.preferredKind) {
+    return pickSpot(opts.preferredKind);
+  }
+
+  // Natural autonomous mix: ~45% agent desk check-ins during work hours, ~20% during lunch break;
+  // remainder rotates across Coffee Bar, Pantry, Washroom, Lounge, Task Board, Hub, Boardroom.
+  const wantAgent = opts.agents.length > 0 && (opts.lunch ? s % 5 === 0 : s % 5 === 1 || s % 5 === 3);
+  if (wantAgent) {
+    return pickAgentVisit() ?? pickSpot();
+  }
+  return pickSpot() ?? pickAgentVisit();
+}
 
 export const PEER_CHAT_SCRIPTS: [string, string][] = [
   ["Hei {other}, progress aman?", "Aman! Lagi standby nih 👍"],

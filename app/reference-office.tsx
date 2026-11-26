@@ -16,11 +16,14 @@ import {
   partitionReviewDelivery,
   PEER_CHAT_SCRIPTS,
   pickNaturalActivity,
+  pickOwnerInteraction,
   resolveDropZone,
   tileRectBounds,
   type BubbleKind,
   type DropZone,
   type FloorPropKind,
+  type OwnerActivityKind,
+  type OwnerStrollPlan,
   type ReviewStyle,
   type SpeechBubbleItem,
   type SpeechBubbleTone,
@@ -195,6 +198,16 @@ const ReferenceOffice = memo(function ReferenceOffice({
   const latest = useRef({ desks, lunch, officeOpen, officePhase, offDuty, paused, previewWorking, previewReviewId, walks, onDelivered, onDone, onDropAgent, onMeeting, onPropClick, onHuman, agentSeats, coworkerSeats, visibleHumans });
   latest.current = { desks, lunch, officeOpen, officePhase, offDuty, paused, previewWorking, previewReviewId, walks, onDelivered, onDone, onDropAgent, onMeeting, onPropClick, onHuman, agentSeats, coworkerSeats, visibleHumans };
 
+  // Active human owner stroll state (for arrival-triggered 2-way agent chats & room interactions)
+  const ownerStrollRef = useRef<{
+    ownerActorId: string;
+    plan: OwnerStrollPlan;
+    arrived: boolean;
+    replyTimer: ReturnType<typeof setTimeout> | null;
+  } | null>(null);
+  const ownerLastTargetRef = useRef<string | null>(null);
+  const ownerSeedRef = useRef(1);
+
   // Two real break destinations: Kitchen Pantry (x=7, y=7) & Dedicated Coffee Machine Bar (x=35, y=5)
   const breakSpotCursorRef = useRef(0);
   const getBreakCoffeeSpots = () => {
@@ -346,6 +359,102 @@ const ReferenceOffice = memo(function ReferenceOffice({
     }, ms + 50);
   };
 
+  /** Send the Human Owner on a natural studio stroll (Coffee Bar, Pantry, Washroom, Lounge, or 2-way agent check-in). */
+  const triggerOwnerStroll = (preferredKind?: OwnerActivityKind | 'agent', force = false) => {
+    const s = scene.current;
+    const curOwner = latest.current.visibleHumans[0];
+    if (!s || !curOwner) return;
+    if (!force && (document.hidden || latest.current.paused || latest.current.offDuty || !s.running)) return;
+    const ownerIdKey = `person:${curOwner.id}`;
+    const ownerActor = s.get(ownerIdKey);
+    if (!ownerActor || ownerActor.hidden || ownerActor.state === 'held') return;
+    // Do not interrupt an existing casual walk/errand unless user explicitly triggered a new destination
+    if (!force && ownerActor.state !== 'seat') return;
+    // Stay at Executive Suite desk while agents are queued inside the Owner's room awaiting approval
+    const hasWaitingReview = !force && s.agents.some((ag: Vendor) => ag.reviewHold && !ag.hidden);
+    if (hasWaitingReview) return;
+    // Don't collide with an active handover walk initiated by the Owner
+    if (latest.current.walks.some(w => w.from === ownerIdKey || w.to === ownerIdKey)) return;
+
+    const occupied = new Set<string>();
+    for (const ag of s.agents) {
+      if (ag.id !== ownerIdKey && ag.target && typeof ag.target.x === 'number') {
+        occupied.add(`${ag.target.x},${ag.target.y}`);
+      }
+    }
+
+    const visitableAgents = shownRef.current
+      .filter(d => {
+        const ag = s.get(d.agentId);
+        return ag && !ag.hidden && !ag.reviewHold && !ag.huddleHold && ag.state === 'seat';
+      })
+      .map(d => ({ agentId: d.agentId, name: d.name, state: d.state }));
+
+    const plan = pickOwnerInteraction({
+      lunch: latest.current.lunch,
+      seed: ownerSeedRef.current++,
+      agents: visitableAgents,
+      preferredKind,
+      lastTargetKey: ownerLastTargetRef.current,
+      occupiedKeys: occupied,
+      isWalkable: (x, y) => !!s.walk[y]?.[x],
+    });
+    if (!plan) return;
+
+    let dest: { x: number; y: number; face: 'up' | 'down'; kind: string } | null = null;
+    if (plan.type === 'visit-agent') {
+      const ag = s.get(plan.agent.agentId);
+      if (!ag) return;
+      const candidates = [
+        [ag.x, ag.y + 1],
+        [ag.x, ag.y - 1],
+        [ag.x - 1, ag.y],
+        [ag.x + 1, ag.y],
+      ].filter(([x, y]) => s.walk[y]?.[x]);
+      let bestPath: number[][] | null = null;
+      let bestTile: number[] | null = null;
+      for (const tile of candidates) {
+        const p = s.path(ownerActor.x, ownerActor.y, tile[0], tile[1]);
+        if (p && p.length && (!bestPath || p.length < bestPath.length)) {
+          bestPath = p;
+          bestTile = tile;
+        }
+      }
+      if (!bestPath || !bestTile) return;
+      dest = { x: bestTile[0], y: bestTile[1], face: bestTile[1] > ag.y ? 'up' : 'down', kind: 'chat' };
+      ownerActor.state = 'walk';
+      ownerActor.path = bestPath;
+      ownerActor.then = 'errand';
+      ownerActor.target = dest;
+      ownerLastTargetRef.current = `agent:${plan.agent.agentId}`;
+      showTransient({ actorId: ownerIdKey, tone: 'standup', badge: 'Keliling', text: plan.departLine }, 2800, 'dots');
+    } else {
+      const path = s.path(ownerActor.x, ownerActor.y, plan.spot.x, plan.spot.y);
+      if (!path || !path.length) return;
+      dest = {
+        x: plan.spot.x,
+        y: plan.spot.y,
+        face: plan.spot.face,
+        kind: plan.spot.kind === 'coffee' || plan.spot.kind === 'pantry'
+          ? 'coffee'
+          : plan.spot.kind === 'washroom' || plan.spot.kind === 'hub'
+            ? 'cooler'
+            : plan.spot.kind === 'board' || plan.spot.kind === 'boardroom'
+              ? 'board'
+              : 'window',
+      };
+      ownerActor.state = 'walk';
+      ownerActor.path = path;
+      ownerActor.then = 'errand';
+      ownerActor.target = dest;
+      ownerLastTargetRef.current = `spot:${plan.spot.id}`;
+      showTransient({ actorId: ownerIdKey, tone: plan.spot.tone, badge: plan.spot.badge, text: plan.departLine }, 3000, plan.spot.bubbleKind);
+    }
+
+    if (ownerStrollRef.current?.replyTimer) clearTimeout(ownerStrollRef.current.replyTimer);
+    ownerStrollRef.current = { ownerActorId: ownerIdKey, plan, arrived: false, replyTimer: null };
+  };
+
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
     const receive = (event: Event) => {
@@ -426,11 +535,16 @@ const ReferenceOffice = memo(function ReferenceOffice({
         );
       }, 1050);
     };
+    const ownerStroll = (event: Event) => {
+      const detail = (event as CustomEvent<{ kind?: OwnerActivityKind | 'agent' }>).detail;
+      triggerOwnerStroll(detail?.kind, true);
+    };
     window.addEventListener('kantor:letter', receive);
     window.addEventListener('kantor:celebrate', celebrate);
     window.addEventListener('kantor:speech', speech);
     window.addEventListener('kantor:coffee', coffee);
     window.addEventListener('kantor:dialog', dialog);
+    window.addEventListener('kantor:owner-stroll', ownerStroll);
     return () => {
       clearTimeout(timer);
       window.removeEventListener('kantor:letter', receive);
@@ -438,6 +552,7 @@ const ReferenceOffice = memo(function ReferenceOffice({
       window.removeEventListener('kantor:speech', speech);
       window.removeEventListener('kantor:coffee', coffee);
       window.removeEventListener('kantor:dialog', dialog);
+      window.removeEventListener('kantor:owner-stroll', ownerStroll);
     };
   }, [agentSeats.length]);
 
@@ -1059,6 +1174,43 @@ const ReferenceOffice = memo(function ReferenceOffice({
           }
         }
 
+        // Human Owner stroll arrival choreography: natural pause + 2-way agent chat or room reaction
+        const stroll = ownerStrollRef.current;
+        if (stroll) {
+          const oa = s.get(stroll.ownerActorId);
+          if (!oa || oa.state === 'seat' || oa.state === 'held') {
+            if (stroll.replyTimer) clearTimeout(stroll.replyTimer);
+            ownerStrollRef.current = null;
+          } else if (!stroll.arrived && oa.state === 'errand') {
+            stroll.arrived = true;
+            oa.timer = Math.max(oa.timer, stroll.plan.staySecs);
+            if (stroll.plan.type === 'visit-agent') {
+              const visitPlan = stroll.plan;
+              showTransient(
+                { actorId: stroll.ownerActorId, tone: 'standup', badge: 'Ngobrol', text: visitPlan.ownerLine },
+                3600,
+                'dots'
+              );
+              stroll.replyTimer = setTimeout(() => {
+                const targetAg = scene.current?.get(visitPlan.agent.agentId);
+                if (!targetAg || targetAg.hidden) return;
+                showTransient(
+                  { actorId: visitPlan.agent.agentId, tone: 'approved', badge: 'Balas', text: visitPlan.agentReply },
+                  3600,
+                  'heart'
+                );
+              }, 1150);
+            } else {
+              const spotPlan = stroll.plan;
+              showTransient(
+                { actorId: stroll.ownerActorId, tone: spotPlan.spot.tone, badge: spotPlan.spot.badge, text: spotPlan.arriveLine },
+                3800,
+                spotPlan.spot.bubbleKind
+              );
+            }
+          }
+        }
+
         syncSpeechDOM();
       };
 
@@ -1090,6 +1242,9 @@ const ReferenceOffice = memo(function ReferenceOffice({
       document.addEventListener('visibilitychange', visibility);
       reduced.addEventListener('change', visibility);
       const clockTimer = setInterval(() => { if (!s.running && !document.hidden) s.draw(); }, 30000);
+      // Human Owner natural life routine: first stroll ~8.5s after opening, then every ~19s!
+      const ownerFirstStroll = setTimeout(() => { triggerOwnerStroll(); }, 8500);
+      const ownerLifeTimer = setInterval(() => { triggerOwnerStroll(); }, 19000);
       let activitySeed = 1;
       const lifeTimer = setInterval(() => {
         if (document.hidden || latest.current.paused || latest.current.offDuty || !s.running) return;
@@ -1186,7 +1341,18 @@ const ReferenceOffice = memo(function ReferenceOffice({
         actor.target = { x: pick.spot.x, y: pick.spot.y, face: pick.spot.face, kind: pick.spot.kind === 'board' ? 'board' : pick.spot.kind === 'coffee' || pick.spot.kind === 'pantry' ? 'coffee' : 'chat' };
         showTransient({ actorId: chosen.agentId, tone: 'coffee', badge: pick.spot.badge, text: pick.line }, 3400, pick.spot.bubbleKind);
       }, 12000);
-      cleanup = () => { s.stop(); clearInterval(clockTimer); clearInterval(lifeTimer); document.removeEventListener('visibilitychange', visibility); reduced.removeEventListener('change', visibility); scene.current = null; };
+      cleanup = () => {
+        s.stop();
+        clearInterval(clockTimer);
+        clearInterval(lifeTimer);
+        clearTimeout(ownerFirstStroll);
+        clearInterval(ownerLifeTimer);
+        if (ownerStrollRef.current?.replyTimer) clearTimeout(ownerStrollRef.current.replyTimer);
+        ownerStrollRef.current = null;
+        document.removeEventListener('visibilitychange', visibility);
+        reduced.removeEventListener('change', visibility);
+        scene.current = null;
+      };
     }).catch(e => { if (alive) setError(e.message); });
     return () => { alive = false; cleanup(); };
     // Rebuild only when seats or appearances change, not on polling updates.

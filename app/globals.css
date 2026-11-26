@@ -9372,6 +9372,21 @@ progress.codex-progress::-moz-progress-bar {
   margin: 4px 0 6px;
 }
 
+.owner-stroll-box {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--sunk);
+  border: 1px solid var(--line);
+}
+
+.owner-stroll-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 /* ==========================================================================
    Multica Workflow Advancement: Summary Guard, Playbooks, Chains, Metrics, Schedule
    ========================================================================== */

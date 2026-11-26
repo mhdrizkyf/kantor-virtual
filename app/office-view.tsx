@@ -1556,6 +1556,37 @@ export default function OfficeView({ office, buildings, attention, people, seen,
                 />
               </div>
             )}
+            {activeHumanMember?.id === (patchedMembers.find(m => m.id === meId)?.id ?? patchedMembers[0]?.id) && (
+              <div className="owner-stroll-box">
+                <div className="sect"><Px name="wave" /> Keliling kantor</div>
+                <div className="owner-stroll-actions">
+                  {(
+                    [
+                      { kind: "coffee", label: "☕ Coffee Bar" },
+                      { kind: "agent", label: "💬 Sapa Agent" },
+                      { kind: "pantry", label: "🍳 Pantry" },
+                      { kind: "lounge", label: "🛋️ Lounge" },
+                      { kind: "washroom", label: "🚻 Washroom" },
+                      { kind: "board", label: "📋 Task Board" },
+                    ] as const
+                  ).map(act => (
+                    <button
+                      key={act.kind}
+                      type="button"
+                      className="btn sm"
+                      onClick={() => {
+                        setOpenHuman(null);
+                        setTimeout(() => {
+                          window.dispatchEvent(new CustomEvent("kantor:owner-stroll", { detail: { kind: act.kind } }));
+                        }, 80);
+                      }}
+                    >
+                      {act.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div>
               <div className="sect"><Px name="eyes" /> To review ({a.review.length})</div>
               <div className="tasks">{a.review.length ? a.review.map(t => <TaskRow key={t.id} t={t} showWho onOpen={id => setOpenTask(id, t.ws)} />) : <p className="desc">Nothing waiting for review ☕</p>}</div>

@@ -8,10 +8,12 @@ import {
   interactiveFloorProps,
   meetingSpotsFor,
   NATURAL_ACTIVITIES,
+  OWNER_ACTIVITIES,
   ownerReviewSpotsFor,
   parseGoalPlan,
   partitionReviewDelivery,
   pickNaturalActivity,
+  pickOwnerInteraction,
   resolveDropZone,
   resolveHandoverDelivery,
 } from "../lib/munder-workflows";
@@ -197,4 +199,78 @@ test("2-way workflow dialogs, dual handover/review delivery modes, and natural h
   assert.ok(lunchPick && lunchPick.spot.lunchFriendly);
   const workPick = pickNaturalActivity({ lunch: false, seed: 5 });
   assert.ok(workPick && workPick.line.length > 0);
+});
+
+test("Human owner natural interactions cover all studio areas and 2-way agent check-ins", () => {
+  // Every owner spot lies inside walkable floor bounds and covers coffee, pantry, washroom, lounge, board, hub, boardroom
+  const kinds = new Set(OWNER_ACTIVITIES.map(s => s.kind));
+  for (const required of ["coffee", "pantry", "washroom", "lounge", "board", "hub", "boardroom"] as const) {
+    assert.ok(kinds.has(required), `Missing owner activity kind: ${required}`);
+  }
+  for (const spot of OWNER_ACTIVITIES) {
+    assert.ok(spot.x >= 2 && spot.x < OFFICE_PLAN.cols - 2);
+    assert.ok(spot.y >= 3 && spot.y < OFFICE_PLAN.rows - 2);
+    assert.ok(spot.departLines.length > 0 && spot.arriveLines.length > 0);
+  }
+
+  // Real BFS walkability check from OWNER_SEAT to every single Owner activity spot
+  const grid = Array.from({ length: OFFICE_PLAN.rows }, (_, y) =>
+    Array.from({ length: OFFICE_PLAN.cols }, (_, x) => (x >= 2 && x < 46 && y >= 3 && y < 24 ? 1 : 0))
+  );
+  const block = (x: number, y: number, w: number, h: number) => {
+    for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) if (grid[j]?.[i] !== undefined) grid[j][i] = 0;
+  };
+  OFFICE_PLAN.walls.forEach(p => block(p.x, p.y, p.w, p.h));
+  OFFICE_PLAN.props.forEach(p => {
+    if (p.k === "lounge") {
+      ([[11, 19, 1, 4], [13, 19, 2, 4], [15, 20, 2, 3], [18, 19, 2, 2], [18, 22, 2, 2]] as const).forEach(([a, b, c, d]) => block(a, b, c, d));
+    } else block(p.x, p.y, p.w, p.h);
+  });
+  OFFICE_PLAN.desks.forEach(d => block(d.x, d.y, 2, 1));
+  const bfsSteps = (sx: number, sy: number, tx: number, ty: number) => {
+    const q: [number, number, number][] = [[sx, sy, 0]];
+    const seen = new Set([`${sx},${sy}`]);
+    while (q.length) {
+      const [cx, cy, dist] = q.shift()!;
+      if (cx === tx && cy === ty) return dist;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = cx + dx, ny = cy + dy, k = `${nx},${ny}`;
+        if (!seen.has(k) && grid[ny]?.[nx]) { seen.add(k); q.push([nx, ny, dist + 1]); }
+      }
+    }
+    return -1;
+  };
+  const ownerDesk = OFFICE_PLAN.desks[OWNER_SEAT];
+  const ox = ownerDesk.x, oy = ownerDesk.seat === "n" ? ownerDesk.y - 1 : ownerDesk.y + 1;
+  for (const spot of OWNER_ACTIVITIES) {
+    assert.equal(grid[spot.y][spot.x], 1, `${spot.id} (${spot.x},${spot.y}) must be walkable`);
+    assert.ok(bfsSteps(ox, oy, spot.x, spot.y) > 0, `${spot.id} (${spot.x},${spot.y}) must be reachable from OWNER_SEAT`);
+  }
+
+  // Explicit preferredKind routes directly to Coffee Bar, Pantry, Washroom, Lounge, and Agent visits
+  const coffee = pickOwnerInteraction({ lunch: false, seed: 1, agents: AGENTS, preferredKind: "coffee" });
+  assert.equal(coffee?.type, "spot");
+  assert.equal(coffee.spot.kind, "coffee");
+
+  const washroom = pickOwnerInteraction({ lunch: false, seed: 2, agents: AGENTS, preferredKind: "washroom" });
+  assert.equal(washroom?.type, "spot");
+  assert.equal(washroom.spot.kind, "washroom");
+
+  const visit = pickOwnerInteraction({ lunch: false, seed: 1, agents: AGENTS, preferredKind: "agent" });
+  assert.equal(visit?.type, "visit-agent");
+  assert.ok(visit.ownerLine.length > 0 && visit.agentReply.length > 0);
+  assert.ok(!visit.ownerLine.includes("{agent}"));
+
+  // Autonomous rotation produces both room strolls and agent visits, avoiding immediate repeats
+  const seenTypes = new Set<string>();
+  let lastKey: string | null = null;
+  for (let seed = 1; seed <= 12; seed++) {
+    const plan = pickOwnerInteraction({ lunch: false, seed, agents: AGENTS, lastTargetKey: lastKey });
+    assert.ok(plan);
+    seenTypes.add(plan.type);
+    const key = plan.type === "visit-agent" ? `agent:${plan.agent.agentId}` : `spot:${plan.spot.id}`;
+    assert.notEqual(key, lastKey);
+    lastKey = key;
+  }
+  assert.ok(seenTypes.has("spot") && seenTypes.has("visit-agent"));
 });
