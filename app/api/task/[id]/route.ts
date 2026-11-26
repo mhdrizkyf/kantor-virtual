@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { buildDetail } from "@/lib/detail";
-import { addComment, createIssue, updateIssue, setIssueMeta, issueDetail, me, workspace, kantorSettings, rerunIssue, loadDirectory, activeRuns, cancelRun, invalidateWorkspaceCache } from "@/lib/multica";
+import { addComment, createIssue, updateIssue, setIssueMeta, issueDetail, me, workspace, kantorSettings, rerunIssue, loadDirectory, activeRuns, cancelRun } from "@/lib/multica";
+import { emitOfficeChange } from "@/lib/office-events";
 import { parseMentions, plainText } from "@/lib/mentions";
 import { telegram } from "@/lib/telegram";
 import { friendlyTitle } from "@/lib/titles";
@@ -217,7 +218,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         return NextResponse.json({ error: "Unknown action." }, { status: 400 });
     }
 
-    invalidateWorkspaceCache(wsObj.id);
+    emitOfficeChange(wsObj.id, `task.${body.action}`);
 
     const people = mentions.filter(m => m.kind === "member");
     if (people.length) {

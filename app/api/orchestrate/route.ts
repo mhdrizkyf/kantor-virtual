@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { createIssue, invalidateWorkspaceCache, kantorSettings, setIssueMeta, workspace } from "@/lib/multica";
+import { createIssue, kantorSettings, setIssueMeta, workspace } from "@/lib/multica";
+import { emitOfficeChange } from "@/lib/office-events";
 import { PARK_KEY } from "@/lib/office-control";
 import { addChain } from "@/lib/chain";
 import { appendActivity } from "@/lib/activity-log";
@@ -100,7 +101,7 @@ export async function POST(req: Request) {
       }
     }
 
-    invalidateWorkspaceCache(ws.id);
+    emitOfficeChange(ws.id, "orchestrate");
     void appendActivity(ws.id, {
       kind: "delegate",
       title: `Delegated ${created.length} task${created.length === 1 ? "" : "s"} (${mode})`,

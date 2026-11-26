@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { uploadAll } from "./file-picker";
-import { MANAGER } from "./chat-panel";
+import { MANAGER } from "@/lib/manager";
 import CharacterFace from "./character-face";
 import { readActiveChatId, writeActiveChatId } from "@/lib/chat-continuity";
 

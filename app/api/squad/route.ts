@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { loadDirectory, workspace } from "@/lib/multica";
+import { emitOfficeChange } from "@/lib/office-events";
 import { saveSquad } from "@/lib/squads";
 import { validSquad } from "@/lib/squad-plan";
 
@@ -13,6 +14,7 @@ export async function PATCH(req: Request) {
     const directory = await loadDirectory(ws.id);
     if (!directory.agents.some(a => a.id === body.agentId)) return NextResponse.json({ error: "Agent not found." }, { status: 404 });
     await saveSquad(ws.id, body.agentId!, squad);
+    emitOfficeChange(ws.id, "squad.moved");
     return NextResponse.json({ ok: true, squad });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);

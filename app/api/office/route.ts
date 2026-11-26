@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { planOffice, closeOffice, openOffice } from "@/lib/office-control";
+import { emitOfficeChange } from "@/lib/office-events";
+import { workspace } from "@/lib/multica";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +19,8 @@ export async function POST(req: Request) {
   if (!b.ws || (b.action !== "close" && b.action !== "open")) return NextResponse.json({ error: "Incomplete request." }, { status: 400 });
   try {
     const result = b.action === "close" ? await closeOffice(b.ws, !!b.stopRunning) : await openOffice(b.ws);
+    const resolvedWs = await workspace(b.ws).catch(() => null);
+    emitOfficeChange(resolvedWs?.id ?? b.ws, `office.${b.action}`);
     return NextResponse.json({ ok: true, result });
   } catch (e) {
     return NextResponse.json({ error: String(e instanceof Error ? e.message : e) }, { status: 500 });

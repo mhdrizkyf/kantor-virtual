@@ -1,18 +1,20 @@
 "use client";
 // Page frame: a sidebar (workspace switcher, menu, notifications) that collapses into a slim icon rail.
 import { useCallback, useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import TaskPanel from "./task-panel";
 import type { InboxView } from "./api/inbox/route";
-import Messages from "./messages";
-import Reminders from "./reminders";
-import Contacts from "./contacts";
 import { Px, PxText, type PxName } from "./pixel-icon";
 import { sharedJson, useVisiblePoll } from "./visible-poll";
 import CharacterFace from "./character-face";
 import Stapler from "./stapler";
 import ThemeToggle from "./theme-toggle";
+
+const TaskPanel = dynamic(() => import("./task-panel"), { ssr: false });
+const Messages = dynamic(() => import("./messages"), { ssr: false });
+const Reminders = dynamic(() => import("./reminders"), { ssr: false });
+const Contacts = dynamic(() => import("./contacts"), { ssr: false });
 
 export type Nav = { id: string; slug: string; name: string; attention?: number; switchOpen?: boolean };
 export type RosterAgent = { agentId: string; name: string; description: string; face: string | null; state: string };

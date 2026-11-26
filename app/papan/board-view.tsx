@@ -1,13 +1,15 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import type { Board, Card } from "@/lib/crew";
 import { COLS } from "@/lib/board-cols";
-import TaskPanel from "../task-panel";
-import NewProject from "../new-project";
 import { Px, Emo, PxText } from "../pixel-icon";
 import CharacterFace from "../character-face";
 import { useVisiblePoll } from "../visible-poll";
+
+const TaskPanel = dynamic(() => import("../task-panel"), { ssr: false });
+const NewProject = dynamic(() => import("../new-project"), { ssr: false });
 
 const LOOSE = "none";
 
