@@ -1022,36 +1022,33 @@ main.pagewide > * {
     animation: pop-in 240ms linear(0, 0.45 16%, 1.04 42%, 0.99 68%, 1) both;
   }
 
-  /* Playful Genie open/minimize morph with spring physics + cubic-bezier fallback */
+  /* Silky dock spring open & smooth minimize tuck (2-stop keyframes so linear() applies smoothly once) */
   .stapler-panel[data-phase="opening"] {
     animation:
-      stapler-genie-in 440ms var(--stapler-spring-fallback) both,
-      stapler-genie-fade-in 170ms ease-out both;
+      stapler-genie-in 280ms var(--stapler-spring-fallback) both,
+      stapler-genie-fade-in 150ms ease-out both;
     animation:
-      stapler-genie-in 460ms var(--stapler-spring) both,
-      stapler-genie-fade-in 170ms ease-out both;
+      stapler-genie-in 310ms var(--stapler-spring) both,
+      stapler-genie-fade-in 150ms ease-out both;
   }
 
   .stapler-panel[data-phase="minimizing"] {
     pointer-events: none;
     animation:
-      stapler-genie-out 360ms cubic-bezier(0.45, 0.02, 0.88, 0.42) both,
-      stapler-genie-fade-out 350ms ease-in both;
+      stapler-genie-out 200ms cubic-bezier(0.32, 0, 0.67, 0) both,
+      stapler-genie-fade-out 180ms ease-in both;
   }
 
   .stapler-face.fx-gulp {
-    animation: stapler-gulp 460ms var(--stapler-spring-fallback) both;
-    animation: stapler-gulp 480ms var(--stapler-spring) both;
+    animation: stapler-gulp 280ms ease-out both;
   }
 
   .stapler-face.fx-pop {
-    animation: stapler-pop-launch 420ms var(--stapler-spring-fallback) both;
-    animation: stapler-pop-launch 440ms var(--stapler-spring) both;
+    animation: stapler-pop-launch 260ms ease-out both;
   }
 
   .stapler-rec-dock {
-    animation: stapler-dock-rise 260ms var(--stapler-spring-fallback) both;
-    animation: stapler-dock-rise 300ms var(--stapler-spring) both;
+    animation: stapler-dock-rise 200ms ease-out both;
   }
 
   .stapler-bg-toast {

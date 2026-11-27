@@ -55,7 +55,7 @@ test("formatStaplerDockCopy produces live status copy for meeting, voice, paused
     open: false,
   });
   assert.equal(recMeeting.kind, "recording");
-  assert.equal(recMeeting.title, "REC 1:15");
+  assert.equal(recMeeting.title, "1:15");
   assert.match(recMeeting.subtitle, /Meeting/i);
 
   const pausedVoice = formatStaplerDockCopy({
@@ -67,7 +67,7 @@ test("formatStaplerDockCopy produces live status copy for meeting, voice, paused
     open: false,
   });
   assert.equal(pausedVoice.kind, "paused");
-  assert.equal(pausedVoice.title, "JEDA 0:12");
+  assert.equal(pausedVoice.title, "Jeda 0:12");
   assert.match(pausedVoice.subtitle, /Voice/i);
 
   const savedDraft = formatStaplerDockCopy({

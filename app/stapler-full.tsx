@@ -236,7 +236,7 @@ export default function StaplerFull({
   // Clear initial launch pop animation cleanly
   useEffect(() => {
     if (!initialOpen) return;
-    mascotFxTimer.current = setTimeout(() => setMascotFx("none"), 440);
+    mascotFxTimer.current = setTimeout(() => setMascotFx("none"), 280);
   }, [initialOpen]);
 
   const flashBgHint = useCallback((message: string) => {
@@ -301,7 +301,7 @@ export default function StaplerFull({
     setHidden(false);
     setNudgeIdx(null);
     setBgHint(null);
-    triggerMascotFx("pop", 440);
+    triggerMascotFx("pop", 280);
     setPanelPhase("opening");
   }, [triggerMascotFx]);
 
@@ -319,8 +319,8 @@ export default function StaplerFull({
     const reduced = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     if (!reduced) {
       setTimeout(() => {
-        if (panelAnimToken.current === token) triggerMascotFx("gulp", 480);
-      }, 220);
+        if (panelAnimToken.current === token) triggerMascotFx("gulp", 300);
+      }, 150);
     }
   }, [flashBgHint, recordingMode, triggerMascotFx]);
 
@@ -832,48 +832,33 @@ export default function StaplerFull({
         >
           <button
             type="button"
-            className="stapler-rec-dock-info"
-            onClick={openPanel}
-            title="Buka panel Stapler"
+            className="stapler-rec-dock-btn"
+            onClick={togglePauseAudio}
+            aria-label={isPaused ? "Lanjutkan rekaman" : "Jeda rekaman"}
+            title={isPaused ? "Lanjutkan rekaman" : "Jeda rekaman"}
           >
-            <span className="stapler-rec-dot" aria-hidden="true" />
-            <span className="stapler-rec-dock-label">
-              {recordingMode === "meeting" ? "Meeting" : "Voice"}
-            </span>
-            <span className={`stapler-wave is-reactive${isPaused ? " is-paused" : ""}`} aria-hidden="true">
-              <i /><i /><i /><i />
-            </span>
+            {isPaused ? (
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+                <path d="M3 2.2v7.6L9.8 6 3 2.2Z" />
+              </svg>
+            ) : (
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+                <rect x="2.4" y="2.2" width="2.6" height="7.6" rx="0.8" />
+                <rect x="7" y="2.2" width="2.6" height="7.6" rx="0.8" />
+              </svg>
+            )}
+            <span>{isPaused ? "Lanjut" : "Jeda"}</span>
           </button>
-          <div className="stapler-rec-dock-actions">
-            <button
-              type="button"
-              className="stapler-rec-dock-btn"
-              onClick={togglePauseAudio}
-              aria-label={isPaused ? "Lanjutkan rekaman" : "Jeda rekaman"}
-              title={isPaused ? "Lanjutkan rekaman" : "Jeda rekaman"}
-            >
-              {isPaused ? (
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
-                  <path d="M3 2.2v7.6L9.8 6 3 2.2Z" />
-                </svg>
-              ) : (
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
-                  <rect x="2.4" y="2.2" width="2.6" height="7.6" rx="0.8" />
-                  <rect x="7" y="2.2" width="2.6" height="7.6" rx="0.8" />
-                </svg>
-              )}
-            </button>
-            <button
-              type="button"
-              className="stapler-rec-dock-stop"
-              onClick={() => stopAudio({ openAfterStop: true })}
-              aria-label="Hentikan dan simpan rekaman"
-              title="Stop, simpan & review rekaman"
-            >
-              <i aria-hidden="true" />
-              <span>Stop</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            className="stapler-rec-dock-stop"
+            onClick={() => stopAudio({ openAfterStop: true })}
+            aria-label="Hentikan dan simpan rekaman"
+            title="Stop, simpan & review rekaman"
+          >
+            <i aria-hidden="true" />
+            <span>Stop</span>
+          </button>
         </div>
       )}
 

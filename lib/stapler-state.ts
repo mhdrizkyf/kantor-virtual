@@ -59,8 +59,8 @@ export function formatStaplerDockCopy(opts: {
     const modeLabel = opts.mode === "meeting" ? "Meeting" : "Voice";
     return {
       kind: "recording",
-      title: `REC ${formatStaplerClock(opts.seconds)}`,
-      subtitle: opts.open ? `${modeLabel} aktif · minimize` : `${modeLabel} · klik buka`,
+      title: formatStaplerClock(opts.seconds),
+      subtitle: opts.open ? `${modeLabel} · aktif` : `${modeLabel} · buka`,
       modeLabel,
     };
   }
@@ -68,8 +68,8 @@ export function formatStaplerDockCopy(opts: {
     const modeLabel = opts.mode === "meeting" ? "Meeting" : "Voice";
     return {
       kind: "paused",
-      title: `JEDA ${formatStaplerClock(opts.seconds)}`,
-      subtitle: `${modeLabel} dijeda · klik buka`,
+      title: `Jeda ${formatStaplerClock(opts.seconds)}`,
+      subtitle: `${modeLabel} · buka`,
       modeLabel,
     };
   }
