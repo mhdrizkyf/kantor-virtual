@@ -1197,12 +1197,6 @@ export default function StaplerFull({
             {busy ? "Sending…" : <>Send <kbd aria-hidden="true">⌘↵</kbd> →</>}
           </button>
         </footer>
-
-        <small className="stapler-hint">
-          {isRecordingActive
-            ? "Minimize aman — rekaman tetap berjalan dan tersimpan saat Anda klik Stop."
-            : "You always review captures before anything is sent."}
-        </small>
       </section>
     </div>
   );
