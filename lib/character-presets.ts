@@ -8,17 +8,35 @@ export type CharacterRecipe = {
   bg2: string;
   skin: string;
   hair: string;
-  hairStyle: "bob" | "sidepart" | "longwavy" | "afro" | "highbun" | "messy" | "hijab" | "spiky" | "twinpuffs" | "bald" | "curlyband" | "curtain";
+  hairStyle:
+    | "bob"
+    | "sidepart"
+    | "longwavy"
+    | "afro"
+    | "highbun"
+    | "messy"
+    | "hijab"
+    | "spiky"
+    | "twinpuffs"
+    | "bald"
+    | "curlyband"
+    | "curtain"
+    | "ponytail"
+    | "beanie"
+    | "pompadour"
+    | "braids";
   eyes: "lashed" | "normal" | "wide" | "sparkle" | "focused" | "calm" | "happy";
   eyeColor: string;
   brow: "arched" | "confident" | "soft" | "thick";
   mouth: "smile" | "smirk" | "grin" | "neutral";
   blush?: boolean;
   freckles?: boolean;
-  earrings?: "gold";
+  earrings?: "gold" | "silver";
   hairpin?: string;
   headband?: string;
   headphones?: string;
+  capColor?: string;
+  scarf?: string;
   glasses?: "round" | "cateye" | "rect" | "halfrim";
   facial?: "goatee" | "mustache" | "fullbeard";
   outfit: "collar" | "tie" | "cardigan" | "crew" | "turtleneck" | "hoodie" | "blazer" | "jacket" | "striped" | "vest";
@@ -53,6 +71,10 @@ const STYLE_MAP: Record<CharacterRecipe["hairStyle"], Face["style"]> = {
   bald: "bald",
   curlyband: "curly",
   curtain: "short",
+  ponytail: "long",
+  beanie: "short",
+  pompadour: "short",
+  braids: "long",
 };
 
 export const CHARACTER_RECIPES = recipes as CharacterRecipe[];

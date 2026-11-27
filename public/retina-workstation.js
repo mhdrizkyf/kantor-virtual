@@ -10,7 +10,10 @@
   var O = root.MDOffice;
   if (!O) return;
   var MANIFEST_URL = '/art/retina-v2.7/asset-manifest.json';
-  var FACE_IDS = ['raya','niko','sari','bima','lia','danu','mira','ardi','nala','yusuf','tari','reno'];
+  var FACE_IDS = [
+    'raya','niko','sari','bima','lia','danu','mira','ardi','nala','yusuf','tari','reno',
+    'kian','hana','faris','nadia','dara','raka','sena','ayla','bagas','kirana','zaki','dewi'
+  ];
   var REQUIRED = ['desk.body.north','desk.body.south','chair.north','chair.south','prop.mug.desk','prop.plant.desk'];
   ['north','south'].forEach(function(dir) {
     ['active','working','idle','closed'].forEach(function(status) { REQUIRED.push('laptop.'+dir+'.'+status); });
@@ -54,7 +57,7 @@
             !item.uri.startsWith('/art/retina-v2.7/') || !item.uri.endsWith('@2x.png')) {
           throw new Error('Invalid Retina asset: '+id);
         }
-        var img=new Image(); img.src=item.uri+'?v=4';
+        var img=new Image(); img.src=item.uri+'?v=5';
         if (typeof img.decode === 'function') await img.decode();
         else await new Promise(function(resolve,reject){
           img.onload=resolve; img.onerror=function(){reject(new Error('Image load failed: '+id));};

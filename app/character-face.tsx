@@ -40,6 +40,12 @@ export default function CharacterFace({
   const shirtHi = mixHex(ch.shirt, "#fff7ea", 0.22);
   const shirtSh = mixHex(ch.shirt, "#1e1520", 0.28);
   const shirt2Sh = mixHex(ch.shirt2, "#241a24", 0.22);
+  const capBase = ch.capColor || ch.shirt;
+  const capHi = mixHex(capBase, "#fff7ea", 0.24);
+  const capSh = mixHex(capBase, "#1c131d", 0.30);
+  const scarfBase = ch.scarf || ch.shirt2;
+  const scarfHi = mixHex(scarfBase, "#fff7ea", 0.24);
+  const scarfSh = mixHex(scarfBase, "#1e141c", 0.30);
   const ink = "#271b22";
   const lip = "#b3544e";
 
@@ -148,6 +154,28 @@ export default function CharacterFace({
             <path d="M27.5 7.6C29.8 6 33.5 6 35.8 7.6" stroke={hairHi} strokeWidth="2" strokeLinecap="round" opacity="0.65" />
           </g>
         )}
+        {ch.hairStyle === "ponytail" && (
+          <g>
+            <path d="M44 16C52 17 56 26 54 39C53 45 50 51 45 53C42 46 44 37 44 29C44 24 42 20 44 16Z" fill={`url(#${uid}-hair)`} />
+            <path d="M47 21C51 26 51.5 34 49.5 43" stroke={hairHi} strokeWidth="2" strokeLinecap="round" opacity="0.5" />
+            <rect x="41.5" y="16" width="6" height="4.2" rx="2" transform="rotate(24 44.5 18)" fill={shirtHi} stroke={shirtSh} strokeWidth="0.7" />
+          </g>
+        )}
+        {ch.hairStyle === "braids" && (
+          <g>
+            <ellipse cx="32" cy="24" rx="18" ry="14" fill={`url(#${uid}-hair)`} />
+            {[17, 47].map((bx) => (
+              <g key={bx}>
+                <ellipse cx={bx} cy="39" rx="4.2" ry="4.4" fill={`url(#${uid}-hair)`} />
+                <ellipse cx={bx} cy="45.5" rx="3.9" ry="4.1" fill={hairSh} />
+                <ellipse cx={bx} cy="51.5" rx="3.5" ry="3.7" fill={`url(#${uid}-hair)`} />
+                <path d={`M${bx - 3} 41.5L${bx + 3} 43.5M${bx + 3} 41.5L${bx - 3} 43.5M${bx - 2.6} 47.8L${bx + 2.6} 49.6`} stroke={hairDeep} strokeWidth="1" opacity="0.55" />
+                <rect x={bx - 3} y="54" width="6" height="2.6" rx="1.2" fill={ch.shirt} />
+                <path d={`M${bx - 2.2} 56.5C${bx - 2.6} 59.5 ${bx + 2.6} 59.5 ${bx + 2.2} 56.5Z`} fill={hairSh} />
+              </g>
+            ))}
+          </g>
+        )}
         {ch.hairStyle === "hijab" && (
           <g>
             <path d="M12 31C12 15 20 8 32 8C44 8 52 15 52 31L53 56C47 59 17 59 11 56Z" fill={`url(#${uid}-hair)`} />
@@ -234,7 +262,17 @@ export default function CharacterFace({
             </g>
           )}
 
-          {/* Neck headphones (Bima) */}
+          {/* Cozy knit scarf */}
+          {ch.scarf && (
+            <g>
+              <path d="M21 44.5C25 49 39 49 43 44.5C44.5 48.5 41 53.5 32 53.5C23 53.5 19.5 48.5 21 44.5Z" fill={scarfBase} stroke={scarfSh} strokeWidth="0.9" />
+              <path d="M24 48.5C28 50.8 36 50.8 40 48.5" stroke={scarfHi} strokeWidth="1.5" strokeLinecap="round" opacity="0.65" />
+              <rect x="33.5" y="49.5" width="7.2" height="12.5" rx="2.6" fill={scarfBase} stroke={scarfSh} strokeWidth="0.85" />
+              <line x1="35" y1="58.5" x2="39.2" y2="58.5" stroke={scarfHi} strokeWidth="1.4" strokeLinecap="round" opacity="0.7" />
+            </g>
+          )}
+
+          {/* Neck headphones (Bima, Zaki) */}
           {ch.headphones && (
             <g>
               <path d="M23.5 45.5C25 53 39 53 40.5 45.5" stroke={mixHex(ch.headphones, "#242830", 0.35)} strokeWidth="2.4" fill="none" />
@@ -265,6 +303,12 @@ export default function CharacterFace({
           <g>
             <circle cx="17.5" cy="36.2" r="2.1" fill="#f7c84d" stroke="#b57d18" strokeWidth="0.7" />
             <circle cx="46.5" cy="36.2" r="2.1" fill="#f7c84d" stroke="#b57d18" strokeWidth="0.7" />
+          </g>
+        )}
+        {ch.earrings === "silver" && (
+          <g>
+            <circle cx="17.5" cy="36.2" r="2.1" fill="#e5ebf5" stroke="#7d899c" strokeWidth="0.75" />
+            <circle cx="46.5" cy="36.2" r="2.1" fill="#e5ebf5" stroke="#7d899c" strokeWidth="0.75" />
           </g>
         )}
 
@@ -482,6 +526,49 @@ export default function CharacterFace({
           <g>
             <path d="M15.5 27C15 14.5 22 8.8 32 8.8C42 8.8 49 14.5 48.5 27C47 21 43 22 39.5 24C36.5 20 34 17 32 15.5C30 17 27.5 20 24.5 24C21 22 17 21 15.5 27Z" fill={`url(#${uid}-hair)`} />
             <path d="M22 13C27 10.8 37 10.8 42 13" stroke={hairHi} strokeWidth="2.2" strokeLinecap="round" opacity="0.65" />
+          </g>
+        )}
+        {ch.hairStyle === "ponytail" && (
+          <g>
+            <path d="M16 26.5C15.5 14.5 22.5 9 32 9C41.5 9 48.5 14.5 48 26.5C45.5 20.5 40 19 34.5 18.2C27.5 19.2 21.5 22.5 16 26.5Z" fill={`url(#${uid}-hair)`} />
+            <path d="M23 13C28 10.8 36 10.8 41 13" stroke={hairHi} strokeWidth="2.1" strokeLinecap="round" opacity="0.6" />
+            {ch.hairpin && <rect x="18" y="19.5" width="7" height="2.6" rx="1.3" transform="rotate(-14 18 19.5)" fill={ch.hairpin} />}
+          </g>
+        )}
+        {ch.hairStyle === "beanie" && (
+          <g>
+            {/* Soft hair peeking under knit beanie */}
+            <path d="M16.5 26.5C17 21.5 21 19 25 20.5C29 19 35 19 39 20.5C43 19 47 21.5 47.5 26.5C45.5 23 43 22 40 22.8C36 21.8 28 21.8 24 22.8C21 22 18.5 23 16.5 26.5Z" fill={`url(#${uid}-hair)`} />
+            {/* Pom-pom */}
+            <circle cx="32" cy="6.8" r="4.2" fill={capBase} stroke={capSh} strokeWidth="0.7" />
+            <path d="M30.2 5.4C31.2 4.6 32.8 4.6 33.8 5.4" stroke={capHi} strokeWidth="1.4" strokeLinecap="round" opacity="0.65" />
+            {/* Knit dome */}
+            <path d="M15.5 21.5C15.5 12 22 7.5 32 7.5C42 7.5 48.5 12 48.5 21.5Z" fill={capBase} />
+            <path d="M21 11.5C26 9.5 34 9.5 40 11.5" stroke={capHi} strokeWidth="2" strokeLinecap="round" opacity="0.5" />
+            {/* Folded ribbed cuff */}
+            <rect x="14.5" y="17.5" width="35" height="6.2" rx="3" fill={capBase} stroke={capSh} strokeWidth="0.85" />
+            <g stroke={capSh} strokeWidth="1.1" opacity="0.55">
+              <line x1="20" y1="18.2" x2="20" y2="23" />
+              <line x1="25" y1="18.2" x2="25" y2="23" />
+              <line x1="30" y1="18.2" x2="30" y2="23" />
+              <line x1="35" y1="18.2" x2="35" y2="23" />
+              <line x1="40" y1="18.2" x2="40" y2="23" />
+              <line x1="44.5" y1="18.2" x2="44.5" y2="23" />
+            </g>
+          </g>
+        )}
+        {ch.hairStyle === "pompadour" && (
+          <g>
+            <path d="M16.5 26C15.8 18 17.5 10.5 24 7.8C31.5 4.8 43 7 46.8 14.2C48.5 17.5 48.2 22 47.5 26C45.8 20.5 43.2 18.2 38.5 18C32.5 17.8 26 19 21.5 19.2C19 19.3 17.6 22 16.5 26Z" fill={`url(#${uid}-hair)`} />
+            <path d="M22.5 11.2C28 8.2 36.5 8.5 41.5 12.2" stroke={hairHi} strokeWidth="2.4" strokeLinecap="round" opacity="0.62" />
+            <path d="M24 14.5C29.5 12.6 35.5 13 40 15" stroke={hairDeep} strokeWidth="1.2" strokeLinecap="round" opacity="0.45" />
+          </g>
+        )}
+        {ch.hairStyle === "braids" && (
+          <g>
+            <path d="M15.5 26.5C15.5 14.5 22 9 32 9C42 9 48.5 14.5 48.5 26.5C46 20.8 40 18.8 32 17.8C24 18.8 18 20.8 15.5 26.5Z" fill={`url(#${uid}-hair)`} />
+            <line x1="32" y1="9.2" x2="32" y2="17.8" stroke={hairDeep} strokeWidth="1.2" />
+            <path d="M22 13C27 10.8 37 10.8 42 13" stroke={hairHi} strokeWidth="2.1" strokeLinecap="round" opacity="0.6" />
           </g>
         )}
 

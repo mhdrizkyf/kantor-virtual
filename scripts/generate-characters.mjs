@@ -280,6 +280,11 @@ function drawTorso(c, ch, back, frame, bob) {
       c.rect(21, 36 + bob, 2, 12, alpha(s1.deep, 145));
       c.rect(14, 47 + bob, 16, 1, s1.deep);
     }
+    if (ch.scarf) {
+      const sc = ramp(ch.scarf);
+      c.shadedRoundRect(15.5, 32.5 + bob, 13, 4.5, 2, sc);
+      c.rect(17, 36 + bob, 10, 1, sc.deep);
+    }
     return;
   }
 
@@ -351,7 +356,16 @@ function drawTorso(c, ch, back, frame, bob) {
       break;
   }
 
-  // Headphones resting around neck (Bima)
+  // Cozy wrapped knit scarf (Sena, Zaki)
+  if (ch.scarf && !back) {
+    const sc = ramp(ch.scarf);
+    c.shadedRoundRect(15, 32.5 + bob, 14, 5, 2.2, sc);
+    c.rect(16, 36.5 + bob, 12, 1, sc.deep);
+    c.shadedRoundRect(22.5, 36 + bob, 4.5, 8.5, 1.5, sc);
+    c.rect(23, 43 + bob, 3.5, 1, sc.hi);
+  }
+
+  // Headphones resting around neck (Bima, Zaki)
   if (ch.headphones && !back) {
     const hp = ramp(ch.headphones);
     c.shadedRoundRect(15.5, 34 + bob, 3.5, 5.5, 1.5, hp);
@@ -389,6 +403,30 @@ function drawHairBackLayer(c, ch, back, bob) {
   } else if (ch.hairStyle === "highbun") {
     c.shadedEllipse(21.5, 6.8 + bob, 6.2, 5.0, hr);
     c.shadedRoundRect(16.5, 9.5 + bob, 10, 2.5, 1, ramp(ch.shirt));
+  } else if (ch.hairStyle === "ponytail") {
+    // High swept ponytail cascading over right shoulder
+    c.shadedEllipse(33.5, 16 + bob, 5.2, 5.6, hr);
+    c.shadedEllipse(35.2, 24.5 + bob, 4.6, 6.8, hr);
+    c.shadedEllipse(33.8, 33 + bob, 3.8, 4.8, hr);
+    c.shadedRoundRect(29.5, 12.5 + bob, 4.5, 3, 1.2, ramp(ch.shirt));
+  } else if (ch.hairStyle === "braids") {
+    // Twin woven braids resting cleanly behind ears/shoulders
+    c.shadedEllipse(21.5, 18.5 + bob, 12.8, 10.5, hr);
+    const tie = ramp(ch.shirt);
+    for (const bx of [10.5, 32.5]) {
+      for (const by of [28.5, 32.5, 36.5]) {
+        c.shadedEllipse(bx, by + bob, 2.9, 2.6, hr);
+        c.rect(bx - 1.5, by + 1 + bob, 3, 1, hr.deep);
+      }
+      c.shadedRoundRect(bx - 2, 38.5 + bob, 4, 2, 0.8, tie);
+      c.shadedEllipse(bx, 41.2 + bob, 2.0, 2.2, hr);
+    }
+  } else if (ch.hairStyle === "beanie") {
+    const cap = ramp(ch.capColor || ch.shirt);
+    c.shadedEllipse(21.5, 5.2 + bob, 3.4, 3.0, cap);
+    c.shadedEllipse(21.5, 12.5 + bob, 12.8, 7.6, cap);
+  } else if (ch.hairStyle === "pompadour") {
+    c.shadedEllipse(21.5, 9.5 + bob, 12.2, 6.8, hr);
   } else if (ch.hairStyle === "hijab") {
     c.shadedEllipse(21.5, 20.5 + bob, 14.2, 14, hr);
     c.shadedRoundRect(9.5, 23 + bob, 25, 15, 5, hr);
@@ -420,9 +458,9 @@ function drawHead(c, ch, back, bob) {
 
   if (back) return;
 
-  // Gold earrings
-  if (ch.earrings === "gold") {
-    const g = ramp("#f6c74e");
+  // Gold or silver earrings
+  if (ch.earrings === "gold" || ch.earrings === "silver") {
+    const g = ramp(ch.earrings === "silver" ? "#dce3ee" : "#f6c74e");
     c.shadedEllipse(10.5, 26.8 + bob, 1.5, 1.8, g);
     c.shadedEllipse(32.5, 26.8 + bob, 1.5, 1.8, g);
   }
@@ -620,6 +658,30 @@ function drawHairFrontLayer(c, ch, back, bob) {
       }
     } else if (ch.hairStyle === "curlyband") {
       c.shadedRoundRect(9.5, 13.5 + bob, 24, 3, 1.2, ramp(ch.headband));
+    } else if (ch.hairStyle === "ponytail") {
+      c.shadedRoundRect(18, 16 + bob, 7, 3, 1.2, ramp(ch.shirt));
+      c.shadedEllipse(21.5, 24 + bob, 5.2, 6.2, hr);
+      c.shadedEllipse(21.5, 32 + bob, 4.4, 5.8, hr);
+      c.shadedEllipse(21.5, 37.5 + bob, 3.2, 3.2, hr);
+    } else if (ch.hairStyle === "braids") {
+      const tie = ramp(ch.shirt);
+      for (const bx of [13.5, 29.5]) {
+        for (const by of [28, 32.5, 36.5]) {
+          c.shadedEllipse(bx, by + bob, 3.0, 2.7, hr);
+          c.rect(bx - 1.5, by + 1 + bob, 3, 1, hr.deep);
+        }
+        c.shadedRoundRect(bx - 2, 38.5 + bob, 4, 2, 0.8, tie);
+        c.shadedEllipse(bx, 41.2 + bob, 2.1, 2.1, hr);
+      }
+    } else if (ch.hairStyle === "beanie") {
+      const cap = ramp(ch.capColor || ch.shirt);
+      c.shadedEllipse(21.5, 5.2 + bob, 3.5, 3.1, cap);
+      c.shadedEllipse(21.5, 14.2 + bob, 13.0, 8.6, cap);
+      c.shadedRoundRect(9, 16.5 + bob, 25, 5, 2.2, cap);
+      for (let rx = 12; rx <= 31; rx += 3) c.rect(rx, 17.2 + bob, 1, 3.5, cap.sh);
+    } else if (ch.hairStyle === "pompadour") {
+      c.shadedEllipse(21.5, 10 + bob, 12.2, 6.8, hr);
+      c.rect(16, 6.5 + bob, 10, 2, hr.spec);
     }
     return;
   }
@@ -753,6 +815,59 @@ function drawHairFrontLayer(c, ch, back, bob) {
       c.rect(27, 16 + bob, 5, 2, hr.sh);
       c.rect(15, 8.5 + bob, 11, 2, hr.spec);
       break;
+
+    case "ponytail":
+      c.shadedEllipse(21.5, 12.2 + bob, 12.6, 6.2, hr);
+      c.shadedEllipse(10.8, 17.5 + bob, 2.4, 5.2, hr);
+      c.shadedEllipse(32.2, 17.5 + bob, 2.4, 5.2, hr);
+      // Sleek side-parted front framing bangs
+      c.shadedEllipse(16.2, 14 + bob, 6.0, 3.2, hr);
+      c.shadedEllipse(27.5, 13.6 + bob, 5.2, 2.8, hr);
+      c.rect(16, 8.8 + bob, 10, 2, hr.spec);
+      if (ch.hairpin) {
+        c.shadedRoundRect(11.8, 14.6 + bob, 4.5, 2, 0.8, ramp(ch.hairpin));
+      }
+      break;
+
+    case "beanie": {
+      const cap = ramp(ch.capColor || ch.shirt);
+      // Hair fringe peeking softly below the knit beanie cuff
+      c.shadedEllipse(11.2, 17.5 + bob, 2.4, 4.0, hr);
+      c.shadedEllipse(31.8, 17.5 + bob, 2.4, 4.0, hr);
+      c.rect(13, 14.5 + bob, 17, 2.5, hr.base);
+      c.rect(15, 16.5 + bob, 5, 1.5, hr.sh);
+      c.rect(24, 16.5 + bob, 4, 1.5, hr.sh);
+      // Cozy knit beanie dome, pom-pom & folded ribbed cuff
+      c.shadedEllipse(21.5, 5.0 + bob, 3.5, 3.0, cap);
+      c.shadedEllipse(21.5, 11.4 + bob, 12.8, 6.8, cap);
+      c.shadedRoundRect(9.2, 11.8 + bob, 24.6, 4.5, 2.0, cap);
+      for (let rx = 12; rx <= 31; rx += 3) {
+        c.rect(rx, 12.4 + bob, 1, 3.2, cap.sh);
+      }
+      c.rect(14, 7.5 + bob, 8, 1.5, cap.spec);
+      break;
+    }
+
+    case "pompadour":
+      // Sculpted high executive quiff / pompadour crest
+      c.shadedEllipse(22.5, 9.5 + bob, 11.8, 6.6, hr);
+      c.shadedEllipse(19.5, 7.2 + bob, 8.8, 4.4, hr);
+      c.shadedEllipse(10.8, 16 + bob, 2.2, 4.2, hr);
+      c.shadedEllipse(32.2, 16 + bob, 2.2, 4.2, hr);
+      c.rect(13, 12.2 + bob, 18, 2.5, hr.base);
+      c.rect(14, 6.2 + bob, 10, 2, hr.spec);
+      c.rect(13, 10.5 + bob, 12, 1.2, hr.hi);
+      break;
+
+    case "braids":
+      c.shadedEllipse(21.5, 12.4 + bob, 12.8, 6.4, hr);
+      c.shadedEllipse(10.6, 19.5 + bob, 2.6, 6.8, hr);
+      c.shadedEllipse(32.4, 19.5 + bob, 2.6, 6.8, hr);
+      c.shadedEllipse(16, 14.2 + bob, 5.4, 3.0, hr);
+      c.shadedEllipse(27, 14.2 + bob, 5.4, 3.0, hr);
+      c.rect(21, 9 + bob, 1, 5.5, hr.deep);
+      c.rect(15, 8.8 + bob, 11, 2, hr.spec);
+      break;
   }
 }
 
@@ -791,8 +906,10 @@ function renderPortrait(ch) {
   return out;
 }
 
-/* ---------- Generate All 12 Presets + Contact Sheet ---------- */
-const sheet = new Canvas(44 * 6 + 14 * 7, 64 * 2 + 14 * 3);
+/* ---------- Generate All Presets + Contact Sheet + Sync Asset Manifest ---------- */
+const COLS = 6;
+const ROWS = Math.ceil(CAST.length / COLS);
+const sheet = new Canvas(44 * COLS + 14 * (COLS + 1), 64 * ROWS + 14 * (ROWS + 1));
 sheet.rect(0, 0, sheet.w, sheet.h, hex("#f5f1e7"));
 
 CAST.forEach((ch, idx) => {
@@ -805,8 +922,8 @@ CAST.forEach((ch, idx) => {
       const outPath = path.join(dir, `${side}-${frame}@2x.png`);
       fs.writeFileSync(outPath, encodePng(sprite.w, sprite.h, sprite.buf));
       if (!back && frame === 0) {
-        const col = idx % 6;
-        const row = Math.floor(idx / 6);
+        const col = idx % COLS;
+        const row = Math.floor(idx / COLS);
         const ox = 14 + col * (44 + 14);
         const oy = 14 + row * (64 + 14);
         for (let y = 0; y < sprite.h; y++) {
@@ -824,9 +941,40 @@ CAST.forEach((ch, idx) => {
   fs.writeFileSync(path.join(dir, "portrait@2x.png"), encodePng(portrait.w, portrait.h, portrait.buf));
 });
 
+// Keep asset-manifest.json synchronized with CAST presets
+const manifestPath = path.join(ROOT, "public/art/retina-v2.7/asset-manifest.json");
+if (fs.existsSync(manifestPath)) {
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  for (const ch of CAST) {
+    for (const side of ["front", "back"]) {
+      for (const frame of [0, 1, 2]) {
+        const key = `character.preset.${ch.id}.${side}.${frame}`;
+        manifest.assets[key] = {
+          uri: `/art/retina-v2.7/characters/presets/${ch.id}/${side}-${frame}@2x.png`,
+          logicalSizePx: [22, 32],
+          physicalSizePx: [44, 64],
+          scale: 2,
+          presetId: ch.id,
+          source: "painterly cozy-chibi Retina preset generator",
+        };
+      }
+    }
+  }
+  if (manifest.characterVariants) {
+    manifest.characterVariants.presets = CAST.map(ch => ({
+      id: ch.id,
+      label: ch.label,
+      skin: ch.skin,
+      hair: ch.hair,
+      shirt: ch.shirt,
+    }));
+  }
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+}
+
 const previewOut = process.argv[2];
 if (previewOut) {
   fs.mkdirSync(path.dirname(previewOut), { recursive: true });
   fs.writeFileSync(previewOut, encodePng(sheet.w, sheet.h, sheet.buf));
 }
-console.log(`Generated ${CAST.length} painterly cozy-chibi Retina presets (72 sprites + 12 portraits).`);
+console.log(`Generated ${CAST.length} painterly cozy-chibi Retina presets (${CAST.length * 6} sprites + ${CAST.length} portraits).`);

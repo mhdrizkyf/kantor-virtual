@@ -69,9 +69,12 @@ test('North and south desks use the correct laptop orientation for all states',(
   }
 });
 
-test('All 12 preset identities keep distinct Retina walk animation assets',()=>{
+test('All 24 preset identities keep distinct Retina walk animation assets',()=>{
   const {adapter,scene,pack,ctx,draw}=setup();
-  scene.agents=adapter.faceIds.map((face:string,i:number)=>agentAt(i,face));
+  scene.agents=adapter.faceIds.map((face:string,i:number)=>({
+    ...agentAt(i%plan.desks.length,face),
+    id:'actor:'+i,
+  }));
   adapter.install(scene,pack);
   for(const actor of scene.agents) {
     for(const direction of ['front','back']) for(const frame of [0,1,2]) {
@@ -80,7 +83,7 @@ test('All 12 preset identities keep distinct Retina walk animation assets',()=>{
       assert.equal((draw[0][0] as any).id,`character.preset.${actor.retinaFaceId}.${direction}.${frame}`);
     }
   }
-  assert.equal(adapter.faceIds.length,12);
+  assert.equal(adapter.faceIds.length,24);
 });
 
 test('Desk accessory variants are balanced, deterministic, and only use prescribed anchors',()=>{

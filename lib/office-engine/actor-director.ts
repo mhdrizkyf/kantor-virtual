@@ -1,6 +1,7 @@
 // Pure actor director: decides off-duty visibility, human face assignment, review delivery splits,
 // lunch break roaming, and natural workday micro-activities independently of the Canvas renderer.
 import type { Desk } from "../office";
+import { CHARACTER_RECIPES } from "../character-presets";
 import {
   partitionReviewDelivery,
   PEER_CHAT_SCRIPTS,
@@ -10,10 +11,14 @@ import {
   type ReviewStyle,
 } from "../munder-workflows";
 
-export const ALL_RETINA_FACE_IDS = [
+const PREFERRED_HUMAN_ORDER = [
   "yusuf", "reno", "mira", "danu", "lia", "tari",
   "raya", "niko", "sari", "bima", "ardi", "nala",
-] as const;
+];
+export const ALL_RETINA_FACE_IDS: readonly string[] = [
+  ...PREFERRED_HUMAN_ORDER.filter(id => CHARACTER_RECIPES.some(r => r.id === id)),
+  ...CHARACTER_RECIPES.map(r => r.id).filter(id => !PREFERRED_HUMAN_ORDER.includes(id)),
+];
 
 /** Determine whether a seated agent should be hidden (absent from desk) during off-duty/offline hours. */
 export function isActorAbsentFromDesk(opts: {

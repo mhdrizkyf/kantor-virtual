@@ -142,16 +142,18 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { assignUniqueFaces, FACES } from "../lib/character-presets";
 
-test("assignUniqueFaces assigns 12 distinct faces without hash collisions and honors saved choices", () => {
-  const ids = Array.from({ length: 12 }, (_, i) => `agent-${i + 1}`);
-  const assigned = assignUniqueFaces(ids, { "agent-1": "yusuf", "agent-2": "mira" });
+test("assignUniqueFaces assigns 24 distinct faces without hash collisions and honors saved choices", () => {
+  assert.equal(FACES.length, 24);
+  const ids = Array.from({ length: FACES.length }, (_, i) => `agent-${i + 1}`);
+  const assigned = assignUniqueFaces(ids, { "agent-1": "yusuf", "agent-2": "mira", "agent-3": "faris" });
   assert.equal(assigned["agent-1"], "yusuf");
   assert.equal(assigned["agent-2"], "mira");
+  assert.equal(assigned["agent-3"], "faris");
   const unique = new Set(Object.values(assigned));
-  assert.equal(unique.size, 12);
+  assert.equal(unique.size, FACES.length);
 });
 
-test("all 12 Retina character presets have distinct 44x64 sprites and matching portraits on disk", () => {
+test("all 24 Retina character presets have distinct 44x64 sprites and matching portraits on disk", () => {
   const hashes = new Set<string>();
   for (const f of FACES) {
     const front = readFileSync(resolve(process.cwd(), `public/art/retina-v2.7/characters/presets/${f.id}/front-0@2x.png`));
@@ -162,7 +164,7 @@ test("all 12 Retina character presets have distinct 44x64 sprites and matching p
     assert.equal(portrait.readUInt32BE(20), 44);
     hashes.add(front.toString("base64"));
   }
-  assert.equal(hashes.size, 12);
+  assert.equal(hashes.size, 24);
 });
 
 test("2-way workflow dialogs, dual handover/review delivery modes, and natural human activities", () => {
