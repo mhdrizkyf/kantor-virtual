@@ -4,6 +4,7 @@ import { uploadAll } from "./file-picker";
 import { MANAGER } from "@/lib/manager";
 import CharacterFace from "./character-face";
 import { readActiveChatId, writeActiveChatId } from "@/lib/chat-continuity";
+import KlipiMascot, { type KlipiFx } from "./klipi-mascot";
 import {
   computeMicLevel,
   formatStaplerClock,
@@ -13,13 +14,12 @@ import {
   type PanelPhase,
   type RecordingState,
   type StaplerMode,
-  type StaplerMood,
 } from "@/lib/stapler-state";
 
 export type { StaplerMode };
 
 type Agent = { id: string; name: string; face?: string | null; role?: string | null };
-type MascotFx = "none" | "gulp" | "pop";
+type MascotFx = KlipiFx;
 
 const MAX_BYTES = 25 * 1024 * 1024;
 const NUDGE_MUTE_KEY = "kantor:stapler-nudges-muted";
@@ -65,10 +65,10 @@ const STARTER_CHIPS: Record<StaplerMode, { label: string; text: string }[]> = {
 };
 
 const NUDGES: { mode: StaplerMode; tag: string; text: string }[] = [
-  { mode: "screenshot", tag: "Quick snap", text: "Spot something? Capture a screen for the team" },
-  { mode: "voice", tag: "Voice → task", text: "Record a quick voice brief in one click" },
-  { mode: "meeting", tag: "Meeting AI", text: "Record a meeting for instant action items" },
-  { mode: "note", tag: "Shortcut ⌥⇧S", text: "Drop a file or paste ⌘V straight to any agent" },
+  { mode: "screenshot", tag: "Quick snap", text: "Ada temuan visual? Jepret layar untuk tim" },
+  { mode: "voice", tag: "Voice → task", text: "Rekam voice brief cepat dalam satu klik" },
+  { mode: "meeting", tag: "Meeting AI", text: "Rekam meeting untuk rangkuman & action items" },
+  { mode: "note", tag: "Shortcut ⌥⇧K", text: "Drop file atau paste ⌘V langsung lewat Klipi" },
 ];
 
 let cachedSupportsDisplayTransition: boolean | undefined;
@@ -123,44 +123,6 @@ function ModeIcon({ mode }: { mode: StaplerMode }) {
       <path d="M13.6 3.7a1.8 1.8 0 0 1 2.55 2.55L7.9 14.5 4.2 15.6l1.1-3.7 8.3-8.2Z" stroke="currentColor" strokeWidth="1.65" strokeLinejoin="round" />
       <path d="M11.8 5.5 14.3 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
     </svg>
-  );
-}
-
-function StaplerFace({
-  mood = "idle",
-  size = "md",
-  fx = "none",
-}: {
-  mood?: StaplerMood;
-  size?: "md" | "lg";
-  fx?: MascotFx;
-}) {
-  const showHeadset = mood === "recording" || mood === "paused";
-  return (
-    <span className={`stapler-face is-${mood} sz-${size}${fx !== "none" ? ` fx-${fx}` : ""}`} aria-hidden="true">
-      {mood === "recording" && <span className="stapler-rec-ripple" />}
-      {showHeadset && (
-        <span className="stapler-headset">
-          <i className="stapler-headset-band" />
-          <i className="stapler-headset-ear l" />
-          <i className="stapler-headset-ear r" />
-        </span>
-      )}
-      <span className="stapler-eyes">
-        <i />
-        <i />
-      </span>
-      <span className="stapler-cheeks">
-        <i />
-        <i />
-      </span>
-      {mood === "recording" ? (
-        <span className="stapler-voice-mouth" />
-      ) : (
-        <span className="stapler-smile" />
-      )}
-      {mood === "draft" && <span className="stapler-draft-dot" />}
-    </span>
   );
 }
 
@@ -378,10 +340,11 @@ export default function StaplerFull({
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [isRecordingActive]);
 
-  // Global keyboard shortcuts: Option+Shift+S toggles Stapler; Escape minimizes (NEVER kills active recording)
+  // Global keyboard shortcuts: Option+Shift+K (or Option+Shift+S) toggles Klipi; Escape minimizes (NEVER kills active recording)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.altKey && e.shiftKey && e.key.toLowerCase() === "s") {
+      const k = e.key.toLowerCase();
+      if (e.altKey && e.shiftKey && (k === "k" || k === "s")) {
         e.preventDefault();
         if (open) minimizePanel();
         else openPanel();
@@ -735,7 +698,7 @@ export default function StaplerFull({
     setError(null);
     try {
       const bodyText = note.trim() || HINT[mode] || `Attached ${file?.name ?? "capture"}`;
-      const title = bodyText.split("\n")[0].slice(0, 60) || (file?.name ?? "Stapler capture");
+      const title = bodyText.split("\n")[0].slice(0, 60) || (file?.name ?? "Klipi capture");
       const ids = file ? await uploadAll([file], ws) : [];
       let sid = !startNewTopic ? readActiveChatId(ws, agentId) : null;
       const ensureSession = async (reuseLatest: boolean) => {
@@ -828,7 +791,7 @@ export default function StaplerFull({
         <div
           className={`stapler-rec-dock${isPaused ? " is-paused" : ""}`}
           role="region"
-          aria-label="Kontrol rekaman Stapler aktif"
+          aria-label="Kontrol rekaman Klipi aktif"
         >
           <button
             type="button"
@@ -887,8 +850,8 @@ export default function StaplerFull({
             type="button"
             className="stapler-nudge-dismiss"
             onClick={muteNudges}
-            aria-label="Dismiss Stapler tips for this session"
-            title="Dismiss tips for this session"
+            aria-label="Sembunyikan tips Klipi untuk sesi ini"
+            title="Sembunyikan tips untuk sesi ini"
           >
             ×
           </button>
@@ -910,11 +873,11 @@ export default function StaplerFull({
         aria-label={
           open
             ? isRecordingActive
-              ? "Minimize Stapler (rekaman tetap jalan)"
-              : "Minimize Stapler"
+              ? "Minimize Klipi (rekaman tetap jalan)"
+              : "Minimize Klipi"
             : isRecordingActive
-              ? "Buka Stapler (sedang merekam)"
-              : "Open Stapler quick capture"
+              ? "Buka Klipi (sedang merekam)"
+              : "Buka Klipi quick capture"
         }
         aria-expanded={open}
         onClick={() => {
@@ -926,7 +889,7 @@ export default function StaplerFull({
         onDragLeave={() => setFabDragOver(false)}
         onDrop={handleFabDrop}
       >
-        <StaplerFace mood={mood} size="md" fx={mascotFx} />
+        <KlipiMascot mood={mood} size="md" fx={mascotFx} />
         <span className="stapler-fab-text">
           {dockCopy.kind === "recording" || dockCopy.kind === "paused" ? (
             <>
@@ -957,7 +920,7 @@ export default function StaplerFull({
         data-closing={panelPhase === "minimizing" ? "" : undefined}
         className={`stapler-panel${dragOver ? " is-dragover" : ""}${isRecordingActive ? " is-live-rec" : ""}`}
         role="dialog"
-        aria-label="Stapler quick capture"
+        aria-label="Klipi quick capture"
         onPaste={handlePaste}
         onDragEnter={handlePanelDragEnter}
         onDragOver={handlePanelDragOver}
@@ -965,15 +928,15 @@ export default function StaplerFull({
         onDrop={handlePanelDrop}
       >
         <header className="stapler-head">
-          <StaplerFace mood={mood} size="lg" />
+          <KlipiMascot mood={mood} size="lg" />
           <div className="stapler-head-txt">
-            <b>Stapler</b>
+            <b>Klipi</b>
             <small>
               {isRecording
                 ? `${recordingMode === "meeting" ? "Meeting" : "Voice note"} sedang merekam — aman di-minimize`
                 : isPaused
                   ? "Rekaman dijeda — lanjutkan atau klik Stop & simpan"
-                  : "Capture, review, send straight to your team"}
+                  : "Jepit catatan, rekaman & screenshot lalu kirim ke tim"}
             </small>
           </div>
           <div className="stapler-head-actions">
@@ -981,7 +944,7 @@ export default function StaplerFull({
               type="button"
               className="stapler-min"
               onClick={() => minimizePanel({ showBgNotice: isRecordingActive })}
-              aria-label={isRecordingActive ? "Minimize Stapler (rekaman tetap berjalan)" : "Minimize Stapler"}
+              aria-label={isRecordingActive ? "Minimize Klipi (rekaman tetap berjalan)" : "Minimize Klipi"}
               title={isRecordingActive ? "Minimize (rekaman tetap jalan di background)" : "Minimize panel"}
             >
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
@@ -992,8 +955,8 @@ export default function StaplerFull({
               type="button"
               className="stapler-close"
               onClick={closeOrMinimize}
-              aria-label={isRecordingActive ? "Minimize Stapler agar rekaman tetap berjalan" : "Close Stapler"}
-              title={isRecordingActive ? "Minimize agar rekaman tidak terputus" : "Close Stapler"}
+              aria-label={isRecordingActive ? "Minimize Klipi agar rekaman tetap berjalan" : "Tutup Klipi"}
+              title={isRecordingActive ? "Minimize agar rekaman tidak terputus" : "Tutup Klipi"}
             >
               ×
             </button>
@@ -1213,16 +1176,16 @@ export default function StaplerFull({
               onClick={() => minimizePanel({ showBgNotice: true })}
               title="Minimize sambil tetap merekam di background"
             >
-              Minimize · ⌥⇧S
+              Minimize · ⌥⇧K
             </button>
           ) : (
             <button
               type="button"
               className="stapler-hide-btn"
               onClick={() => { setPanelPhase("closed"); setHidden(true); }}
-              title="Restore anytime with ⌥⇧S"
+              title="Munculkan kembali kapan saja dengan ⌥⇧K"
             >
-              Hide · ⌥⇧S
+              Hide · ⌥⇧K
             </button>
           )}
           <button

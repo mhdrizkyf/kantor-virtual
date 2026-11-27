@@ -1,9 +1,10 @@
 "use client";
-// Lightweight Stapler FAB shell: dynamically loads the full capture/audio/upload panel
-// only when the user clicks Stapler, presses Option+Shift+S, or drops a file onto the FAB.
+// Lightweight Klipi FAB shell: dynamically loads the full capture/audio/upload panel
+// only when the user clicks Klipi, presses Option+Shift+K (or Option+Shift+S), or drops a file onto the FAB.
 import { useEffect, useState, type DragEvent } from "react";
 import dynamic from "next/dynamic";
 import type { StaplerMode } from "./stapler-full";
+import KlipiMascot from "./klipi-mascot";
 
 const StaplerFull = dynamic(() => import("./stapler-full"), { ssr: false });
 
@@ -16,7 +17,8 @@ export default function Stapler({ ws }: { ws: string }) {
   useEffect(() => {
     if (mounted) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.altKey && e.shiftKey && e.key.toLowerCase() === "s") {
+      const k = e.key.toLowerCase();
+      if (e.altKey && e.shiftKey && (k === "k" || k === "s")) {
         e.preventDefault();
         setMounted(true);
       }
@@ -52,28 +54,24 @@ export default function Stapler({ ws }: { ws: string }) {
       <button
         type="button"
         className={`stapler-fab${fabDragOver ? " is-dragover" : ""}`}
-        aria-label="Open Stapler quick capture"
+        aria-label="Buka Klipi quick capture"
         aria-expanded={false}
         onClick={() => setMounted(true)}
         onDragOver={handleFabDragOver}
         onDragLeave={() => setFabDragOver(false)}
         onDrop={handleFabDrop}
       >
-        <span className="stapler-face is-idle sz-md" aria-hidden="true">
-          <span className="stapler-eyes"><i /><i /></span>
-          <span className="stapler-cheeks"><i /><i /></span>
-          <span className="stapler-smile" />
-        </span>
+        <KlipiMascot mood="idle" size="md" />
         <span className="stapler-fab-text">
           {fabDragOver ? (
             <>
               <b>Drop file</b>
-              <small>Attach to Stapler</small>
+              <small>Jepit ke Klipi</small>
             </>
           ) : (
             <>
-              <b>Stapler</b>
-              <small>Capture · ⌥⇧S</small>
+              <b>Klipi</b>
+              <small>Capture · ⌥⇧K</small>
             </>
           )}
         </span>

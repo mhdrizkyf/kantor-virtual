@@ -77,7 +77,7 @@ export function formatStaplerDockCopy(opts: {
     return {
       kind: "dragover",
       title: "Drop file",
-      subtitle: "Lampirkan ke Stapler",
+      subtitle: "Jepit ke Klipi",
     };
   }
   if (opts.hasDraft && !opts.open) {
@@ -89,8 +89,8 @@ export function formatStaplerDockCopy(opts: {
   }
   return {
     kind: "default",
-    title: "Stapler",
-    subtitle: "Capture · ⌥⇧S",
+    title: "Klipi",
+    subtitle: "Capture · ⌥⇧K",
   };
 }
 

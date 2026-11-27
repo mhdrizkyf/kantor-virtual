@@ -80,6 +80,18 @@ test("formatStaplerDockCopy produces live status copy for meeting, voice, paused
   });
   assert.equal(savedDraft.kind, "draft");
   assert.equal(savedDraft.title, "Draft siap");
+
+  const idleCopy = formatStaplerDockCopy({
+    recordingState: "idle",
+    mode: "note",
+    seconds: 0,
+    fabDragOver: false,
+    hasDraft: false,
+    open: false,
+  });
+  assert.equal(idleCopy.kind, "default");
+  assert.equal(idleCopy.title, "Klipi");
+  assert.match(idleCopy.subtitle, /⌥⇧K/);
 });
 
 test("computeMicLevel and formatStaplerClock handle silence, speech, and clamping safely", () => {

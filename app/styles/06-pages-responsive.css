@@ -1055,11 +1055,11 @@ main.pagewide > * {
     animation: stapler-toast-pop 2.75s ease-out both;
   }
 
-  .stapler-eyes i {
+  .klipi-eye {
     animation: stapler-blink 5.2s ease-in-out infinite;
   }
 
-  .stapler-face.is-idle .stapler-eyes {
+  .klipi-face.is-idle .klipi-eyes {
     animation: stapler-glance 9.6s ease-in-out infinite;
   }
 
