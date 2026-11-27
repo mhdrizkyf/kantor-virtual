@@ -21,9 +21,13 @@ const KV = process.env.KANTOR_FILES_FOLDER?.trim() || "Kantor Virtual";
 export function filesRoot(): string | null {
   if (process.env.KANTOR_ONEDRIVE) return process.env.KANTOR_ONEDRIVE;
   const cloud = join(homedir(), "Library", "CloudStorage");
-  if (!existsSync(cloud)) return null;
-  const od = readdirSync(cloud).filter(d => d.startsWith("OneDrive")).sort((a, b) => (b.includes("-") ? 1 : 0) - (a.includes("-") ? 1 : 0))[0];
-  return od ? join(cloud, od) : null;
+  try {
+    if (!existsSync(cloud)) return null;
+    const od = readdirSync(cloud).filter(d => d.startsWith("OneDrive")).sort((a, b) => (b.includes("-") ? 1 : 0) - (a.includes("-") ? 1 : 0))[0];
+    return od ? join(cloud, od) : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Folder name without emoji or characters OneDrive doesn't allow. */

@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import type { WorkspaceMetrics } from "@/lib/metrics";
+import type { IntegrationHealthItem } from "./api/integrations/route";
 import { Px, PxText } from "./pixel-icon";
 
 type ChainStepView = {
@@ -36,13 +37,16 @@ export default function WorkflowHubModal({
 }: {
   ws: string;
   workspaceName: string;
-  initialTab?: "chains" | "metrics";
+  initialTab?: "chains" | "metrics" | "integrations";
   onOpenTask: (id: string, ws: string) => void;
   onClose: () => void;
 }) {
-  const [tab, setTab] = useState<"chains" | "metrics">(initialTab);
+  const [tab, setTab] = useState<"chains" | "metrics" | "integrations">(initialTab);
   const [chains, setChains] = useState<ChainView[] | null>(null);
   const [metrics, setMetrics] = useState<WorkspaceMetrics | null>(null);
+  const [integrations, setIntegrations] = useState<IntegrationHealthItem[] | null>(null);
+  const [testingWebhook, setTestingWebhook] = useState(false);
+  const [webhookMsg, setWebhookMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -62,13 +66,42 @@ export default function WorkflowHubModal({
     setMetrics(j);
   }, [ws]);
 
+  const loadIntegrations = useCallback(async () => {
+    setErr(null);
+    const r = await fetch(`/api/integrations?ws=${encodeURIComponent(ws)}`);
+    const j = await r.json();
+    if (!r.ok || j.error) throw new Error(j.error || "Could not load integrations.");
+    setIntegrations(j.items ?? []);
+  }, [ws]);
+
   useEffect(() => {
     if (tab === "chains") {
       loadChains().catch(e => setErr(e instanceof Error ? e.message : String(e)));
-    } else {
+    } else if (tab === "metrics") {
       loadMetrics().catch(e => setErr(e instanceof Error ? e.message : String(e)));
+    } else {
+      loadIntegrations().catch(e => setErr(e instanceof Error ? e.message : String(e)));
     }
-  }, [tab, loadChains, loadMetrics]);
+  }, [tab, loadChains, loadMetrics, loadIntegrations]);
+
+  async function testWebhook() {
+    setTestingWebhook(true);
+    setWebhookMsg(null);
+    try {
+      const r = await fetch("/api/integrations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ws, action: "test-webhook" }),
+      });
+      const j = await r.json();
+      if (!r.ok || j.error) throw new Error(j.error || "Webhook test failed.");
+      setWebhookMsg({ ok: !!j.ok, text: j.message });
+    } catch (e) {
+      setWebhookMsg({ ok: false, text: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setTestingWebhook(false);
+    }
+  }
 
   async function mutateChain(id: string, action: "pause" | "resume" | "cancel" | "skip" | "delete" | "run", issueId?: string) {
     setBusyId(`${id}:${action}:${issueId ?? ""}`);
@@ -109,6 +142,9 @@ export default function WorkflowHubModal({
           </button>
           <button type="button" role="tab" className="tab" aria-selected={tab === "metrics"} aria-pressed={tab === "metrics"} onClick={() => setTab("metrics")}>
             <Px name="sparkle" /> Operational Insights
+          </button>
+          <button type="button" role="tab" className="tab" aria-selected={tab === "integrations"} aria-pressed={tab === "integrations"} onClick={() => setTab("integrations")}>
+            <Px name="gear" /> Integrations
           </button>
         </div>
 
@@ -260,6 +296,43 @@ export default function WorkflowHubModal({
                   </div>
                 </div>
               </>
+            )}
+          </div>
+        )}
+
+        {tab === "integrations" && (
+          <div className="wfhub-body">
+            <div className="wfhub-bar">
+              <span className="desc">Live health for outbound webhooks, Telegram, WhatsApp Assistant, Taiga &amp; Knowledge folders.</span>
+              <button type="button" className="btn sm" onClick={() => loadIntegrations().catch(e => setErr(e instanceof Error ? e.message : String(e)))}>
+                <Px name="refresh" /> Refresh
+              </button>
+            </div>
+            {webhookMsg && <div className={`note ${webhookMsg.ok ? "good" : "bad"}`}>{webhookMsg.text}</div>}
+            {!integrations ? (
+              <div className="loading"><span className="spinner" /> Checking integrations…</div>
+            ) : (
+              <div className="int-grid">
+                {integrations.map(item => (
+                  <article key={item.id} className={`int-card st-${item.status}`}>
+                    <header className="int-head">
+                      <b>{item.name}</b>
+                      <span className={`pill ${item.status === "connected" ? "p-done" : item.status === "warning" ? "p-paused" : "p-locked"}`}>
+                        {item.status === "connected" ? "Connected" : item.status === "warning" ? "Needs attention" : "Off"}
+                      </span>
+                    </header>
+                    <p className="int-sum">{item.summary}</p>
+                    <small className="desc">{item.detail}</small>
+                    {item.canTest && (
+                      <div className="int-foot">
+                        <button type="button" className="btn sm" disabled={testingWebhook} onClick={testWebhook}>
+                          {testingWebhook ? "Testing…" : <><Px name="bolt" /> Test webhook</>}
+                        </button>
+                      </div>
+                    )}
+                  </article>
+                ))}
+              </div>
             )}
           </div>
         )}
