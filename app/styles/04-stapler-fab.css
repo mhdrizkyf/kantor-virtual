@@ -66,11 +66,168 @@
 
 /* Stapler */
 .stapler-root {
+  --stapler-level: 0;
+  --stapler-spring-fallback: cubic-bezier(0.34, 1.48, 0.64, 1);
+  --stapler-spring: linear(
+    0, 0.08 4%, 0.34 11%, 0.72 20%, 1.02 31%, 1.08 38%,
+    1.04 47%, 0.985 59%, 1.006 74%, 0.998 88%, 1
+  );
   position: fixed;
   right: 18px;
   bottom: 18px;
   z-index: 55;
   font-family: var(--f-body);
+}
+
+/* Brief background-recording toast when minimized */
+.stapler-bg-toast {
+  position: absolute;
+  right: 0;
+  bottom: 112px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 11px;
+  border-radius: var(--r-pill);
+  background: var(--ink);
+  color: var(--panel);
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+  z-index: 4;
+}
+
+.office-shell .stapler-bg-toast {
+  bottom: 120px;
+}
+
+.stapler-bg-toast-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--danger);
+}
+
+/* Floating compact recording dock above Stapler when minimized during Meeting / Voice Note */
+.stapler-rec-dock {
+  position: absolute;
+  right: 0;
+  bottom: 62px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 10px;
+  border-radius: 14px;
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid color-mix(in srgb, var(--danger) 48%, var(--line-strong));
+  box-shadow: var(--shadow-lg), 0 0 0 3px color-mix(in srgb, var(--danger) 14%, transparent);
+  transform-origin: bottom right;
+  z-index: 3;
+}
+
+.office-shell .stapler-rec-dock {
+  bottom: 70px;
+}
+
+.stapler-rec-dock.is-paused {
+  border-color: color-mix(in srgb, var(--warn, #d97706) 52%, var(--line-strong));
+  box-shadow: var(--shadow-md), 0 0 0 3px color-mix(in srgb, var(--warn, #d97706) 14%, transparent);
+}
+
+.stapler-rec-dock-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 2px 2px;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.stapler-rec-dock-info:hover {
+  opacity: 0.88;
+}
+
+.stapler-rec-dock-label {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--danger);
+  letter-spacing: 0.01em;
+}
+
+.stapler-rec-dock.is-paused .stapler-rec-dock-label {
+  color: var(--warn, #b45309);
+}
+
+.stapler-rec-dock.is-paused .stapler-rec-dot {
+  background: var(--warn, #d97706);
+}
+
+.stapler-rec-dock-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding-left: 6px;
+  border-left: 1px solid var(--line);
+}
+
+.stapler-rec-dock-btn {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  border: 1px solid var(--line-strong);
+  background: var(--sunk);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background-color 130ms ease-out, border-color 130ms ease-out, transform 110ms ease-out;
+}
+
+.stapler-rec-dock-btn:hover {
+  background: var(--hover);
+  border-color: var(--accent);
+}
+
+.stapler-rec-dock-btn:active {
+  transform: scale(0.93);
+}
+
+.stapler-rec-dock-stop {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--danger);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: filter 130ms ease-out, transform 110ms ease-out;
+}
+
+.stapler-rec-dock-stop i {
+  display: block;
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: #ffffff;
+}
+
+.stapler-rec-dock-stop:hover {
+  filter: brightness(0.93);
+}
+
+.stapler-rec-dock-stop:active {
+  transform: scale(0.94);
 }
 
 .office-shell .stapler-root {
@@ -256,9 +413,29 @@
   box-shadow: var(--shadow-md), 0 0 0 3px var(--accent-ring);
 }
 
-.stapler-fab.is-recording {
+.stapler-fab.is-recording,
+.office-shell .stapler-fab.is-recording {
+  width: auto;
+  min-width: 174px;
   border-color: var(--danger);
-  box-shadow: var(--shadow-sm), 0 0 0 3px color-mix(in srgb, var(--danger) 18%, transparent);
+  background: color-mix(in srgb, var(--danger-soft) 45%, var(--panel));
+  box-shadow:
+    var(--shadow-md),
+    0 0 0 calc(2.5px + var(--stapler-level, 0) * 4px) color-mix(in srgb, var(--danger) 22%, transparent);
+}
+
+.stapler-fab.is-paused,
+.office-shell .stapler-fab.is-paused {
+  width: auto;
+  min-width: 174px;
+  border-color: var(--warn, #d97706);
+  background: color-mix(in srgb, #fef3c7 45%, var(--panel));
+  box-shadow: var(--shadow-sm), 0 0 0 3px color-mix(in srgb, var(--warn, #d97706) 18%, transparent);
+}
+
+.stapler-fab.has-draft {
+  border-color: color-mix(in srgb, var(--ok) 60%, var(--line-strong));
+  box-shadow: var(--shadow-sm), 0 0 0 3px color-mix(in srgb, var(--ok) 14%, transparent);
 }
 
 .stapler-fab.is-dragover {
@@ -299,11 +476,39 @@
   font-variant-numeric: tabular-nums;
 }
 
-.stapler-fab-rec i {
+.stapler-fab-rec.is-paused {
+  color: var(--warn, #b45309) !important;
+}
+
+.stapler-fab-rec > i {
   width: 7px;
   height: 7px;
   border-radius: 50%;
   background: var(--danger);
+  flex: none;
+}
+
+.stapler-fab-rec.is-paused > i {
+  background: var(--warn, #d97706);
+}
+
+.stapler-fab-eq {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 11px;
+  margin-left: 2px;
+}
+
+.stapler-fab-eq em {
+  display: block;
+  width: 2px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--danger);
+  transform-origin: center;
+  transform: scaleY(calc(0.32 + var(--stapler-level, 0.35) * 0.68));
+  transition: transform 80ms ease-out;
 }
 
 /* Expressive animated Stapler buddy mascot */
@@ -320,7 +525,8 @@
   width: 34px;
   height: 30px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 1px 2px rgba(72, 44, 6, 0.16);
-  transition: transform 180ms ease-out;
+  transform-origin: center bottom;
+  transition: transform 180ms ease-out, box-shadow 180ms ease-out;
 }
 
 .stapler-face.sz-lg {
@@ -330,7 +536,101 @@
 }
 
 .stapler-face.is-recording {
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 0 0 2px var(--danger);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    0 0 0 2px var(--danger),
+    0 0 calc(6px + var(--stapler-level, 0) * 10px) color-mix(in srgb, var(--danger) 35%, transparent);
+}
+
+.stapler-face.is-paused {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 0 0 2px var(--warn, #d97706);
+}
+
+.stapler-rec-ripple {
+  position: absolute;
+  inset: -4px;
+  border-radius: 15px;
+  border: 1.5px solid color-mix(in srgb, var(--danger) 55%, transparent);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Cute miniature headset worn by Stapler while actively listening/recording */
+.stapler-headset {
+  position: absolute;
+  inset: -4px -3px auto;
+  height: 18px;
+  pointer-events: none;
+}
+
+.stapler-headset-band {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  top: 0;
+  height: 9px;
+  border-top: 2px solid var(--danger);
+  border-left: 2px solid var(--danger);
+  border-right: 2px solid var(--danger);
+  border-radius: 12px 12px 0 0;
+}
+
+.stapler-headset-ear {
+  position: absolute;
+  top: 9px;
+  width: 4px;
+  height: 8px;
+  border-radius: 3px;
+  background: var(--danger);
+}
+
+.stapler-headset-ear.l { left: 0; }
+.stapler-headset-ear.r { right: 0; }
+
+.stapler-face.is-paused .stapler-headset-band {
+  border-color: var(--warn, #d97706);
+}
+
+.stapler-face.is-paused .stapler-headset-ear {
+  background: var(--warn, #d97706);
+}
+
+.stapler-voice-mouth {
+  position: absolute;
+  bottom: 4.5px;
+  width: 6.5px;
+  height: 5px;
+  border-radius: 99px;
+  background: var(--accent-ink);
+  transform: scaleY(calc(0.55 + var(--stapler-level, 0.25) * 0.75)) scaleX(calc(0.9 + var(--stapler-level, 0.25) * 0.2));
+  transition: transform 75ms ease-out;
+  pointer-events: none;
+}
+
+.stapler-draft-dot {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--ok);
+  border: 2px solid var(--panel);
+  pointer-events: none;
+}
+
+.stapler-face.is-paused .stapler-eyes i {
+  transform: scaleY(0.35);
+}
+
+.stapler-face.is-recording .stapler-cheeks,
+.stapler-face.is-draft .stapler-cheeks {
+  opacity: 0.95;
+}
+
+.stapler-face.is-draft .stapler-smile {
+  opacity: 0.85;
+  transform: scale(1);
 }
 
 .stapler-eyes {
@@ -405,7 +705,7 @@
   transform: scale(1.06) rotate(-3deg);
 }
 
-/* Stapler capture panel */
+/* Stapler capture panel (supports discrete entry/exit + playful Genie morph) */
 .stapler-panel {
   position: absolute;
   right: 0;
@@ -422,8 +722,29 @@
   display: flex;
   flex-direction: column;
   gap: 11px;
-  transform-origin: bottom right;
-  transition: border-color 140ms ease-out, box-shadow 140ms ease-out;
+  opacity: 1;
+  transform-origin: calc(100% - 46px) calc(100% + 26px);
+  transition:
+    display 220ms,
+    opacity 180ms ease-out,
+    border-color 140ms ease-out,
+    box-shadow 140ms ease-out;
+  transition-behavior: allow-discrete;
+}
+
+@starting-style {
+  .stapler-panel:not([hidden]) {
+    opacity: 0;
+  }
+}
+
+.stapler-panel[hidden] {
+  display: none;
+  opacity: 0;
+}
+
+.stapler-panel.is-live-rec {
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--line-strong));
 }
 
 .stapler-panel.is-dragover {
@@ -456,9 +777,19 @@
   color: var(--subtle);
 }
 
+.stapler-head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+}
+
+.stapler-min,
 .stapler-close {
   width: 30px;
   height: 30px;
+  display: grid;
+  place-items: center;
   border: 0;
   border-radius: 8px;
   background: var(--sunk);
@@ -469,13 +800,15 @@
   transition: background-color 130ms ease-out, color 130ms ease-out, transform 120ms ease-out;
 }
 
+.stapler-min:hover,
 .stapler-close:hover {
   background: var(--hover);
   color: var(--ink);
 }
 
+.stapler-min:active,
 .stapler-close:active {
-  transform: scale(0.94);
+  transform: scale(0.92);
 }
 
 .stapler-actions {
@@ -878,11 +1211,12 @@
   cursor: not-allowed;
 }
 
-/* Live audio recording bar with animated equalizer */
+/* Live audio recording bar with voice-reactive equalizer & Pause/Stop/Discard controls */
 .stapler-record {
   display: flex;
   align-items: center;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 7px;
   padding: 8px 10px;
   border-radius: 10px;
   background: var(--danger-soft);
@@ -890,6 +1224,16 @@
   color: var(--danger-ink);
   font-weight: 700;
   font-size: 12px;
+}
+
+.stapler-record.is-paused {
+  background: color-mix(in srgb, #fef3c7 60%, var(--sunk));
+  border-color: color-mix(in srgb, var(--warn, #d97706) 36%, transparent);
+  color: var(--ink);
+}
+
+.stapler-record.is-paused .stapler-rec-dot {
+  background: var(--warn, #d97706);
 }
 
 .stapler-rec-dot {
@@ -917,12 +1261,41 @@
   transform: scaleY(0.45);
 }
 
-.stapler-rec-time {
-  font-variant-numeric: tabular-nums;
+.stapler-wave.is-reactive i {
+  transform: scaleY(calc(0.28 + var(--stapler-level, 0.35) * 0.72));
+  transition: transform 80ms ease-out;
 }
 
-.stapler-record button {
+.stapler-wave.is-paused i {
+  background: var(--warn, #d97706);
+  transform: scaleY(0.28) !important;
+  animation: none !important;
+}
+
+.stapler-rec-time {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.stapler-record-controls {
   margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.stapler-rec-sec-btn {
+  border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+  background: var(--panel);
+  color: var(--ink);
+  border-radius: 7px;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.stapler-rec-stop-btn {
   border: 0;
   background: var(--ink);
   color: var(--panel);
@@ -931,6 +1304,25 @@
   font-size: 11.5px;
   font-weight: 700;
   cursor: pointer;
+}
+
+.stapler-rec-discard-btn {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 6px;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.stapler-rec-discard-btn:hover {
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  color: var(--danger);
 }
 
 .stapler-error,
@@ -1003,7 +1395,96 @@
 }
 
 @keyframes stapler-wave-bar {
-  0%, 100% { transform: scaleY(0.32); }
-  50% { transform: scaleY(1); }
+  0%, 100% { transform: scaleY(calc(0.26 + var(--stapler-level, 0.18) * 0.35)); }
+  50% { transform: scaleY(calc(0.62 + var(--stapler-level, 0.38) * 0.38)); }
 }
+
+/* Playful macOS-inspired Genie minimize & spring-unfurl maximize (spatial only; opacity runs separately to prevent spring flicker) */
+@keyframes stapler-genie-in {
+  0% {
+    transform: translate3d(58px, 76px, 0) scale(0.14, 0.08) skewX(-12deg);
+    clip-path: polygon(54% 0%, 96% 0%, 92% 100%, 74% 100%);
+  }
+  34% {
+    transform: translate3d(20px, 24px, 0) scale(0.68, 0.78) skewX(-6deg);
+    clip-path: polygon(10% 0%, 100% 0%, 95% 100%, 50% 100%);
+  }
+  72% {
+    transform: translate3d(-2px, -5px, 0) scale(1.025, 1.018) skewX(1.2deg);
+    clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1, 1) skewX(0deg);
+    clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%);
+  }
+}
+
+@keyframes stapler-genie-fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes stapler-genie-out {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1, 1) skewX(0deg);
+    clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%);
+  }
+  26% {
+    transform: translate3d(6px, 8px, 0) scale(0.94, 0.96) skewX(-3deg);
+    clip-path: polygon(0% 0%, 100% 0%, 96% 100%, 24% 100%);
+  }
+  64% {
+    transform: translate3d(38px, 50px, 0) scale(0.46, 0.56) skewX(-9deg);
+    clip-path: polygon(18% 0%, 100% 0%, 95% 100%, 62% 100%);
+  }
+  100% {
+    transform: translate3d(62px, 82px, 0) scale(0.14, 0.08) skewX(-12deg);
+    clip-path: polygon(56% 0%, 96% 0%, 92% 100%, 76% 100%);
+  }
+}
+
+@keyframes stapler-genie-fade-out {
+  0%, 55% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Cute Stapler mascot squash-and-stretch reactions on minimize (gulp) & maximize (pop) */
+@keyframes stapler-gulp {
+  0% { transform: scale(1, 1) translateY(0); }
+  28% { transform: scale(1.24, 0.76) translateY(3px) rotate(4deg); }
+  58% { transform: scale(0.92, 1.12) translateY(-3px) rotate(-3deg); }
+  80% { transform: scale(1.05, 0.96) translateY(0.5px); }
+  100% { transform: scale(1, 1) translateY(0) rotate(0deg); }
+}
+
+@keyframes stapler-pop-launch {
+  0% { transform: scale(1, 1) translateY(0); }
+  22% { transform: scale(1.16, 0.84) translateY(2px); }
+  52% { transform: scale(0.92, 1.16) translateY(-5px) rotate(-5deg); }
+  78% { transform: scale(1.04, 0.97) translateY(0); }
+  100% { transform: scale(1, 1) translateY(0) rotate(0deg); }
+}
+
+@keyframes stapler-head-groove {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50% { transform: translateY(-2px) rotate(2.5deg); }
+}
+
+@keyframes stapler-rec-ripple {
+  0% { opacity: 0.65; transform: scale(0.96); }
+  70% { opacity: 0; transform: scale(1.32); }
+  100% { opacity: 0; transform: scale(1.36); }
+}
+
+@keyframes stapler-dock-rise {
+  0% { opacity: 0; transform: translateY(8px) scale(0.92); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes stapler-toast-pop {
+  0% { opacity: 0; transform: translateY(6px) scale(0.94); }
+  14%, 84% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-4px) scale(0.97); }
+}
+
 
