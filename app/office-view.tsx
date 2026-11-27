@@ -382,8 +382,6 @@ export default function OfficeView({ office, buildings, attention, people, seen,
   const [rerunning, setRerunning] = useState<string | null>(null);
   const [newProject, setNewProject] = useState(false);
   const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
-  const [roomId, setRoomId] = useState("all");
-  const [statusFilter, setStatusFilter] = useState<"all" | "working" | "review" | "failed">("all");
   const [composerClearTick, setComposerClearTick] = useState(0);
   const [chatPrompt, setChatPrompt] = useState("");
   const [attentionOpen, setAttentionOpen] = useState(false);
@@ -521,7 +519,7 @@ export default function OfficeView({ office, buildings, attention, people, seen,
   const allDesks = useMemo(() => [...office.rooms.flatMap(r => r.desks), ...office.idleDesks], [office.rooms, office.idleDesks]);
   const uniqueDesks = useMemo(() => [...new Map(allDesks.map(d => [d.agentId, d])).values()].map(d => (deskPatches[d.agentId] ? { ...d, ...deskPatches[d.agentId] } : d)), [allDesks, deskPatches]);
   useEffect(() => { setDeskPatches({}); setMemberFacePatches({}); }, [office]);
-  const resetRoom = useCallback(() => setRoomId("all"), []);
+  const resetRoom = useCallback(() => {}, []);
   const {
     walks,
     ownerName,
@@ -582,26 +580,9 @@ export default function OfficeView({ office, buildings, attention, people, seen,
   const runs: RunView[] = openDesk ? office.agentsDetail[openDesk.agentId]?.runs ?? [] : [];
   const allTasks: TaskView[] = openDesk ? office.agentsDetail[openDesk.agentId]?.tasks ?? [] : [];
   const closeAll = () => { setOpenTask(null); setOpenDeskId(null); setOpenHuman(null); setChatTarget(null); };
-  const visibleRooms = useMemo(() => {
-    const rooms = roomId === "all" ? office.rooms : office.rooms.filter(r => r.id === roomId);
-    return rooms.map(r => ({
-      ...r,
-      desks: r.desks.map(d => (deskPatches[d.agentId] ? { ...d, ...deskPatches[d.agentId] } : d)),
-    }));
-  }, [office.rooms, roomId, deskPatches]);
   const meetingAgent = uniqueDesks.find(d => /meeting|secretary/i.test(`${d.name} ${d.description}`)) ?? uniqueDesks.find(d => isManager(d.name)) ?? uniqueDesks[0];
   const mika = allDesks.find(d => isManager(d.name));
-  const floorDesks = useMemo(() => {
-    const base = roomId.startsWith("squad:") ? visibleRooms.flatMap(r => r.desks) : uniqueDesks;
-    if (statusFilter === "all") return base;
-    const filtered = base.filter(d => d.state === statusFilter);
-    return filtered.length ? filtered : base;
-  }, [roomId, statusFilter, visibleRooms, uniqueDesks]);
-  const statusCounts = useMemo(() => ({
-    working: uniqueDesks.filter(d => d.state === "working").length,
-    review: uniqueDesks.filter(d => d.state === "review").length,
-    failed: uniqueDesks.filter(d => d.state === "failed").length,
-  }), [uniqueDesks]);
+  const floorDesks = uniqueDesks;
   const ownerIdStable = useMemo(() => patchedMembers.find(m => m.id === meId)?.id ?? patchedMembers[0]?.id ?? null, [patchedMembers, meId]);
   const handleFloorDesk = useCallback((d: Desk) => openAgentDrawer(d.agentId, "tasks"), [openAgentDrawer]);
   const handleFloorQuickChat = useCallback((d: Desk) => {
@@ -1108,7 +1089,7 @@ export default function OfficeView({ office, buildings, attention, people, seen,
               <button type="button" className="btn sm" onClick={() => { setControlsOpen(false); setHubTab("metrics"); }}><Px name="sparkle" /> Insights</button>
               <button type="button" className="btn sm" onClick={() => { setControlsOpen(false); setHubTab("integrations"); }}><Px name="gear" /> Integrations</button>
             </div>
-            <button className="office-preview-button" onClick={() => { setControlsOpen(false); setRoomId("all"); setPreviewStep(0); }}>▶ Preview workflow animation <small>Visual only; no Multica task changes</small></button>
+            <button className="office-preview-button" onClick={() => { setControlsOpen(false); setPreviewStep(0); }}>▶ Preview workflow animation <small>Visual only; no Multica task changes</small></button>
           </div>}
         </div>
       </header>
@@ -1116,65 +1097,6 @@ export default function OfficeView({ office, buildings, attention, people, seen,
       <main className="wrap office-home">
         <section className="office" aria-label="Office floor plan" ref={officeRef}>
           {office.alerts.length > 0 && <div className="office-alerts">{office.alerts.map(x => <div key={x} className="alert" role="alert"><Px name="alert" /> {x}</div>)}</div>}
-
-          {(office.rooms.length > 1 || statusCounts.working > 0 || statusCounts.review > 0 || statusCounts.failed > 0) && (
-            <div className="floor-filter-bar" role="group" aria-label="Filter floor by squad or status">
-              <button
-                type="button"
-                className="floor-filter-pill"
-                aria-pressed={roomId === "all" && statusFilter === "all"}
-                onClick={() => { setRoomId("all"); setStatusFilter("all"); }}
-              >
-                All <b>{uniqueDesks.length}</b>
-              </button>
-              {office.rooms.length > 1 && office.rooms.map(r => (
-                <button
-                  key={r.id}
-                  type="button"
-                  className="floor-filter-pill"
-                  aria-pressed={roomId === r.id}
-                  onClick={() => setRoomId(cur => (cur === r.id ? "all" : r.id))}
-                >
-                  {r.name} <b>{r.desks.length}</b>
-                </button>
-              ))}
-              {(statusCounts.working > 0 || statusCounts.review > 0 || statusCounts.failed > 0) && (
-                <>
-                  <span className="floor-filter-sep" aria-hidden="true" />
-                  {statusCounts.working > 0 && (
-                    <button
-                      type="button"
-                      className="floor-filter-pill"
-                      aria-pressed={statusFilter === "working"}
-                      onClick={() => setStatusFilter(cur => (cur === "working" ? "all" : "working"))}
-                    >
-                      Working <b>{statusCounts.working}</b>
-                    </button>
-                  )}
-                  {statusCounts.review > 0 && (
-                    <button
-                      type="button"
-                      className="floor-filter-pill"
-                      aria-pressed={statusFilter === "review"}
-                      onClick={() => setStatusFilter(cur => (cur === "review" ? "all" : "review"))}
-                    >
-                      Review <b>{statusCounts.review}</b>
-                    </button>
-                  )}
-                  {statusCounts.failed > 0 && (
-                    <button
-                      type="button"
-                      className="floor-filter-pill"
-                      aria-pressed={statusFilter === "failed"}
-                      onClick={() => setStatusFilter(cur => (cur === "failed" ? "all" : "failed"))}
-                    >
-                      Failed <b>{statusCounts.failed}</b>
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
-          )}
 
           <ReferenceOffice
             desks={floorDesks}
@@ -1207,9 +1129,25 @@ export default function OfficeView({ office, buildings, attention, people, seen,
 
           <div className="office-hud-layer">
             <LiveActivityFeed
+              workspaceId={office.workspaceId}
+              desks={uniqueDesks}
+              attention={a}
               events={activity}
               open={feedOpen}
+              liveConnected={liveConnected}
+              refreshing={refreshing}
+              updatedAt={office.updatedAt}
+              rerunningId={rerunning}
               onToggle={() => setFeedOpen(v => !v)}
+              onClose={() => setFeedOpen(false)}
+              onRefresh={refresh}
+              onApprove={handleQuickApprove}
+              onRetry={rerun}
+              onChatAgent={handleFloorQuickChat}
+              onOpenDesk={handleFloorDesk}
+              onOpenTask={openT}
+              onOpenStandup={() => { setFeedOpen(false); openStandup(); }}
+              onOpenDelegate={() => { setFeedOpen(false); setOrchDraft({ goal: "" }); }}
               onSelectEvent={ev => {
                 setFeedOpen(false);
                 if (ev.issueId) { setOpenTask(ev.issueId, ev.ws ?? office.workspaceId); return; }
