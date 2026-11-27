@@ -10,7 +10,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ w
   const { ws, p } = await searchParams;
   try {
     const all = await workspaces();
-    const snap = await loadWorkspaceCached(ws, 4000);
+    const snap = await loadWorkspaceCached(ws, 4000, { swrMs: 30_000, allowDiskWarm: true });
     const board = buildBoard(snap);
     const buildings = all.map(w => ({ id: w.id, slug: w.slug, name: w.name }));
     return (

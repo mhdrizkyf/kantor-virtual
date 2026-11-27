@@ -17,6 +17,7 @@ import { LiveActivityFeed, QuickApprovalBar } from "./office-hud";
 import { useOfficeSync } from "./use-office-sync";
 import { useOfficePreferences } from "./use-office-preferences";
 import { useOfficeWalks } from "./use-office-walks";
+import { useDesktopNotifications } from "./use-desktop-notifications";
 import {
   formatClockNow,
   type ActivityEvent,
@@ -382,6 +383,7 @@ export default function OfficeView({ office, buildings, attention, people, seen,
   const [newProject, setNewProject] = useState(false);
   const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
   const [roomId, setRoomId] = useState("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "working" | "review" | "failed">("all");
   const [composerClearTick, setComposerClearTick] = useState(0);
   const [chatPrompt, setChatPrompt] = useState("");
   const [attentionOpen, setAttentionOpen] = useState(false);
@@ -407,7 +409,7 @@ export default function OfficeView({ office, buildings, attention, people, seen,
   const [standupFocusId, setStandupFocusId] = useState<string | null>(null);
   const [coffeeTick, setCoffeeTick] = useState(0);
   const [feedOpen, setFeedOpen] = useState(false);
-  const [hubTab, setHubTab] = useState<"chains" | "metrics" | null>(null);
+  const [hubTab, setHubTab] = useState<"chains" | "metrics" | "integrations" | null>(null);
   const [activity, setActivity] = useState<ActivityEvent[]>([]);
   const [attnScope, setAttnScope] = useState<"current" | "all">("current");
   const [allAttn, setAllAttn] = useState<{ total: number; attention: Office["attention"] } | null>(null);
@@ -515,6 +517,7 @@ export default function OfficeView({ office, buildings, attention, people, seen,
 
   // Local real-time SSE stream (<50ms local push) with automatic visibility sleep & /api/office/sync fallback
   const { liveConnected } = useOfficeSync(office.workspaceId, refresh);
+  const desktopNotif = useDesktopNotifications(office);
   const allDesks = useMemo(() => [...office.rooms.flatMap(r => r.desks), ...office.idleDesks], [office.rooms, office.idleDesks]);
   const uniqueDesks = useMemo(() => [...new Map(allDesks.map(d => [d.agentId, d])).values()].map(d => (deskPatches[d.agentId] ? { ...d, ...deskPatches[d.agentId] } : d)), [allDesks, deskPatches]);
   useEffect(() => { setDeskPatches({}); setMemberFacePatches({}); }, [office]);
@@ -588,9 +591,25 @@ export default function OfficeView({ office, buildings, attention, people, seen,
   }, [office.rooms, roomId, deskPatches]);
   const meetingAgent = uniqueDesks.find(d => /meeting|secretary/i.test(`${d.name} ${d.description}`)) ?? uniqueDesks.find(d => isManager(d.name)) ?? uniqueDesks[0];
   const mika = allDesks.find(d => isManager(d.name));
-  const floorDesks = useMemo(() => (roomId.startsWith("squad:") ? visibleRooms.flatMap(r => r.desks) : uniqueDesks), [roomId, visibleRooms, uniqueDesks]);
+  const floorDesks = useMemo(() => {
+    const base = roomId.startsWith("squad:") ? visibleRooms.flatMap(r => r.desks) : uniqueDesks;
+    if (statusFilter === "all") return base;
+    const filtered = base.filter(d => d.state === statusFilter);
+    return filtered.length ? filtered : base;
+  }, [roomId, statusFilter, visibleRooms, uniqueDesks]);
+  const statusCounts = useMemo(() => ({
+    working: uniqueDesks.filter(d => d.state === "working").length,
+    review: uniqueDesks.filter(d => d.state === "review").length,
+    failed: uniqueDesks.filter(d => d.state === "failed").length,
+  }), [uniqueDesks]);
   const ownerIdStable = useMemo(() => patchedMembers.find(m => m.id === meId)?.id ?? patchedMembers[0]?.id ?? null, [patchedMembers, meId]);
   const handleFloorDesk = useCallback((d: Desk) => openAgentDrawer(d.agentId, "tasks"), [openAgentDrawer]);
+  const handleFloorQuickChat = useCallback((d: Desk) => {
+    setOpenDeskId(null);
+    setOpenHuman(null);
+    setChatPrompt("");
+    setChatTarget({ desk: d });
+  }, []);
   const handleFloorHuman = useCallback((name: string) => { setOpenHuman(name); setHumanAvatarOpen(false); setHumanFaceErr(null); setOpenDeskId(null); }, []);
   const handleFloorOpenTask = useCallback((id: string, ws: string) => setOpenTaskRaw({ id, ws }), []);
   const runtimeSummary = useMemo(() => {
@@ -609,11 +628,21 @@ export default function OfficeView({ office, buildings, attention, people, seen,
       const target = detail?.agentId ? uniqueDesks.find(d => d.agentId === detail.agentId) : null;
       if (target) { setChatPrompt(""); setChatTarget({ desk: target, sessionId: detail?.sessionId ?? null }); }
     };
+    const onAction = (event: Event) => {
+      const type = (event as CustomEvent<{ type?: string }>).detail?.type;
+      if (type === "standup") { setControlsOpen(false); setAttentionOpen(false); setStandupOpen(true); }
+      else if (type === "workflows") { setControlsOpen(false); setAttentionOpen(false); setHubTab("chains"); }
+      else if (type === "integrations") { setControlsOpen(false); setAttentionOpen(false); setHubTab("integrations"); }
+      else if (type === "delegate") { setControlsOpen(false); setAttentionOpen(false); setOrchDraft({ goal: "" }); }
+      else if (type === "new-project") { setControlsOpen(false); setAttentionOpen(false); setNewProject(true); }
+    };
     addEventListener("kantor:desk", f);
     addEventListener("kantor:chat", openChat);
+    addEventListener("kantor:action", onAction);
     return () => {
       removeEventListener("kantor:desk", f);
       removeEventListener("kantor:chat", openChat);
+      removeEventListener("kantor:action", onAction);
     };
   }, [uniqueDesks, openAgentDrawer]);
 
@@ -932,7 +961,8 @@ export default function OfficeView({ office, buildings, attention, people, seen,
               disabled={refreshing}
               title={`Last synced at ${office.updatedAt}${liveConnected ? " · Live SSE stream connected" : " · Delta sync active"}. Click to sync with Multica now.`}
             >
-              <Px name="refresh" /> {refreshing ? "Syncing…" : liveConnected ? "Live" : "Sync"}
+              {liveConnected && !refreshing ? <i className="live-sse-dot" aria-hidden="true" /> : <Px name="refresh" />}
+              {refreshing ? "Syncing…" : liveConnected ? "Live" : "Sync"}
             </button>
             <OfficeAmbience open={office.switchOpen} timeZone={office.timeZone} calendar={office.workCalendar} activeWork={activeWork} />
             <button type="button" className="office-top-button" aria-label="Team Standup" aria-expanded={standupOpen} onClick={() => openStandup()}><Px name="team" /><span className="btn-label">Standup</span></button>
@@ -1054,10 +1084,29 @@ export default function OfficeView({ office, buildings, attention, people, seen,
                 ))
               )}
             </div>
+            {desktopNotif.supported && (
+              <div className="office-controls-theme">
+                <div className="world-light-head">
+                  <span className="hlabel">Desktop alerts</span>
+                  <small className="clock">{desktopNotif.enabled ? "On (background)" : desktopNotif.permission === "denied" ? "Blocked" : "Off"}</small>
+                </div>
+                <button
+                  type="button"
+                  className={`btn sm${desktopNotif.enabled ? " primary" : ""}`}
+                  onClick={async () => {
+                    const res = await desktopNotif.toggle();
+                    setToast(res.message);
+                  }}
+                >
+                  <Px name="bell" /> {desktopNotif.enabled ? "Desktop alerts ON" : "Enable desktop alerts"}
+                </button>
+              </div>
+            )}
             <div className="office-controls-foot"><span className="clock">{refreshing ? "Refreshing…" : `Updated ${office.updatedAt}`}</span></div>
             <div className="office-controls-hub-row">
-              <button type="button" className="btn sm" onClick={() => { setControlsOpen(false); setHubTab("chains"); }}><Px name="play" /> Task Chains</button>
+              <button type="button" className="btn sm" onClick={() => { setControlsOpen(false); setHubTab("chains"); }}><Px name="play" /> Chains</button>
               <button type="button" className="btn sm" onClick={() => { setControlsOpen(false); setHubTab("metrics"); }}><Px name="sparkle" /> Insights</button>
+              <button type="button" className="btn sm" onClick={() => { setControlsOpen(false); setHubTab("integrations"); }}><Px name="gear" /> Integrations</button>
             </div>
             <button className="office-preview-button" onClick={() => { setControlsOpen(false); setRoomId("all"); setPreviewStep(0); }}>▶ Preview workflow animation <small>Visual only; no Multica task changes</small></button>
           </div>}
@@ -1067,6 +1116,65 @@ export default function OfficeView({ office, buildings, attention, people, seen,
       <main className="wrap office-home">
         <section className="office" aria-label="Office floor plan" ref={officeRef}>
           {office.alerts.length > 0 && <div className="office-alerts">{office.alerts.map(x => <div key={x} className="alert" role="alert"><Px name="alert" /> {x}</div>)}</div>}
+
+          {(office.rooms.length > 1 || statusCounts.working > 0 || statusCounts.review > 0 || statusCounts.failed > 0) && (
+            <div className="floor-filter-bar" role="group" aria-label="Filter floor by squad or status">
+              <button
+                type="button"
+                className="floor-filter-pill"
+                aria-pressed={roomId === "all" && statusFilter === "all"}
+                onClick={() => { setRoomId("all"); setStatusFilter("all"); }}
+              >
+                All <b>{uniqueDesks.length}</b>
+              </button>
+              {office.rooms.length > 1 && office.rooms.map(r => (
+                <button
+                  key={r.id}
+                  type="button"
+                  className="floor-filter-pill"
+                  aria-pressed={roomId === r.id}
+                  onClick={() => setRoomId(cur => (cur === r.id ? "all" : r.id))}
+                >
+                  {r.name} <b>{r.desks.length}</b>
+                </button>
+              ))}
+              {(statusCounts.working > 0 || statusCounts.review > 0 || statusCounts.failed > 0) && (
+                <>
+                  <span className="floor-filter-sep" aria-hidden="true" />
+                  {statusCounts.working > 0 && (
+                    <button
+                      type="button"
+                      className="floor-filter-pill"
+                      aria-pressed={statusFilter === "working"}
+                      onClick={() => setStatusFilter(cur => (cur === "working" ? "all" : "working"))}
+                    >
+                      Working <b>{statusCounts.working}</b>
+                    </button>
+                  )}
+                  {statusCounts.review > 0 && (
+                    <button
+                      type="button"
+                      className="floor-filter-pill"
+                      aria-pressed={statusFilter === "review"}
+                      onClick={() => setStatusFilter(cur => (cur === "review" ? "all" : "review"))}
+                    >
+                      Review <b>{statusCounts.review}</b>
+                    </button>
+                  )}
+                  {statusCounts.failed > 0 && (
+                    <button
+                      type="button"
+                      className="floor-filter-pill"
+                      aria-pressed={statusFilter === "failed"}
+                      onClick={() => setStatusFilter(cur => (cur === "failed" ? "all" : "failed"))}
+                    >
+                      Failed <b>{statusCounts.failed}</b>
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          )}
 
           <ReferenceOffice
             desks={floorDesks}
@@ -1086,6 +1194,7 @@ export default function OfficeView({ office, buildings, attention, people, seen,
             harvestPhase={harvestPhase}
             paused={Boolean(openTask || chatWith || openDesk || openHuman || orchDraft || newProject || hubTab)}
             onDesk={handleFloorDesk}
+            onQuickChat={handleFloorQuickChat}
             onHuman={handleFloorHuman}
             onMeeting={openStandup}
             onPropClick={handlePropClick}

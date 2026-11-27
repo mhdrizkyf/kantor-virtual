@@ -5,6 +5,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { Px } from "./pixel-icon";
 import { TaigaCard } from "./taiga-card";
 import { GrowText } from "./auto-grow";
+import { useVisiblePoll } from "./visible-poll";
 import { findContact, normalizePhone, parseDraft, showTarget, isGroup, waLink, withNote, fmtSendAt, type Contact } from "@/lib/whatsapp";
 
 export type Book = { contacts: Contact[]; note: string; me: string };
@@ -38,9 +39,17 @@ export type Queued = { id: string; phone: string; name: string; text: string; at
 export const WaTask = createContext<{ id: string; ws: string; title: string } | null>(null);
 export type Bot = { status: "missing" | "off" | "starting" | "code" | "ready" | "error"; code?: string; phone?: string; name?: string; error?: string; queue?: Queued[] };
 let bot: Bot | null = null;
+let botLoading: Promise<Bot> | null = null;
 const botSubs = new Set<(b: Bot) => void>();
 export function setBot(b: Bot) { bot = b; botSubs.forEach(f => f(b)); }
-export const loadBot = () => fetch("/api/wa").then(r => r.json()).then((j: Bot) => { setBot(j); return j; });
+export const loadBot = () => {
+  if (botLoading) return botLoading;
+  botLoading = fetch("/api/wa")
+    .then(r => r.json())
+    .then((j: Bot) => { setBot(j); return j; })
+    .finally(() => { botLoading = null; });
+  return botLoading;
+};
 export function useBot() {
   const [b, setB] = useState<Bot | null>(bot);
   useEffect(() => { botSubs.add(setB); loadBot().catch(() => {}); return () => { botSubs.delete(setB); }; }, []);
@@ -110,11 +119,7 @@ function WaCard({ to, text, sendAt, whenDone }: { to: string; text: string; send
   const prevSent = who ? readSent(sentKey(who.phone, full)) : null;
   // Approved earlier to go out when this task is done: show where it stands.
   const pending = task && who ? assistant?.queue?.find(q => q.trigger?.issueId === task.id && q.phone === who.phone && q.text === full) : undefined;
-  useEffect(() => {
-    if (pending?.status !== "waiting") return;
-    const t = setInterval(() => { loadBot().catch(() => {}); }, 30_000);
-    return () => clearInterval(t);
-  }, [pending?.status]);
+  useVisiblePoll(() => loadBot().catch(() => {}), 30_000, pending?.status === "waiting");
   async function cancelPending() {
     if (!pending) return;
     const j = await (await fetch("/api/wa", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "cancel", id: pending.id }) })).json();
