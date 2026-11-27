@@ -1,74 +1,94 @@
-# Virtual Office
+# Virtual Office (Kantor Virtual)
 
-A playful, pixel-style office for your [Multica](https://multica.ai) workspace. You see your people and AI agents sitting at desks, project rooms, what needs your attention, and a task board, all in one place.
+A cozy, pixel-art virtual office and operational cockpit for your [Multica](https://multica.ai) workspace. Watch your human teammates and AI agents work across a living 2× Stardew-inspired office floor, triage approvals and questions, orchestrate multi-agent workflows, and manage chats, files, and integrations—all from one local-first web app.
+
+## Highlights
+
+- **Living Stardew-Style Pixel Office:** Seamless 2× pixel-art studio (`public/office-harvest.js`, `public/art/stardew-v1/`, and `public/art/retina-v2.7/`) featuring a Founder/CEO Executive Suite, symmetrical desk pods (23 workstations), East Executive Boardroom, Espresso Coffee Bar, Breakout Lounge with TV, Kitchen, Restroom, Garage, interactive office pets, live wall clock, natural owner roaming, and 2-way agent check-ins.
+- **24 Customizable Character Presets:** Pick from 24 illustrated pixel avatars with picker filters for **both AI agents and human teammates**—synced consistently across the office floor, Task Board, task pop-ups, mentions, and sidebar roster.
+- **Klipi Quick Capture (`⌥⇧K` / `⌥⇧S`):** Expressive floating paperclip-note mascot (`Klipi`) at the bottom-right dock for screenshots, microphone meeting/voice recordings (preserved in a compact live dock pill when minimized), quick notes, and drag-and-drop file capture into an agent chat.
+- **Actionable Live Office Feed & Quick Approval Bar:** Real-time activity hub tracking handoffs, approvals, revisions, delegations, standups, chains, watchdog retries, and schedule events—plus one-click task review and approval directly from the floor HUD.
+- **Command Palette (`⌘K` / `Ctrl+K`):** Instant keyboard navigation and quick search across tasks, agent chats, desks, actions, and workspaces.
+- **Multi-Agent Orchestration, Playbooks & Workflow Hub:** Delegate goals across the team in **chain**, **parallel**, or **staged** modes, reuse saved playbooks, run team standups, inspect workspace metrics, and monitor integrations (Telegram, WhatsApp, Taiga, OneDrive, and signed outbound webhooks).
+- **Live Sync, Codex Credit Meter & Studio Sound Mixer:** Local Server-Sent Events (`/api/office/stream`) + optimistic Kanban updates, live Codex credit usage meter with breakdown popover, light/dark theme toggle, desktop notifications, and a built-in Web Audio **Lo-Fi Beat / Working / Mix** sound mixer.
 
 ## Where data lives
 
-**Multica is the source of truth for workspace work.** Virtual Office also keeps optional integrations and preferences on this computer.
+**Multica is the source of truth for workspace work.** Virtual Office also keeps optional integrations, caches, and preferences locally on your computer.
 
-- Workspace members, agents, projects, issues, comments, runtimes and notifications come from Multica.
-- Core workspace actions are written straight back to Multica: creating a task, approving work, replying to an agent, inviting someone or creating a project. Open Multica next to it and you'll see the same changes there.
-- There is no separate account or database. Some optional features use local files listed below. Back up those files if you move Virtual Office to another computer.
+- Workspace members, agents, projects, issues, comments, runtimes, and notifications come from Multica.
+- Core workspace actions write straight back to Multica: creating tasks, approving work, replying to agents, inviting people, or creating projects. Open Multica next to it and you will see the same changes immediately.
+- There is no separate account or external database. Local preferences and integration state live under `data/` and are excluded from Git.
 
 Virtual Office also stores these conventions in Multica:
 
 | Feature | How it's stored in Multica |
 |---|---|
-| **Office open / closed** (pauses or resumes agent work) | workspace settings |
+| **Office open / closed & auto-schedule** (pauses or resumes agent work) | workspace settings (`kantor`) |
 | **Who's in the office** | a hidden issue called `🟢 Virtual Office · who's in` |
 | **Person-to-person chat** | one hidden issue per pair, titled `💬 Chat · A & B` |
-| **Agent summaries and questions** | a short report-format section added to agent instructions |
-| **Watchdog notifications and retries** | workspace settings (`kantor_watch`) |
-| **Parked tasks and office transitions** | issue metadata and workspace settings |
+| **Telegram reminders** | hidden issues prefixed with `⏰` (`kantor_remind_at` metadata) |
+| **Agent summaries, questions & draft cards** | standardized `## Kantor Virtual ...` blocks appended to agent instructions |
+| **Watchdog notifications, quota failover & retries** | workspace settings (`kantor_watch`) |
+| **Parked tasks and office transitions** | issue metadata (`kantor_parked`) and workspace settings |
 
 Leave those hidden issues in the backlog and don't delete them. Virtual Office filters them out of its own views.
 
-Local files are under `data/` and excluded from Git:
+Local files under `data/` (excluded from Git; back them up securely when moving computers):
 
 | Local path | Purpose |
 |---|---|
-| `contacts.json` | WhatsApp contacts and the assistant message note. |
-| `wa-session/`, `wa-queue.json` | WhatsApp login and approved messages waiting to be sent. Keep the session private. |
-| `taiga.json` | Taiga credentials, settings and logged activity records. Keep it private. |
-| `chains.json` | Task chain order and start/recovery progress. Back it up to keep unfinished chains. |
-| `files-sync.json` | OneDrive folder links and copied-file sync metadata. The actual files stay in OneDrive. |
-| `judul.json` | Optional personal issue titles; see `data/judul.example.json`. |
-| `characters.json` | Pixel character choices per workspace and agent. These visual choices stay on this computer; agent profiles and emoji remain in Multica. |
-| `squads.json` | Squad room assignments per workspace and agent. Room placement is local; projects and tasks remain in Multica. |
-| `shot-profile/`, `.locks/` | Browser screenshot profile and short-lived process locks. |
+| `characters.json` | Pixel character preset choices per workspace for AI agents and human teammates. |
+| `squads.json` | Squad room assignments per workspace and agent. |
+| `chains.json` | Multi-step task chain order, stages, and crash-safe start/recovery progress. |
+| `playbooks.json` | Reusable workflow playbook templates for the Orchestrator. |
+| `activity.json` | Persistent Office Feed event log (approvals, handoffs, chains, watchdog, schedule). |
+| `work-calendar.json` | Optional per-workspace custom holidays and extra work dates. |
+| `contacts.json` | WhatsApp contacts, saved groups, and the assistant disclaimer note. |
+| `wa-session/`, `wa-queue.json` | WhatsApp Web login session and approved immediate/scheduled/when-done send queue. Keep private. |
+| `taiga.json` | Taiga credentials (`0600` permissions), project/story metadata, and logged activity keys. Keep private. |
+| `files-sync.json` | OneDrive folder links and copied-file sync metadata (actual files stay in OneDrive). |
+| `judul.json` | Optional personal friendly issue titles; see `data/judul.example.json`. |
+| `cache/` | Local snapshot and digest caches (`snapshots.json`, `digests.json`) for faster loads. |
+| `shot-profile/`, `.locks/` | Headless browser screenshot profile and cross-process atomic locks. |
 
-`notes/` and `public/me/` are also local and excluded from Git. The Office, Task Board and task detail screens read current Multica data when opened or refreshed; switching workspace loads that workspace then. Copy private local files securely when moving computers, and do not commit them.
+`notes/` and `public/me/` are also local and excluded from Git.
 
-### Characters and Stapler
+### Characters & Klipi
 
-Choose an agent's pixel character when creating it or from **Team Members → Edit profile**. The choice appears in the Office and team list. It is stored in `data/characters.json` on this computer; the agent's Multica profile emoji is a separate option.
+- **Characters:** Choose from **24 pixel character presets** when creating an agent, from **Team Members → Edit profile**, or via the interactive avatar picker for both human teammates and AI agents. Choices are stored locally in `data/characters.json` and stay synced across the floor, Task Board, task pop-ups, mentions, and sidebar; an agent's Multica profile emoji remains a separate setting.
+- **Klipi:** The floating paperclip-note mascot at the bottom-right dock lets you capture a screen image, record microphone audio for a meeting or voice note, jot a quick note, or drag-and-drop a file straight onto the dock. Background recordings stay alive in a compact dock pill while you keep working across the app. Review the preview, choose an agent, add instructions, and press **Send** to deliver it into a Multica chat. Toggle Klipi anytime with **Option/Alt + Shift + K** (or **Option/Alt + Shift + S**). Captures stay local until you press Send.
 
-**Stapler** is the floating button at the bottom right of the web app. It captures a screen image, records microphone audio for a meeting or voice note, or collects a quick note/file. Review the preview, choose an agent, add instructions, then press **Send** to start a Multica chat with the attachment. Captures remain local until Send. The widget can be hidden and restored with **Option/Alt + Shift + S**. Browser permissions are requested for screen or microphone capture. A web page cannot float over other desktop apps or hide itself from another app's screen share; Stapler here works inside Virtual Office's browser tab.
+### Office Floor, Work Hours & Ambience
 
-The Office opens as a full-window scene. Use the menu button for navigation, **Attention** for review and to-dos, and **Controls** for office status, engines, and a visual workflow preview. The preview animates an assignment, work, handoff, and approval without changing any Multica task. Real task assignments and review handoffs animate when their state changes; idle characters also move while the tab is visible. Reduced-motion preferences pause these ambient animations.
+The Office opens as a full-window interactive 2× pixel-art scene with 23 workstation positions (1 Founder/CEO private office + up to 5 human teammate desks + remaining AI agent desks with pagination). Hover or focus any seat for an unclipped top-layer status card, click desks to open the interactive agent drawer, or click room props (boardroom, coffee bar, lounge, pets) for natural interactions.
 
-The Office uses a top-down campus composition: warm wood floors, grouped workstations, a tiled pantry and washroom, a private owner room, a lounge, a meeting area, and a garage. The shared floor plan has 23 desk positions. Human teammates reserve up to five desks beside the owner’s private desk; agents use the remaining positions and paginate as needed. Names appear on hover or keyboard focus. The digital wall clock uses the browser’s current local time.
+- **Working hours:** Monday–Friday **08:00–17:30** in `KANTOR_TIMEZONE` (default `Asia/Jakarta`).
+- **Lunch break:** **12:00–13:15** on work days—available agents naturally stroll to the lounge/coffee bar.
+- **Holidays & overtime:** Includes built-in Indonesian national holidays (2026–2027) and respects custom overrides in `data/work-calendar.json` (weekends and holidays remain off-duty unless an agent is actively working or the date is listed in `extraWorkDates`):
 
-From **12:00 to 13:00** in `KANTOR_TIMEZONE` (default `Asia/Jakarta`), available agents visit the lounge. Desk interactions, meeting preparation, and message-delivery animations use the same floor coordinates as the artwork. Paths avoid walls and furniture. The custom campus artwork lives in `public/office-campus.js`; `lib/office-floor-plan.json` defines desk positions, walls, furniture, and gathering points.
+```json
+{ "WORKSPACE_ID": { "holidays": ["2026-12-25"], "extraWorkDates": ["2026-12-26"] } }
+```
+
+- **Studio Sound Mixer:** Toggle locally synthesized **Lo-Fi Beat**, **Working** (soft typing & mouse clicks), or **Mix** with a real-time volume slider—zero external audio files, and `prefers-reduced-motion` pauses ambient canvas movement.
 
 ## What you need
 
 - **A Multica account** with at least one workspace, on either:
-  - **multica.ai** (the hosted service), or
-  - **a self-hosted Multica server**, e.g. `multica.playdev.online`.
-- **Node.js 20 or newer (LTS)** from [nodejs.org](https://nodejs.org). Works on macOS and Windows.
-- **One way to sign in**, either of these:
+  - **multica.ai** (hosted), or
+  - **a self-hosted Multica server** (e.g. `multica.playdev.online`).
+- **Node.js 20 or newer (LTS, recommended Node 22)** from [nodejs.org](https://nodejs.org).
+- **One way to sign in:**
   - **Multica Desktop** installed and signed in on the same computer (easiest), or
-  - **a personal access token** from Multica (Multica web app → Settings → Tokens; it starts with `mul_`).
-- **Optional:** Git, so the app can update itself.
+  - **a personal access token** from Multica (Multica web app → Settings → Tokens; starts with `mul_`).
+- **Optional:** Git, so the launcher can update itself.
 
-Virtual Office runs **on your own computer** (`http://127.0.0.1:3456`). It is not hosted anywhere, and your login never leaves your machine.
+Virtual Office runs **locally on your own computer** (`http://127.0.0.1:3456`). Your Multica token stays strictly on the server side and never leaves your machine.
 
 ## Quick start
 
 ### 1. Get the code
-
-With Git:
 
 ```bash
 git clone https://github.com/mhdrizkyf/kantor-virtual.git
@@ -91,7 +111,7 @@ Windows (Command Prompt):
 copy .env.example .env.local
 ```
 
-Open `.env.local` in any text editor and pick your server:
+Open `.env.local` and pick your Multica server:
 
 | Server | `MULTICA_API_URL` | `MULTICA_APP_URL` |
 |---|---|---|
@@ -101,27 +121,20 @@ Open `.env.local` in any text editor and pick your server:
 
 Then choose how to sign in:
 
-- **With Multica Desktop:** leave `MULTICA_TOKEN` empty. The app uses the Multica Desktop login on this computer whose server matches `MULTICA_API_URL`. Make sure Multica Desktop is signed in to that server.
-- **With a token:** paste your personal access token after `MULTICA_TOKEN=`. Treat it like a password: it has full access to your Multica account. Never commit `.env.local` or share it (Git already ignores it).
+- **With Multica Desktop:** leave `MULTICA_TOKEN` empty. The app reads the local Multica Desktop login matching `MULTICA_API_URL`.
+- **With a token:** paste your personal access token after `MULTICA_TOKEN=`. Treat it like a password and never commit `.env.local`.
 
 ### 3. Start it
 
-**The easy way:** double-click the launcher in the folder.
+**The easy way:** double-click the launcher in the folder:
 
-- **macOS:** `Buka Kantor.command`
-  - If you downloaded the ZIP, first run `chmod +x "Buka Kantor.command"` once.
-  - The first time, right-click → **Open** to get past the macOS security prompt.
-- **Windows:** `Buka Kantor.cmd`
-
-The launcher installs everything on first run (1–2 minutes), updates from GitHub if you used Git, then opens your browser. Keep its window open while you use the office, and close it to stop.
+- **macOS:** `Buka Kantor.command` (first time: right-click → **Open**; if downloaded as ZIP, run `chmod +x "Buka Kantor.command"` once).
+- **Windows:** `Buka Kantor.cmd`.
 
 **The developer way:**
 
 ```bash
 npm ci
-```
-
-```bash
 npm run dev
 ```
 
@@ -129,124 +142,87 @@ Then open http://127.0.0.1:3456.
 
 ### Moving to another computer
 
-Clone the default `main` branch from this repository. Install Node.js 22 LTS and Git, then:
-
-```bash
-git clone https://github.com/mhdrizkyf/kantor-virtual.git
-cd kantor-virtual
-npm ci
-```
-
-Copy `.env.example` to `.env.local` (`cp` on macOS/Linux, `copy` in Windows Command Prompt). Fill in the Multica server URL and sign in to Multica Desktop on the new computer, or set your personal access token. Set `MULTICA_WORKSPACE_ID` if you want a particular workspace to open first. Then run `npm run dev` and open `http://127.0.0.1:3456`.
-
-Tasks, agents, and conversations load from Multica. Local preferences and integration state do not travel through Git: transfer the required files from `data/` securely, especially `characters.json`, `squads.json`, `work-calendar.json`, and unfinished `chains.json`. Files containing tokens, contacts, or credentials must stay private. Sign in to WhatsApp again on the new computer if needed. OneDrive files require OneDrive access on that computer. Avoid running two copies of the automatic office guard against the same workspace at once.
-
-To update an existing clone, first commit or back up local code edits, then run `git pull --ff-only` and `npm ci`. Keep `.env.local` and private local data outside Git.
-
-### 4. Look around
-
-- **Switch workspace:** use the switcher at the top of the sidebar (or set `MULTICA_WORKSPACE_ID` in `.env.local`).
-- **New workspace or project:** use **＋ New workspace** in the switcher, or **＋ New project** on the Office or Task Board.
+Clone `main`, install Node.js 22 LTS and Git, run `npm ci`, copy `.env.example` to `.env.local`, and sign in to Multica Desktop (or set `MULTICA_TOKEN`). Transfer needed local files from `data/` securely (`characters.json`, `squads.json`, `playbooks.json`, `work-calendar.json`, unfinished `chains.json`). Keep credential/session files private and avoid running two copies of the automatic watchdog against the same workspace simultaneously.
 
 ## What's inside
 
-| Page | What it shows |
+| Surface | What it provides |
 |---|---|
-| **Office** | A 23-seat animated campus floor (owner office, human desks, and squad-assigned AI agent workstations), a quick message composer, controls, and **Needs attention**: late or at-risk tasks, to-dos for people, work to review, and failures. |
-| **Task Board** | A kanban per project: Backlog → Ready → In progress → Needs review → Done. |
-| **Team Members** | People and AI agents, their projects and workload. Invite someone by email, create an agent, or pick each agent's AI engine. |
-| **Knowledge & Files** | Per-agent OneDrive `Knowledge` and `Outputs` folders, linked OneDrive folders, and automatic output syncing. |
-| **Messages** | Chat between people in the workspace. |
-| **Notifications** | Your Multica inbox: mentions, reviews and updates. |
-| **Task pop-up** | The agent's output on the left. On the right: a short summary, the agent's questions as answer cards, and approve / request changes. Type `@` to mention someone. |
-| **Attachment viewer** | Preview files from tasks or chats in the browser. Open viewer, copy its link, open the original, or download it. Multica attachment links inside Markdown reports open through the authenticated local viewer. |
-| **Ask Mika** (or your own manager) | A floating chat with your office-manager agent. |
+| **Office (`/`)** | 23-seat animated Stardew-style pixel office, live **Office Feed**, **Quick Approval Bar**, **Needs Attention** drawer, Codex credit meter, Studio Sound Mixer, quick message composer, and **Controls** (open/close switch, auto-schedule, workflow preview). |
+| **Task Board (`/papan`)** | Per-project Kanban (`Backlog → Ready → In progress → Needs review → Done`) with optimistic drag-and-drop moves, assignee filters, and project creation. |
+| **Team Members (`/tim`)** | People and AI agents, workload meters, email invites, agent creation/profile editing, AI engine switching, and 24-preset avatar picker. |
+| **Knowledge & Files (`/files`)** | Per-agent OneDrive `Knowledge` & `Outputs` folders, linked external OneDrive folders, drag-and-drop uploads, and 15-minute automatic attachment syncing. |
+| **Task Pop-up** | Two-column review workspace: conversation + inline Office/PDF/image/CSV/Markdown previews + interactive **WhatsApp** and **Taiga** action cards on the left; parsed `## Summary`, interactive `## Questions` answer cards, `@mentions`, and approve/revise/stop/restart controls on the right. |
+| **Workflow & Integrations Hub** | Inspect and manage active **Task Chains**, **Workspace Metrics**, **Playbooks**, **Team Standups**, **Goal Orchestration** (`chain` / `parallel` / `staged`), and **Integration Health** (including webhook test pings). |
+| **Command Palette (`⌘K` / `Ctrl+K`)** | Quick jump across tasks, agent chats, desks, workspaces, and office actions. |
+| **Continuous Agent Chat & Ask Mika** | Persistent per-context agent chat with history, attachments, and one-click "Turn into task" / manager delegation. |
+| **Messages, Reminders & WhatsApp Contacts** | Human-to-human DMs, scheduled Telegram reminders, WhatsApp contact/group book, and optional `whatsapp-web.js` assistant bot. |
+| **Attachment Viewer (`/lampiran/[id]`)** | Authenticated full-page browser previewer for task/chat attachments (images, PDF, audio, video, CSV, Markdown, sandboxed HTML, and zero-dependency `.pptx`/`.docx`/`.xlsx` rendering). |
+| **Klipi (`⌥⇧K`)** | Floating quick-capture mascot for screenshots, background meeting/voice recording, notes, and files. |
 
 ## Optional settings (`.env.local`)
 
 | Setting | What it does |
 |---|---|
-| `NEXT_PUBLIC_KANTOR_MANAGER` | Name of the agent behind the floating "Ask …" chat. Default is `Mika`. Use the exact name of an agent in your workspace. |
-| `KANTOR_TIMEZONE` | Time zone for "today", due dates and late tasks. Default is `Asia/Jakarta`. |
-| `MULTICA_WORKSPACE_ID` | Workspace to open first. Default is the first one. |
-| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHATS`, `TELEGRAM_BOTS` | Telegram reminders. See `setup/SETUP-TELEGRAM.md`. |
-| `TAIGA_URL`, `TAIGA_PROJECT`, `TAIGA_STORY` | Optional Taiga server URL, project slug, and user story reference number for logging daily activities (all three are required before connecting). |
-| `KANTOR_FILES_FOLDER`, `KANTOR_ONEDRIVE` | Top folder name inside OneDrive (default `Kantor Virtual`) and optional explicit OneDrive root directory path. |
-| `KANTOR_CHROME` | Optional path to Chrome/Chromium executable for the assistant's WhatsApp Web session (`whatsapp-web.js`). |
-| `KANTOR_ALLOWED_HOSTS` | Optional comma-separated extra `Host` values allowed by the `/api/*` security guard (defaults to loopback hosts: `localhost`, `127.0.0.1`, `[::1]`). |
-| `KANTOR_NO_WATCHDOG` | Set to `1` to disable the in-process background watchdog and timers during local development. |
+| `NEXT_PUBLIC_KANTOR_MANAGER` | Name of the agent behind the floating "Ask …" chat. Default is `Mika`. |
+| `KANTOR_TIMEZONE` | Time zone for working hours, lunch break, due dates, and digests. Default is `Asia/Jakarta`. |
+| `MULTICA_WORKSPACE_ID` | Workspace ID to open by default. |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHATS`, `TELEGRAM_BOTS` | Telegram alerts, morning digests, and reminders. See `setup/SETUP-TELEGRAM.md`. |
+| `TAIGA_URL`, `TAIGA_PROJECT`, `TAIGA_STORY` | Optional Taiga server URL, project slug, and user story ref for daily activity logging (all three required before connecting). |
+| `KANTOR_FILES_FOLDER`, `KANTOR_ONEDRIVE` | Top folder name inside OneDrive (default `Kantor Virtual`) and optional explicit OneDrive root path. |
+| `KANTOR_CHROME` | Optional Chrome/Chromium executable path for the WhatsApp Web bot (`whatsapp-web.js`). |
+| `CODEX_HOME`, `CODEX_BIN` | Optional overrides for local Codex credit polling (`lib/codex-quota.ts`). |
+| `KANTOR_WEBHOOK_URL`, `KANTOR_WEBHOOK_SECRET` | Optional outbound workflow webhook endpoint and `X-Kantor-Secret` header for lifecycle events (`task.approved`, `task.revised`, `task.handoff`, `task.failed`, `office.toggled`). |
+| `KANTOR_AUTO_HEAL_STUCK`, `KANTOR_STUCK_MINUTES` | Set `KANTOR_AUTO_HEAL_STUCK=1` to let the watchdog automatically restart runs stuck longer than `KANTOR_STUCK_MINUTES`. |
+| `KANTOR_ALLOWED_HOSTS` | Comma-separated extra `Host` values allowed by the `/api/*` security guard (defaults to loopback: `localhost`, `127.0.0.1`, `[::1]`). |
+| `KANTOR_NO_WATCHDOG` | Set to `1` to disable in-process background timers during local development. |
 
-### Better agent summaries
+### Syncing agent instructions
 
-The task pop-up works best when agents end their replies with a `## Summary` and `## Questions` section. To add that instruction to every agent in your workspace:
+Task pop-ups, WhatsApp draft cards, Taiga activity cards, reminders, and web screenshots work best when agents include the Kantor Virtual instruction blocks. Preview or apply them to all agents in your workspace:
 
 ```bash
 npm run agents:format -- --dry
-```
-
-```bash
 npm run agents:format
 ```
 
-The first command previews the change and the second applies it. Agents created from **Team Members** get it automatically.
-
-## Who shows as "in the office"
-
-A person shows as **in the office** when either:
-
-- they have Virtual Office open, or
-- their Multica Desktop or runtime is online.
-
-Otherwise it shows when they were last seen.
+Agents created from **Team Members** include these blocks automatically, and you can also sync instructions from the Integrations Hub.
 
 ## Good to know
 
-- **Agents run where their runtime runs.** In Multica, each agent is tied to one runtime, usually someone's laptop with Multica Desktop. When that laptop is off, the agent's work waits, and the office shows "Laptop off".
-- **Private runtimes:** only the owner can move agents onto a private runtime. Team Members greys those out for everyone else.
-- **Roles:** some actions need workspace **owner** or **admin** rights in Multica, such as opening or closing the office and inviting people. Members can still use everything else.
-- **Customizing:** the look lives in `app/globals.css` and the pixel icons in `app/pixel-icon.tsx`. If you keep a personalized copy, you can update `lib/` from this repo to get fixes without touching your styling.
-- **Older Multica servers:** the app works around endpoints that self-hosted servers may not have yet.
+- **Who shows as "in the office":** A person shows as in the office while Virtual Office is open or their Multica Desktop / runtime is online; otherwise their last-seen timestamp is shown.
+- **Agents run where their runtime runs:** Each Multica agent runs on a specific runtime (usually a laptop running Multica Desktop). Online agents remain seated at their desks (showing `Standby · ready for tasks` when idle); offline runtimes show `"Laptop off"`.
+- **Private runtimes & roles:** Only a runtime's owner can assign agents to a private runtime, and actions like opening/closing the office or inviting members require workspace **owner** or **admin** rights in Multica.
+- **Customizing styles:** Styling is organized into modular stylesheets under `app/styles/01-tokens-base.css` through `08-avatars-theme-adv.css` (imported by `app/globals.css`), with pixel icons in `app/pixel-icon.tsx`.
 
 ## Troubleshooting
 
 | You see | Try |
 |---|---|
-| "Not signed in to Multica on this laptop" | Sign in to Multica Desktop on the server in `MULTICA_API_URL`, or set `MULTICA_TOKEN`. Then reload. |
-| `401` / `403` errors | The token is for a different server, has expired, or your role doesn't allow that action. |
-| The page is blank or shows a red "Runtime Error" after updating | Stop the app (Ctrl+C or close the launcher window) and start it again. |
-| Port 3456 is already in use | Another copy is running. Close it, or start on another port with `npm run dev -- -p 3457`. |
+| `"Not signed in to Multica on this laptop"` | Sign in to Multica Desktop for `MULTICA_API_URL`, or set `MULTICA_TOKEN` in `.env.local`, then reload. |
+| `401` / `403` errors | Check that your token matches the configured Multica server, hasn't expired, and your role permits the action. |
+| Blank page or runtime error after updating | Stop the app (`Ctrl+C` or close the launcher window) and start it again. |
+| Port `3456` already in use | Close the other running copy, or run `npm run dev -- -p 3457`. |
 
 ## For developers
 
-- **Stack:** Next.js 15 (App Router), React 19, TypeScript. All Multica calls happen server-side in `lib/multica.ts`. The token never reaches the browser.
-- **Security guard:** `middleware.ts` (`lib/request-guard.ts`) protects `/api/*` against DNS rebinding and cross-origin CSRF by restricting local `Host` headers to loopback addresses (`localhost`, `127.0.0.1`, `[::1]`, extendable via `KANTOR_ALLOWED_HOSTS`) and enforcing same-origin `Origin` / `Sec-Fetch-Site` / `Referer` checks on mutating requests.
+- **Stack:** Next.js 15 (App Router), React 19, TypeScript (`strict: true`). All Multica API calls run server-side in `lib/multica.ts`; credentials never reach the browser.
+- **Security guard:** `middleware.ts` (`lib/request-guard.ts`) protects `/api/*` against DNS rebinding and cross-origin CSRF by restricting local `Host` headers to loopback addresses (`localhost`, `127.0.0.1`, `[::1]`, extendable via `KANTOR_ALLOWED_HOSTS`) and enforcing same-origin `Origin` / `Sec-Fetch-Site` / `Referer` checks on mutating requests. OOXML previews (`lib/office-preview.ts`) enforce ZIP bounds and decompression caps and render inside `sandbox=""` iframes. Local JSON stores use atomic locked writes (`lib/json-store.ts`, `lib/process-lock.ts`).
 - **Platform notes:** Core Multica views work on macOS and Windows. Local OneDrive auto-discovery (`~/Library/CloudStorage/OneDrive*`), Finder Open/Reveal, web screenshots (`scripts/web-shot.sh`), and WhatsApp bot Chrome auto-discovery are currently macOS-focused; set `KANTOR_ONEDRIVE` and `KANTOR_CHROME` to override paths on other platforms.
 - **Scripts:**
-  - `npm run typecheck`: TypeScript check.
-  - `npm test`: unit and mocked Multica flow tests for task approval/revision, office switching, task chains, Retina workstations, campus pathing, and security hardening.
-  - `npm run office:measure -- --baseline` and `npm run office:measure`: compare Office load time and API-call counts against your configured Multica server. Run each command separately with the same workspace (`--ws=slug` if needed).
-  - `npm run penjaga:uji`: dry run of the office watchdog, which resumes paused tasks and sends Telegram reminders.
-- **Other files:**
-  - `.github/workflows/ci.yml`: automated CI check running `typecheck`, `test`, and `build` on pushes to `main` and pull requests.
-  - `.github/workflows/penjaga.yml`: optional scheduled watchdog that runs on GitHub. It needs repository secrets; see `setup/SETUP-TELEGRAM.md`.
-  - `data/judul.json` (optional, not committed): friendlier titles for your own issues, as `{ "issue-id": "Title" }`. See `data/judul.example.json`.
+  - `npm run typecheck` — TypeScript check (`tsc --noEmit`).
+  - `npm test` — `node:test` suites covering Multica workflows, office sync, security hardening, Retina workstations, campus pathing, floor seats, office schedule/clock, and feed/workflow helpers.
+  - `npm run build` — Production Next.js build (including Edge Middleware).
+  - `npm run office:measure -- --baseline` and `npm run office:measure` — Benchmark Office load latency and API call counts.
+  - `npm run penjaga:uji` — Dry-run the office watchdog (supports `--kuota=claude` simulation).
+  - `npm run telegram:cek` / `npm run telegram:tes` — Discover Telegram chat IDs and send a test notification.
+- **GitHub Actions:**
+  - `.github/workflows/ci.yml` — Runs `npm ci`, `typecheck`, `test`, and `build` on pushes to `main` and pull requests.
+  - `.github/workflows/penjaga.yml` — Optional scheduled watchdog (every 30 minutes, 07:00–23:30 WIB); see `setup/SETUP-TELEGRAM.md`.
 
-## License
+## License & Artwork Attribution
 
 MIT. See [LICENSE](LICENSE).
 
-### Office artwork attribution
-
-The office scene, procedural engine and animation renderer build on the MIT-licensed landing-page code from [Munder Difflin](https://github.com/HarnessMD/munder-difflin), copyright 2026 Chaitanya Giri. The original license is included in `public/vendor/munder/LICENSE`. Only procedural source art is used; the separately licensed LimeZu tilesets are not included. All 23 workstations use the Golden Retina Assets v2.7 sprite system (`public/art/retina-v2.7/` + `public/retina-workstation.js`) by default; append `?retina=0` to the Office URL to fall back to the legacy 1x workstation renderer. The scene is connected to live Multica agents, with keyboard-accessible desk controls, meeting access, squad room assignments, and lunch-hour movement.
-
-> Note: Custom `public/me/character.json` frames are currently only supported by the legacy `app/pixel-desk.tsx` component and are not yet wired into the campus canvas (`app/reference-office.tsx`).
-
-All pages and shared dialogs use the same neutral visual tokens and controls as Office. Legacy browser theme and palette preferences are no longer applied; pixel artwork is retained for the office scene and character portraits.
-
-Kalender istirahat mengikuti zona waktu workspace: Senin–Jumat pukul 12:00–13:00, saat kantor dibuka. Sabtu/Minggu tidak memicu istirahat kecuali ada agent yang benar-benar bekerja atau tanggal kerja tambahan. Hari libur khusus/nasional dapat dicatat di `data/work-calendar.json` (lokal, tidak otomatis disinkronkan):
-
-```json
-{ "WORKSPACE_ID": { "holidays": ["2026-12-25"], "extraWorkDates": ["2026-12-26"] } }
-```
-
-Furnitur dan tekstur kampus menggunakan gambar referensi yang disediakan pengguna (`public/art/office-reference.png`) sebagai atlas render. Lisensi MIT engine Munder tidak mencakup gambar referensi ini. Area luar diperpanjang dengan tekstur rumput dan trotoar untuk mengisi layar tanpa meregangkan gedung.
+- **Scene Engine:** Builds on the MIT-licensed procedural office engine from [Munder Difflin](https://github.com/HarnessMD/munder-difflin) (copyright 2026 Chaitanya Giri; license included in `public/vendor/munder/LICENSE`), extended with a modular TypeScript engine in `lib/office-engine/`. Only procedural/open art is bundled; separately licensed LimeZu tilesets are not included.
+- **Office World & Workstations:** Uses the Stardew-inspired 2× pixel-art environment (`public/office-harvest.js` + `public/art/stardew-v1/`) and Golden Retina Assets v2.7 workstation pack (`public/art/retina-v2.7/` + `public/retina-workstation.js`), alongside user-supplied reference textures in `public/art/office-reference.png` (not covered by the Munder MIT license). Append `?retina=0` to the Office URL to fall back to the legacy 1× workstation renderer.
