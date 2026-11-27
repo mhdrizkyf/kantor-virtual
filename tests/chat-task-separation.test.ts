@@ -106,6 +106,34 @@ test("Chat vs Task separation and conversation continuity", async t => {
       assert.equal(office.agentsDetail.a2.runs.length, 0);
     });
 
+    await t.test("multiple revision runs on the same task collapse into one Recent task run with runCount", () => {
+      const snap = baseSnapshot();
+      snap.issues.push({
+        id: "i2", identifier: "W1-2", title: "Older distinct task", status: "done", priority: "medium",
+        due_date: null, start_date: null, project_id: null, assignee_type: "agent" as const, assignee_id: "a1",
+        updated_at: twoMinAgo, last_activity_at: twoMinAgo, created_at: twoMinAgo, metadata: {},
+      });
+      const office = buildOffice({
+        ...snap,
+        runs: [
+          // 3 revision rounds on i1 + 1 older run on i2 + 1 chat run
+          { id: "r-rev-3", agent_id: "a1", issue_id: "i1", status: "completed", error: null, created_at: nowIso, started_at: nowIso, completed_at: nowIso, runtime_id: "rt1" },
+          { id: "r-rev-2", agent_id: "a1", issue_id: "i1", status: "completed", error: null, created_at: minAgo, started_at: minAgo, completed_at: minAgo, runtime_id: "rt1" },
+          { id: "r-rev-1", agent_id: "a1", issue_id: "i1", status: "failed", error: "old error", created_at: twoMinAgo, started_at: twoMinAgo, completed_at: twoMinAgo, runtime_id: "rt1" },
+          { id: "r-i2", agent_id: "a1", issue_id: "i2", status: "completed", error: null, created_at: twoMinAgo, started_at: twoMinAgo, completed_at: twoMinAgo, runtime_id: "rt1" },
+          { id: "r-chat", agent_id: "a1", issue_id: null, status: "completed", error: null, created_at: nowIso, started_at: nowIso, completed_at: nowIso, runtime_id: "rt1" },
+        ],
+      });
+      const runs = office.agentsDetail.a1.runs;
+      assert.equal(runs.length, 2);
+      assert.equal(runs[0].issueId, "i1");
+      assert.equal(runs[0].id, "r-rev-3");
+      assert.equal(runs[0].status, "completed");
+      assert.equal(runs[0].runCount, 3);
+      assert.equal(runs[1].issueId, "i2");
+      assert.equal(runs[1].runCount, 1);
+    });
+
     await t.test("workspace metrics count real task runs separately from chat replies", () => {
       const m = computeWorkspaceMetrics(baseSnapshot(), [], now);
       assert.equal(m.runs.total, 1);

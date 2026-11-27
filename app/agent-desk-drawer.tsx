@@ -537,7 +537,7 @@ export default function AgentDeskDrawer({
                     <button type="button" className="tasklink" onClick={() => r.issueId && onOpenTask(r.issueId, r.ws)}>
                       <span className="t">
                         {r.issueTitle ?? "Task"}
-                        <small>{r.when}{r.error ? ` · ${r.error}` : ""}</small>
+                        <small>{r.when}{r.runCount && r.runCount > 1 ? ` · ${r.runCount} runs` : ""}{r.error ? ` · ${r.error}` : ""}</small>
                       </span>
                       <span className={`pill ${r.status === "failed" ? "p-review" : r.status === "completed" ? "p-done" : /cancel/.test(r.status) ? "p-locked" : r.status === "queued" ? "p-paused" : "p-doing"}`}>
                         {r.status === "failed" ? "Failed" : r.status === "completed" ? "Done" : /cancel/.test(r.status) ? "Cancelled" : r.status === "queued" ? "Queued" : "Running"}

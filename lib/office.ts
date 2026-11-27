@@ -24,7 +24,7 @@ export type Desk = {
   runtime: string; runtimeId: string | null; squad: string; state: DeskState; bubble: string; reviewCount: number; lateCount: number; riskCount: number; tasks: TaskView[];
 };
 export type Room = { id: string; name: string; icon: string | null; progress: string | null; desks: Desk[] };
-export type RunView = { id: string; issueId: string | null; ws: string; agent: string; status: string; when: string; error: string | null; issueTitle: string | null; url: string | null; kind?: "task" | "chat" };
+export type RunView = { id: string; issueId: string | null; ws: string; agent: string; status: string; when: string; error: string | null; issueTitle: string | null; url: string | null; kind?: "task" | "chat"; runCount?: number };
 export type Office = {
   workspace: string; workspaceId: string; workspaceSlug: string; today: string; updatedAt: string; timeZone: string; open: boolean;
   workCalendar?: WorkCalendar;
@@ -279,11 +279,21 @@ export function buildOffice(s: Snapshot): Office {
     .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).slice(0, 8).map(runView);
 
   const agentsDetail: Office["agentsDetail"] = {};
-  for (const a of s.agents) agentsDetail[a.id] = {
-    // Only show real issue/task runs under "Recent work"; chat-reply runs (issue_id == null) stay in the Chats tab.
-    runs: (runsByAgent.get(a.id) ?? []).filter(r => !!r.issue_id).slice(0, 6).map(runView),
-    tasks: sortTasks(agentIssues.filter(i => i.assignee_id === a.id).map(view)),
-  };
+  for (const a of s.agents) {
+    // Only show real issue/task runs under "Recent task runs" (chat-reply runs stay in Chats),
+    // and deduplicate revision rounds per issue_id so each task appears once with its latest status & run count.
+    const grouped = new Map<string, { latest: Run; count: number }>();
+    for (const r of runsByAgent.get(a.id) ?? []) {
+      if (!r.issue_id) continue;
+      const hit = grouped.get(r.issue_id);
+      if (hit) hit.count++;
+      else grouped.set(r.issue_id, { latest: r, count: 1 });
+    }
+    agentsDetail[a.id] = {
+      runs: [...grouped.values()].slice(0, 6).map(({ latest, count }) => ({ ...runView(latest), runCount: count })),
+      tasks: sortTasks(agentIssues.filter(i => i.assignee_id === a.id).map(view)),
+    };
+  }
 
   const runtimesList = s.runtimes.map(r => {
     const q = quota.get(r.id);
