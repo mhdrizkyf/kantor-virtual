@@ -755,6 +755,12 @@ select:disabled {
 }
 
 .p-done {
+  background: var(--ok-soft);
+  border-color: var(--ok);
+  color: var(--ok-ink, var(--ink));
+}
+
+.p-cancelled {
   background: var(--sunk);
   color: var(--subtle);
   text-decoration: line-through;

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Px } from "./pixel-icon";
 import { GrowText } from "./auto-grow";
 import { useBook, saveContact, setBook, loadBook, useBot, setBot, loadBot } from "./wa-card";
+import { useVisiblePoll } from "./visible-poll";
 import { showTarget, isGroup, withNote, DEFAULT_NOTE } from "@/lib/whatsapp";
 
 /** Link the assistant's own WhatsApp number (like WhatsApp Web), with an 8-character pairing code. */
@@ -13,11 +14,7 @@ function AssistantNumber() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const waiting = bot?.status === "starting" || bot?.status === "code";
-  useEffect(() => {
-    if (!waiting) return;
-    const t = setInterval(() => loadBot().catch(() => {}), 2000);
-    return () => clearInterval(t);
-  }, [waiting]);
+  useVisiblePoll(() => loadBot().catch(() => {}), 2000, waiting);
   async function cancel(id: string) {
     const j = await (await fetch("/api/wa", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "cancel", id }) })).json();
     if (j.error) setErr(j.error); else if (bot) setBot({ ...bot, queue: j.queue });

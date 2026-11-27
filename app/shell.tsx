@@ -15,6 +15,7 @@ const TaskPanel = dynamic(() => import("./task-panel"), { ssr: false });
 const Messages = dynamic(() => import("./messages"), { ssr: false });
 const Reminders = dynamic(() => import("./reminders"), { ssr: false });
 const Contacts = dynamic(() => import("./contacts"), { ssr: false });
+const CommandPalette = dynamic(() => import("./command-palette"), { ssr: false });
 
 export type Nav = { id: string; slug: string; name: string; attention?: number; switchOpen?: boolean };
 export type RosterAgent = { agentId: string; name: string; description: string; face: string | null; state: string };
@@ -120,6 +121,17 @@ export default function Shell({ buildings, current, section, roster = [], childr
   const [dmUnread, setDmUnread] = useState(0);
   const [remindOpen, setRemindOpen] = useState(false);
   const [contactsOpen, setContactsOpen] = useState(false);
+  const [cmdkOpen, setCmdkOpen] = useState(false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setCmdkOpen(v => !v);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   const loadDmCount = useCallback(() => {
     fetch(`/api/dm?ws=${current.id}&count=1`).then(r => r.json()).then(j => typeof j.unread === "number" && setDmUnread(j.unread)).catch(() => {});
   }, [current.id]);
@@ -196,6 +208,11 @@ export default function Shell({ buildings, current, section, roster = [], childr
         </div>
 
         <nav className="side-menu">
+          <button type="button" className="side-link side-cmdk" onClick={() => { setCmdkOpen(true); if (narrow()) toggle(false); }} title={tip("Quick Jump (⌘K)")}>
+            <span className="sl-ic"><Px name="compass" /></span>
+            {open && <span className="sl-t"><b>Quick Jump</b><small>tasks, agents &amp; actions</small></span>}
+            {open && <kbd className="cmdk-kbd">⌘K</kbd>}
+          </button>
           {MENU.map(m => (
             <Link key={m.id} href={`${m.path}?ws=${current.slug}`} className="side-link" aria-current={m.id === section ? "page" : undefined}
               title={tip(m.title)} onClick={() => narrow() && toggle(false)}>
@@ -263,6 +280,20 @@ export default function Shell({ buildings, current, section, roster = [], childr
       {contactsOpen && <Contacts onClose={() => setContactsOpen(false)} />}
       {newWs && <NewWorkspace onClose={() => setNewWs(false)} />}
       {dmOpen && <Messages ws={current.id} start={dmWith} onClose={() => { setDmOpen(false); setDmWith(null); }} onUnread={onDmUnread} />}
+      {cmdkOpen && (
+        <CommandPalette
+          current={current}
+          buildings={buildings}
+          section={section}
+          roster={roster}
+          onClose={() => setCmdkOpen(false)}
+          onOpenTask={id => setTask(id)}
+          onOpenDm={() => { setDmWith(null); setDmOpen(true); }}
+          onOpenReminders={() => setRemindOpen(true)}
+          onOpenContacts={() => setContactsOpen(true)}
+          onOpenInbox={() => setInboxOpen(true)}
+        />
+      )}
       {task && <div className="scrim" onClick={() => { setTask(null); loadItems(); }} />}
       {task && <TaskPanel id={task} ws={current.id} onClose={() => { setTask(null); loadItems(); }} onChanged={() => router.refresh()} />}
     </div>

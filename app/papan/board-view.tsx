@@ -3,10 +3,10 @@ import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import type { Board, Card } from "@/lib/crew";
-import { COLS } from "@/lib/board-cols";
+import { COLS, type Col } from "@/lib/board-cols";
 import { Px, Emo, PxText } from "../pixel-icon";
 import CharacterFace from "../character-face";
-import { useVisiblePoll } from "../visible-poll";
+import { useOfficeSync } from "../use-office-sync";
 
 const TaskPanel = dynamic(() => import("../task-panel"), { ssr: false });
 const NewProject = dynamic(() => import("../new-project"), { ssr: false });
@@ -85,21 +85,50 @@ export default function BoardView({ board, initialProject }: { board: Board; ini
   const [dropCol, setDropCol] = useState<string | null>(null);
   const [moving, setMoving] = useState(false);
   const [moveNotice, setMoveNotice] = useState("");
+  const [optimisticCols, setOptimisticCols] = useState<Record<string, Col>>({});
+  useEffect(() => { setOptimisticCols({}); }, [board.cards]);
+
+  const effectiveCards = useMemo(
+    () => board.cards.map(c => (optimisticCols[c.id] ? { ...c, col: optimisticCols[c.id] } : c)),
+    [board.cards, optimisticCols]
+  );
+
   async function moveCard(id: string, status: string) {
-    if (moving || !board.cards.some(c => c.id === id && c.col !== status)) return;
-    setMoving(true); setMoveNotice("Moving task…");
+    const targetCol = status as Col;
+    const card = effectiveCards.find(c => c.id === id);
+    if (moving || !card || card.col === targetCol) return;
+    // Optimistically move card immediately in UI; roll back automatically if API rejects.
+    setOptimisticCols(cur => ({ ...cur, [id]: targetCol }));
+    setMoving(true);
+    setDropCol(null);
+    setMoveNotice(`Moved "${card.title}"…`);
     try {
-      const res = await fetch(`/api/task/${id}`, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ws:board.workspaceId,action:status === "done" ? "approve" : "move",status})});
-      const data = await res.json(); if (!res.ok || data.error) throw new Error(data.error || "Could not move task");
-      setMoveNotice("Task moved successfully."); refresh();
-    } catch(e) {setMoveNotice(e instanceof Error ? e.message : "Could not move task");}
-    finally {setMoving(false);setDropCol(null);}
+      const res = await fetch(`/api/task/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ws: board.workspaceId, action: status === "done" ? "approve" : "move", status }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || "Could not move task");
+      setMoveNotice("Task moved.");
+      refresh();
+    } catch (e) {
+      setOptimisticCols(cur => {
+        const next = { ...cur };
+        delete next[id];
+        return next;
+      });
+      setMoveNotice(e instanceof Error ? e.message : "Could not move task");
+    } finally {
+      setMoving(false);
+      setDropCol(null);
+    }
   }
   const [who, setWho] = useState("all");
   const [open, setOpen] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [newProject, setNewProject] = useState(false);
-  useVisiblePoll(refresh, 30_000);
+  const { liveConnected } = useOfficeSync(board.workspaceId, refresh);
   // Keep the chosen project in the URL so it can be shared or reloaded.
   useEffect(() => {
     const u = new URL(location.href);
@@ -107,12 +136,12 @@ export default function BoardView({ board, initialProject }: { board: Board; ini
     history.replaceState(null, "", u);
   }, [proj]);
 
-  const shown = useMemo(() => board.cards.filter(c =>
+  const shown = useMemo(() => effectiveCards.filter(c =>
     (proj === "all" || (proj === LOOSE ? !c.projectId : c.projectId === proj)) &&
     (who === "all" || (who === "agents" ? c.who?.kind === "agent" : who === "humans" ? c.who?.kind === "member" : who === "nobody" ? !c.who : c.who?.id === who))
-  ), [board.cards, proj, who]);
+  ), [effectiveCards, proj, who]);
   const current = board.projects.find(p => p.id === proj);
-  const total = board.cards.filter(c => c.col !== "done").length;
+  const total = effectiveCards.filter(c => c.col !== "done").length;
 
   return (
     <>
@@ -121,7 +150,10 @@ export default function BoardView({ board, initialProject }: { board: Board; ini
           <div className="brand"><h1><Px name="board" /> Task Board</h1><p className="pdesc">Every task in this workspace, by project.</p></div>
           <div className="chiprow">
             <button className="btn primary" onClick={() => setAdding(true)}><Px name="plus" size="0.9em" /> New task</button>
-            <span className="clock">{refreshing ? <><span className="spinner sm" /> Refreshing…</> : `${total} open task${total === 1 ? "" : "s"}`}</span>
+            <span className="clock">
+              {liveConnected && <i className="live-sse-dot" title="Real-time SSE connected" />}
+              {refreshing ? <><span className="spinner sm" /> Refreshing…</> : `${total} open task${total === 1 ? "" : "s"}`}
+            </span>
           </div>
         </div>
       </header>

@@ -101,6 +101,7 @@ const ReferenceOffice = memo(function ReferenceOffice({
   harvestPhase = 'day',
   paused = false,
   onDesk,
+  onQuickChat,
   onHuman,
   onMeeting,
   onPropClick,
@@ -127,6 +128,7 @@ const ReferenceOffice = memo(function ReferenceOffice({
   harvestPhase?: HarvestPhase;
   paused?: boolean;
   onDesk: (d: Desk) => void;
+  onQuickChat?: (d: Desk) => void;
   onHuman: (name: string) => void;
   onMeeting: (focusAgentId?: string) => void;
   onPropClick?: (prop: FloorPropKind) => void;
@@ -1394,7 +1396,7 @@ const ReferenceOffice = memo(function ReferenceOffice({
                 title: d.name,
                 badge: d.squad || undefined,
                 detail: d.bubble,
-                tip: 'Drag to hand off · Click to open',
+                tip: 'Click desk · Shift+Click chat · Drag handoff',
               });
             return (
               <button
@@ -1410,10 +1412,17 @@ const ReferenceOffice = memo(function ReferenceOffice({
                 onMouseLeave={() => hideHoverCard(cardKey)}
                 onFocus={e => openCard(e.currentTarget)}
                 onBlur={() => hideHoverCard(cardKey)}
-                onClick={() => {
+                onContextMenu={e => {
+                  if (!onQuickChat) return;
+                  e.preventDefault();
+                  setHoverCard(null);
+                  onQuickChat(d);
+                }}
+                onClick={e => {
                   if (Date.now() - justDraggedRef.current < 260) return;
                   setHoverCard(null);
-                  onDesk(d);
+                  if (e.shiftKey && onQuickChat) onQuickChat(d);
+                  else onDesk(d);
                 }}
                 aria-label={`${d.name}. ${d.squad}. ${d.bubble}. Drag onto another desk or room to hand off.`}
               />

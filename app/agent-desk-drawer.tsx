@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import type { Desk, Office, RunView, TaskView } from "@/lib/office";
 import { pickContinuitySession, readActiveChatId } from "@/lib/chat-continuity";
 import CharacterFace from "./character-face";
@@ -539,7 +540,7 @@ export default function AgentDeskDrawer({
                         {r.issueTitle ?? "Task"}
                         <small>{r.when}{r.runCount && r.runCount > 1 ? ` · ${r.runCount} runs` : ""}{r.error ? ` · ${r.error}` : ""}</small>
                       </span>
-                      <span className={`pill ${r.status === "failed" ? "p-review" : r.status === "completed" ? "p-done" : /cancel/.test(r.status) ? "p-locked" : r.status === "queued" ? "p-paused" : "p-doing"}`}>
+                      <span className={`pill ${r.status === "failed" ? "p-review" : r.status === "completed" ? "p-done" : /cancel/.test(r.status) ? "p-cancelled" : r.status === "queued" ? "p-paused" : "p-doing"}`}>
                         {r.status === "failed" ? "Failed" : r.status === "completed" ? "Done" : /cancel/.test(r.status) ? "Cancelled" : r.status === "queued" ? "Queued" : "Running"}
                       </span>
                     </button>
@@ -559,6 +560,13 @@ export default function AgentDeskDrawer({
                   </div>
                 )) : <p className="desc">No task runs yet. Casual chats stay in the Chats tab.</p>}
               </div>
+            </div>
+
+            <div className="desk-knowledge-bar">
+              <span><Px name="books" /> Knowledge folder &amp; references for {desk.name}</span>
+              <Link className="btn sm" href={`/files?ws=${encodeURIComponent(office.workspaceSlug)}`} onClick={onClose}>
+                Open Knowledge →
+              </Link>
             </div>
 
             {desk.description && (

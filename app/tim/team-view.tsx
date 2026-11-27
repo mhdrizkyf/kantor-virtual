@@ -10,7 +10,7 @@ import { openChat } from "@/lib/dm-events";
 import { Px, Emo, PxText, StateIcon, type PxName } from "../pixel-icon";
 import { GrowText } from "../auto-grow";
 import CharacterFace from "../character-face";
-import { useVisiblePoll } from "../visible-poll";
+import { useOfficeSync } from "../use-office-sync";
 
 const TaskPanel = dynamic(() => import("../task-panel"), { ssr: false });
 const ChatPanel = dynamic(() => import("../chat-panel"), { ssr: false });
@@ -342,7 +342,7 @@ export default function TeamView({ team }: { team: Team }) {
     }
   }
 
-  useVisiblePoll(refresh, 60_000);
+  const { liveConnected } = useOfficeSync(team.workspaceId, refresh);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 6000); return () => clearTimeout(t); }, [toast]);
 
   const busy = [...team.humans, ...team.agents].filter(m => m.load.level === "kewalahan" || m.load.late > 0);
@@ -354,7 +354,10 @@ export default function TeamView({ team }: { team: Team }) {
           <div className="chiprow">
             <button className="btn" onClick={() => setHubOpen(true)}><Px name="sparkle" size="0.9em" /> Insights</button>
             <button className="btn primary" onClick={() => setRecruit(true)}><Px name="plus" size="0.9em" /> Add to team</button>
-            <span className="clock">{refreshing ? <><span className="spinner sm" /> Refreshing…</> : `${team.humans.length} ${team.humans.length === 1 ? "person" : "people"} · ${team.agents.length} agent${team.agents.length === 1 ? "" : "s"}`}</span>
+            <span className="clock">
+              {liveConnected && <i className="live-sse-dot" title="Real-time SSE connected" />}
+              {refreshing ? <><span className="spinner sm" /> Refreshing…</> : `${team.humans.length} ${team.humans.length === 1 ? "person" : "people"} · ${team.agents.length} agent${team.agents.length === 1 ? "" : "s"}`}
+            </span>
           </div>
         </div>
       </header>

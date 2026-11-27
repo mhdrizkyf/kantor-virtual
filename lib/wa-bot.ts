@@ -271,3 +271,4 @@ async function keepAlive() {
 const timers = globalThis as unknown as { __kantorWaTimer?: ReturnType<typeof setInterval> };
 if (timers.__kantorWaTimer) clearInterval(timers.__kantorWaTimer);
 timers.__kantorWaTimer = setInterval(() => { keepAlive().then(runDueSends).catch(e => console.warn("[whatsapp]", String(e).slice(0, 200))); }, 60_000);
+timers.__kantorWaTimer.unref?.();
