@@ -52,7 +52,7 @@ Local files under `data/` (excluded from Git; back them up securely when moving 
 | `cache/` | Local snapshot and digest caches (`snapshots.json`, `digests.json`) for faster loads. |
 | `shot-profile/`, `.locks/` | Headless browser screenshot profile and cross-process atomic locks. |
 
-`notes/` and `public/me/` are also local and excluded from Git.
+`notes/` is also local and excluded from Git.
 
 ### Characters & Klipi
 
